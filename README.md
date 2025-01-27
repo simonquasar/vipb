@@ -42,20 +42,12 @@ This function analyzes a list of potentially suspicious IP addresses, identifies
 
 ## Usage
 
-### Interactive Mode
+### Execute
 
-Launch the interactive interface:
+Launch the interactive interface or cron jobs and automation:
 
 ```bash
 ./vipb.sh
-```
-
-### Automated Mode
-
-For cron jobs and automation, use:
-
-```bash
-./vipb-core.sh
 ```
 
 ## Functions
