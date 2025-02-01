@@ -880,6 +880,52 @@ function handle_logs_info() {
     next
 }
 
+function handle_geoip_info() {
+    debug_log "* GeoIP lookup"
+    header
+    title "GeoIP"
+    echo -e 
+
+    geo_options=()
+    geo_options+=("${GRN}Lookup IP${NC}")
+    geo_choice=$(select_opt "${NC}${DM}<< Back${NC}" "${geo_options[@]}")
+    case $geo_choice in
+        0)  debug_log "** $geo_choice. < Back to Menu"
+            back
+            ;;
+        1)  debug_log "** $geo_choice. GeoLookup IP"
+            subtitle "geo ip"   
+            ask_IPS
+            echo
+            if [[ ${#IPS[@]} -eq 0 ]]; then
+                echo -e "${ORG}No IP entered.${NC}"
+            else
+                if [[ "$IPSET" == "true" ]]; then
+                    setup_ipset "$MANUAL_IPSET_NAME"
+                fi
+                echo
+                
+                if command -v geoiplookup >/dev/null 2>&1; then
+                    echo -e "${GRN}Using ${BG}geoiplookup${NC}${GRN} for IP geolocation${NC}"
+                    for ip in "${IPS[@]}"; do
+                        echo -e "${CYN}Looking up IP: $ip${NC}"
+                        geoiplookup "$ip"
+                        echo
+                    done
+                else
+                    echo -e "${YLW}geoiplookup not found, ${GRN}using whois instead${NC}"
+                    for ip in "${IPS[@]}"; do
+                        echo -e "${CYN}Looking up IP: $ip${NC}"
+                        whois "$ip" | grep -E "Country|city|address|organization|OrgName|NetName" 2>/dev/null
+                        echo
+                    done
+                fi
+            fi
+            next
+            ;;
+    esac
+}
+
 # DOWNLOAD & BAN (Menu 9)
 function handle_download_and_ban() {
     debug_log "* DOWNLOAD & BAN!"
@@ -1063,6 +1109,7 @@ function menu_main() {
             5) handle_cron_jobs ;;
             6) handle_firewall_rules ;;
             7) handle_logs_info ;;
+            8) handle_geoip_info ;;
             9) handle_download_and_ban; break ;;
             0) debug_log "* Exit"; vquit; break ;;
             *) if validate_ip "$choice"; then
