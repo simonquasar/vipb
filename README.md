@@ -44,10 +44,7 @@ This function analyzes a list of potentially suspicious IP addresses, identifies
 
 ### User Interface
 
-- **Interactive Terminal UI**: Color-coded information for clarity.
-- **User-Friendly Menu**: Easy-to-use system for all operations.
-- **Terminal Dashboard**: Clear status updates and counters.
-- **Comprehensive Logs**: Detailed system log reading capabilities.
+- **Interactive Terminal UI**: User friendly and easy-to-use linux cli for all operations with status updates and counters.
 
 ## Usage
 
@@ -63,13 +60,12 @@ Launch the interactive interface or cron jobs and automation:
 
 1. **Download IPsum Blacklist**
    - Choose threat level (2-8).
-   - Higher levels are more strict but list fewer IPs, whereas lower levels include more IPs but may have false positives.
 
 2. **Blacklist Compression**
-   - Aggregates IP lists into subnet ranges, creating /24 and /16 subnet lists.
+   - Aggregates IP lists into subnet ranges, creating /24 and /16 suspicious subnets lists.
 
 3. **Ban via Ipsets**
-   - Apply IP bans from different source lists (also custom).
+   - Apply IP bans from different source lists (also user defined).
    - Choose between original IP lists or the optimized subnets.
    - View and manage active ipsets.
 
@@ -90,24 +86,12 @@ Launch the interactive interface or cron jobs and automation:
 7. **Logs & Info**
    - View related system and operation logs.
 
+8. **Geo IP lookup**
+   - Lookup geographical infos of given IPs.
+     
 ## Configuration
 
-No real configuration is needed. The tool uses two main ipsets:
-
-- `vipb-blacklist`: For automatically downloaded and processed IPs.
-- `vipb-manual`: For manually added IP addresses.
-
-### Blacklist Levels
-
-- **Level 2**: Largest list, includes IPs found on 2+ blacklists.
-- **Level 8**: Strictest filtering, only IPs found on 8+ blacklists.
-- **Recommended Starting Point**: Level 4 or 5.
-
-## Files
-
-- `vipb.sh`: Main UI interface.
-- `vipb-core.sh`: Core script for automation.
-- `vipb-globals.sh`: Shared core variables and functions.
+No real configuration is needed. 
 
 ## Installation
 
@@ -123,8 +107,8 @@ Ensure required dependencies are installed:
 Clone the repository:
 
 ```bash
-git clone https://github.com/simonquasar/vps-ip-blacklist
-cd vps-ip-blacklist
+git clone https://github.com/simonquasar/vipb
+cd vipb
 ```
 
 Make the scripts executable:
@@ -153,4 +137,4 @@ This project is licensed under the GPL-2.0 License. See the LICENSE file for det
 
 ## Note
 
-This tool is designed for "domestic" server protection. Please use responsibly and ensure you understand the implications of IP blocking in your environment.
+This tool is designed for "domestic" server protection. Please use responsibly and ensure you know the implications of firewalling / IP blocking in your environment.
