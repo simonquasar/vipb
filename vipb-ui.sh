@@ -880,10 +880,11 @@ function handle_logs_info() {
     next
 }
 
+# Geo IP lookup (Menu 8)
 function handle_geoip_info() {
     debug_log "* GeoIP lookup"
     header
-    title "GeoIP"
+    title "geo ip"
     echo -e 
 
     geo_options=()
@@ -900,11 +901,6 @@ function handle_geoip_info() {
             if [[ ${#IPS[@]} -eq 0 ]]; then
                 echo -e "${ORG}No IP entered.${NC}"
             else
-                if [[ "$IPSET" == "true" ]]; then
-                    setup_ipset "$MANUAL_IPSET_NAME"
-                fi
-                echo
-                
                 if command -v geoiplookup >/dev/null 2>&1; then
                     echo -e "${GRN}Using ${BG}geoiplookup${NC}${GRN} for IP geolocation${NC}"
                     for ip in "${IPS[@]}"; do

@@ -220,7 +220,7 @@ function setup_ipset() {
 function ask_IPS() {
     IPS=()
     while true; do
-        read -p "IP to ban (↵ to continue): " ip
+        read -p "Insert IP (↵ to continue): " ip
         if [[ -z "$ip" ]]; then
             break
         fi
