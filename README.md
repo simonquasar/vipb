@@ -1,3 +1,5 @@
+<img alt="Static Badge" src="https://img.shields.io/badge/version-0.9beta-orange">
+
 > [!IMPORTANT]  
 > Feb '25: Currently developing 0.9beta to a "stable" 0.9 release.
 > - Adding Geo IP lookup option (using `geoiplookup` or `whois`)
