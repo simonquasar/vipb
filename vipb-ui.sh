@@ -904,16 +904,14 @@ function handle_geoip_info() {
                 if command -v geoiplookup >/dev/null 2>&1; then
                     echo -e "${GRN}Using ${BG}geoiplookup${NC}${GRN} for IP geolocation${NC}"
                     for ip in "${IPS[@]}"; do
-                        echo -e "${CYN}Looking up IP: $ip${NC}"
+                        echo -e "${S16}Looking up IP: $ip${NC}"
                         geoiplookup "$ip"
-                        echo
                     done
                 else
                     echo -e "${YLW}geoiplookup not found, ${GRN}using whois instead${NC}"
                     for ip in "${IPS[@]}"; do
-                        echo -e "${CYN}Looking up IP: $ip${NC}"
+                        echo -e "${S16}Looking up IP: $ip${NC}"
                         whois "$ip" | grep -E "Country|city|address|organization|OrgName|NetName" 2>/dev/null
-                        echo
                     done
                 fi
             fi
@@ -1232,7 +1230,7 @@ function multiselect() {
 }
 
 function select_option() {
-
+    # source github see multiselect()
     # little helpers for terminal print control and key input
     ESC=$( printf "\033")
     cursor_blink_on()  { printf "$ESC[?25h"; }
@@ -1296,7 +1294,7 @@ function select_opt() {
     return $result
 } 
 
-# Function to reload the firewall
+# Function to reload the firewall #2do
 function reload_firewall() {
     if [[ "$USE_FIREWALLD" == "true" ]]; then
         firewall-cmd --reload

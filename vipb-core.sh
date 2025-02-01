@@ -153,7 +153,6 @@ function add_firewall_rules() {
     log "add_firewall_rules USE_FIREWALLD = $USE_FIREWALLD : $*"
     
     local ipset=${1:-"$IPSET_NAME"}
-    # Aggiungi regola per bloccare gli IP nell'ipset
     if [[ "$USE_FIREWALLD" = "true" ]]; then
         # Firewalld
         if ! firewall-cmd --query-ipset="${ipset}" &>/dev/null; then
