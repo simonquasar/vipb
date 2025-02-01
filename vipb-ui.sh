@@ -1091,6 +1091,7 @@ function menu_main() {
     echo -e "\t5. Daily Ban / Cron Jobs${NC}"
     echo -e "\t6${SLM}.${NC} Firewall Rules"
     echo -e "\t7${ORG}.${NC} Logs & infos"
+    echo -e "\t8${GRN}.${NC} Geo IP lookup"
     if [[ $IPSET == "true" ]]; then
         echo
         echo -e "\t${VLT}9. >> DOWNLOAD & BAN! <<${NC}"
