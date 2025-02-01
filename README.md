@@ -1,3 +1,12 @@
+> [!IMPORTANT]  
+> Feb '25: Currently developing 0.9beta to a "stable" 0.9 release.
+> - Adding Geo IP lookup option (using `geoiplookup` or `whois`)
+>   
+> 2do:
+> - better `check_dependencies()`
+> - better use `ban_ip()` along with `check_firewall_rules()`
+> - various 2dos in `vipb-ui.sh`
+
 # VIPB - Versatile IP Blacklister
 
 Welcome to **VIPB (Versatile IP Blacklister)** – a comprehensive tool written in Bash for protecting your VPS Linux server from malicious sources using `ipset` with `iptables` or `firewalld`. It includes automation via `cron` jobs, integration with `fail2ban`, and a user-friendly interface for manual operations.
