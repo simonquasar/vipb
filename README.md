@@ -1,4 +1,6 @@
-<img alt="Static Badge" src="https://img.shields.io/badge/version-0.9beta-orange">
+![Static Badge](https://img.shields.io/badge/version-0.9beta-orange)
+![GitHub top language](https://img.shields.io/github/languages/top/simonquasar/vipb)
+![GitHub commit activity](https://img.shields.io/github/commit-activity/t/simonquasar/vipb)
 
 > [!IMPORTANT]  
 > Feb '25: Currently developing 0.9beta to a "stable" 0.9 release.
@@ -8,6 +10,8 @@
 > - better `check_dependencies()`
 > - better use `ban_ip()` along with `check_firewall_rules()`
 > - various 2dos in `vipb-ui.sh`
+
+![ImagePreview](https://repository-images.githubusercontent.com/923218483/d413034b-c991-41d1-a818-7f3c9a021599)
 
 # VIPB - Versatile IP Blacklister
 
