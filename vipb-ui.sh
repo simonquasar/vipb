@@ -11,11 +11,10 @@ if [ "$CLI" == "true" ]; then
         exit 1
     fi
 else
-    echo "*** VIPB ${VER} *** Hello Human! loading UI interface..."
     log "*** VIPB ${VER} *** Hello Human! loading UI interface..."
+    echo -ne "*** VIPB ${VER} *** Hello Human! loading UI interface"
     
     # UI then define COLORS!
-    
     SLM='\033[38:5:209m' #SALMON
     VLT='\033[38;5;183m'    
     BLU='\033[38;5;12m'
@@ -37,6 +36,7 @@ else
     TB='\033[33m'
     NB='\033[49m' # No BG
 
+    echo -e " and... ${CYN}c${YLW}o${S16}l${SLM}o${VLT}r${GRN}s${RED}!${NC}"
 fi
 
 #  UI functions
@@ -77,7 +77,8 @@ function title {
         figlet -cf "$SCRIPT_DIR/tmplr.flf" "$@"
         echo -e "\t\t\t\t${VLT}≡▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔≡${NC}"
     else
-        echo -e "▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔ ${BD}$@${NC} ▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔"
+        echo
+        center "▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤ ${BD}$@${NC} ▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤"
     fi
     echo
 }
@@ -86,6 +87,7 @@ function subtitle {
     if command -v figlet >/dev/null 2>&1; then
         figlet -f "$SCRIPT_DIR/tmplr.flf" "$@"
     else
+        echo
         echo "-=≡≡ $@ "
     fi
     echo
@@ -119,7 +121,7 @@ function big() {
 
 function level_bar(){
     for ((i=0; i<$1; i++)); do
-        echo -n "▗"
+        echo -ne "${GRN}▗${NC}"
     done
     for ((i=0; i<(8-$1); i++)); do
         echo -n "_"
@@ -127,6 +129,7 @@ function level_bar(){
 }
 
 # Handler UI functions
+
 
 
 # IPsum blacklist download (Menu 1) download_blacklist
@@ -574,8 +577,8 @@ function handle_cron_jobs() {
     case $cron_select in
         0)  back
             ;;
-        1)  # "Change default IPsum list level"
-            subtitle "fire level"
+        1)  subtitle "fire level"
+            # "Change default IPsum list level"
             select_lv=$(($(select_opt "${NC}${DM}<< Back${NC}" "${RED}  2  caution! big list${NC}" "${YLW}  3  ${NC}" "${GRN}  4  ${NC}" "${S16}  5  ${NC}" "${YLW}  6  ${NC}" "${ORG}  7  ${NC}"  "${ORG}  8  ${NC}") + 1))
             case $select_lv in
                 1)  back
@@ -749,7 +752,7 @@ function handle_logs_info() {
         echo -e "▗ ${RED}core error: BLACKLIST_LV not set${NC}\t"
         else
         level_bar "$BLACKLIST_LV"
-        echo -e "\tlv. $BLACKLIST_LV"
+        echo -e "\t${GRN}lv. $BLACKLIST_LV"
     fi
     echo
     echo -e "${YLW}▙ Blacklist Files${NC}\e[33m"
@@ -883,7 +886,7 @@ function handle_logs_info() {
 function handle_geoip_info() {
     debug_log "* GeoIP lookup"
     header
-    title "geo ip"
+    title "geo ip lookup"
     echo -e 
 
     geo_options=()
@@ -894,7 +897,7 @@ function handle_geoip_info() {
             back
             ;;
         1)  debug_log "** $geo_choice. GeoLookup IP"
-            subtitle "geo ip"   
+            subtitle "Geo ip"   
             ask_IPS
             echo
             if [[ ${#IPS[@]} -eq 0 ]]; then
@@ -907,11 +910,19 @@ function handle_geoip_info() {
                         geoiplookup "$ip"
                     done
                 else
-                    echo -e "${YLW}geoiplookup not found, ${GRN}using whois instead${NC}"
-                    for ip in "${IPS[@]}"; do
-                        echo -e "${S16}Looking up IP: $ip${NC}"
-                        whois "$ip" | grep -E "Country|city|address|organization|OrgName|NetName" 2>/dev/null
-                    done
+                    echo -ne "${YLW}geoiplookup not found,"
+                    
+                    if command -v geoiplookup >/dev/null 2>&1; then
+                        echo -e "${GRN}using whois instead${NC}"
+                        for ip in "${IPS[@]}"; do
+                            echo -e "${S16}Looking up IP: $ip${NC}"
+                            whois "$ip" | grep -E "Country|city|address|organization|OrgName|NetName" 2>/dev/null
+                        done
+                    else
+                        echo -e "${ORG}whois not found.${NC}"
+                        echo -e "${RED}Geo IP not available."
+                    fi
+                    
                 fi
             fi
             next
@@ -941,97 +952,90 @@ function handle_download_and_ban() {
 
 # Main UI
 
-# Nice header :)
+# Nice header :) (2do minimize..)
 function header () {
     if [ "$DEBUG" == "true" ]; then
         echo
-        echo "▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤ DEBUG MODE ON ▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤"
+        echo "▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤ DEBUG MODE ON ▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤"
         echo
     else
         clear
     fi
     echo -e "${NC}${RED}${DM}"
     echo -e "    ▁ ▂ ▃ ▅ ▆ ▇ ▉ ▇ ▆ ▅ ▃ ▂ ${NC}${VLT}${BD}Versatile IPs Blacklister${NC}${RED}${DM} ▁ ▂ ▃ ▅ ▆ ▇ ▉ ▇ ▆ ▅ ▃ ▂${NC}"
-    echo
-    echo -e " ░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░▒▓███████▓▒░░▒▓███████▓▒░  "
-    echo -e " ░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░ "
-    echo -e "  ░▒▓█▓▒▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░ "
-    echo -e "  ░▒▓█▓▒▒▓█▓▒░░▒▓█▓▒░▒▓███████▓▒░░▒▓███████▓▒░  "
-    echo -e "   ░▒▓█▓▓█▓▒░ ░▒▓█▓▒░▒▓█▓▒░      ░▒▓█▓▒░░▒▓█▓▒░  ${DM}    •${NC}"
-    echo -e "   ░▒▓█▓▓█▓▒░ ░▒▓█▓▒░▒▓█▓▒░      ░▒▓█▓▒░░▒▓█▓▒░  ${DM}   ┏┓┏┳┓┏┓┏┓┏┓┓┏┏┓┏┏┓┏┓${NC}"
-    echo -e "    ░▒▓██▓▒░  ░▒▓█▓▒░▒▓█▓▒░      ░▒▓███████▓▒░   ${DM}by ┛┗┛┗┗┗┛┛┗┗┫┗┻┗┻┛┗┻┛ ${NC}"
-    echo -e "                                                              ${DM}┗ ${VER}${NC}"
+        echo
+    echo -e "  ██╗   ██╗██╗██████╗ ██████╗ "
+    echo -e "  ██║   ██║██║██╔══██╗██╔══██╗"
+    echo -e "  ██║   ██║██║██████╔╝██████╔╝     ${DM}    •${NC}"
+    echo -e "  ╚██╗ ██╔╝██║██╔═══╝ ██╔══██╗     ${DM}   ┏┓┏┳┓┏┓┏┓┏┓┓┏┏┓┏┏┓┏┓${NC}"
+    echo -e "   ╚████╔╝ ██║██║     ██████╔╝     ${DM}by ┛┗┛┗┗┗┛┛┗┗┫┗┻┗┻┛┗┻┛ ${NC}"
+    echo -e "    ╚═══╝  ╚═╝╚═╝     ╚═════╝                   ${DM}┗                       ${NC}${VER}"
+    echo -e "${RED}${DM}▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤${NC}"
 }
 
-# Dashboard w/ check
+# Dashboard w/ check (2do minimize..)
 function dashboard() {
-    echo -e "${NC}"
-    echo -e "╒═══════════════════════════════════════════════════════════════════════════════╕${NC}"
-    ipset_bans=$(count_ipset "$IPSET_NAME")
-    manual_ipset_bans=$(count_ipset "$MANUAL_IPSET_NAME")
-    echo 
-    center "    ${VLT}${BD}$IPSET_NAME        ${SLM}$MANUAL_IPSET_NAME${NC}" 90
-    echo 
-    if ! check_dependencies; then
-        log "@$LINENO: Error: cannot check dependencies"
-        center "System firewall: $FIREWALL"
-        center "${RED}CRITICAL ERROR: cannot check dependencies!${NC}"
-        echo "Continue in debug mode?"
-        cron_select=$(select_opt "Yes" "No (exit)")
-        case $cron_select in
-            0)  DEBUG="true"
-                ;;
-            1)  exit 1
-                ;;
-        esac
-        center "${ORG}<< DEBUG MODE ${GRN} ACTIVATED >> ${YLW}CONTINUE.."
+    echo -ne "${NC}  [ "
+    # the following should be inherited from the dependencies_check in vipb.sh
+    if command -v iptables &> /dev/null; then # rewrite
+        echo -ne "${GRN}"
+    else
+        echo -ne "${RED}"
     fi
-    big "$ipset_bans" "$manual_ipset_bans" 
-    echo -e "${RED}${BD}"
-    echo -e "     ▁ ▂ ▃ ▅ ▆ ▇ ▉ ▇ ▆ ▅ ▃ ▂ ▁ ▂ ▃ ▅ ▆ ▇ ▉ ▇ ▆ ▅ ▃ ▂ ▁ ▂ ▃ ▅ ▆ ▇ ▉ ▇ ▆ ▅ ▃ ▂${NC}"
-    echo -e "╘═══════════════════════════════════════════════════════════════════════════════╛"                                   
-    echo
-    echo -ne "  ${ORG}▙ ${NC}"
+    echo -ne " ▦${NC} iptables"
+
+    if command -v netfilter-persistent &> /dev/null; then # rewrite
+        echo -ne "${GRN}-persistent"
+    else
+        echo -ne "${RED}"
+    fi
+    echo -ne "${NC} "
+    
+    if command -v ipset &> /dev/null; then # rewrite
+        echo -ne "${GRN}"
+    else
+        echo -ne "${RED}"
+    fi
+    echo -ne " ▤${NC} ipset ] \t"
+
     if command -v ufw &> /dev/null; then
         echo -ne "${YLW}"
         FIREWALL="ufw"
     else
-        echo -ne "${RED}"
-    fi    
-    echo -ne " ▥${NC}${BG} ufw ${NC}\t"
-    if command -v iptables &> /dev/null; then
+        echo -ne "${ORG}"
+    fi 
+    echo -ne " ▥${NC}${BG} ufw ${NC}  "
+    
+    if command -v firewall-cmd &> /dev/null; then # rewrite user choice? which default?
         echo -ne "${GRN}"
     else
-        log "@$LINENO: Critical Error: No firewall system found."
-        FIREWALL="ERROR"
-        echo -ne "${RED}"
+        echo -ne "${ORG}"
     fi
-    echo -ne " ▦${NC} iptables \t"
+    echo -ne " ▧${NC} ${BG}firewalld${NC}  "
 
-    if command -v ipset &> /dev/null; then
+    if command -v fail2ban &> /dev/null; then # rewrite
         echo -ne "${GRN}"
     else
-        echo -ne "${RED}${BL}"
+        echo -ne "${ORG}"
     fi
-    echo -ne " ▤${NC} ipset \t"
-    if command -v firewall-cmd &> /dev/null; then
-        echo -ne "${GRN}"
-    else
-        echo -ne "${RED}"
-    fi
-    echo -ne " ▧${NC} firewalld \t"
-
-    if command -v fail2ban &> /dev/null; then
-        echo -ne "${GRN}"
-    else
-        echo -ne "${RED}"
-    fi
-    echo -ne " ▩${NC} fail2ban"
-    echo -e "   ${ORG}▟${NC}"
+    echo -ne " ▩${NC} ${BG}fail2ban${NC}  "
     echo
-    echo -e "  ${SLM}▙ Cron Jobs ${NC}"
+
+    if command -v ipset &> /dev/null; then # rewrite
+        echo -e "╒═══════════════════════════════════════════════════════════════════════════════╕${NC}"
+        ipset_bans=$(count_ipset "$IPSET_NAME")
+        manual_ipset_bans=$(count_ipset "$MANUAL_IPSET_NAME")
+        echo 
+        center "    ${VLT}${BD}$IPSET_NAME        ${SLM}$MANUAL_IPSET_NAME${NC}" 90
+        echo 
+        big "$ipset_bans" "$manual_ipset_bans" 
+        echo -e "${NC}"
+        echo -e "╘═══════════════════════════════════════════════════════════════════════════════╛"   
+    fi
+    echo
+    echo -ne "  ${SLM}▒ Cron Jobs ${NC}"
     if ! crontab -l >/dev/null 2>&1; then
-        echo -e "\t${RED}Error: Cannot read crontab${NC}"
+        echo -e "${RED}error: Cannot read crontab${NC}"
     else
     
         if crontab -l | grep -q "vipb.sh"; then
@@ -1043,36 +1047,38 @@ function dashboard() {
         for blacklist_lv_check in {1..8}; do
             blacklist_url_check="$BASECRJ${blacklist_lv_check}.txt"
             if crontab -l | grep -q "$blacklist_url_check"; then
-                echo -e " ${GRN}${BL}▼${BR} DL ${VLT}LV $blacklist_lv_check${NC}"
+                echo -e " ${GRN}${BL} ▼${BR} Cron Download ${VLT}Level $blacklist_lv_check${NC}"
             fi
         done
     
     fi
+
     echo
-    echo -e "  ${VLT}▙ Blacklists files${NC}"
-    echo -ne "   ${VLT}▓ IPsum list  "
+    echo -ne "  ${VLT}░ ${BG}IPsum list${NC} "
     check_blacklist_file "$BLACKLIST_FILE"
     echo
-    echo -ne "   ${CYN}▒ Aggregated  "
+    echo -ne "  ${CYN}▒ VIPB-aggregated list${NC} "
     check_blacklist_file "$OPTIMIZED_FILE"
     if [ -f "$BLACKLIST_FILE" ] && [ -f "$OPTIMIZED_FILE" ] && [ -f "$MODIFIED" ]; then
         cmodified=$(stat -c "%y" "$BLACKLIST_FILE" | cut -d. -f1) 
         if [[ "$cmodified" > "$MODIFIED" ]]; then
-            echo -ne " ${ORG}older!${NC}"
+            echo -ne " ${ORG}older! rebuild with 2${NC}"
         fi 
     fi     
     echo
+
+
 }
 
 # Main menu
 function menu_main() {
     echo -e "${VLT}"
-    echo -e "${VLT}┏┳┓┏┓┏┓┏ "
-    echo -e "${VLT}┛┗┗┗ ┛┗┻ ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰${NC}"
-    echo -e "\t${NC}${BG}${DIM}(You can also enter an IP to ban.)${NC}${YLW}"
+    echo -e "┏┳┓┏┓┏┓┏ "
+    echo -e "┛┗┗┗ ┛┗┻ ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰"
+    echo -e "\t${BG}${DIM}(You can also directly enter an IP to ban.)${NC}${YLW}"
     echo -e "${NC}"
     echo -e "\t1${VLT}.${NC} Download ${BG}IPsum${NC} Blacklist"
-    echo -e "\t2${CYN}.${NC} Blacklists > Files ${CYN}[aggregator]${NC}"
+    echo -e "\t2${CYN}.${NC} Blacklists > Files \t${CYN}[aggregator]${NC}"
     if [[ $IPSET == "false" ]]; then
         echo -ne "${DM}"
     fi
@@ -1081,8 +1087,8 @@ function menu_main() {
     if [[ $CRON == "false" ]]; then
         echo -ne "${DM}"
     fi
-    echo -e "\t5. Daily Ban / Cron Jobs${NC}"
-    echo -e "\t6${SLM}.${NC} Firewall Rules"
+    echo -e "\t5. Daily Ban \t\t${SLM}[Cron Jobs] ${NC}"
+    echo -e "\t6${SLM}.${NC} Firewall & Services"
     echo -e "\t7${ORG}.${NC} Logs & infos"
     echo -e "\t8${GRN}.${NC} Geo IP lookup"
     if [[ $IPSET == "true" ]]; then
@@ -1121,6 +1127,7 @@ function menu_main() {
     done
 }
 
+#figlet > movable to ui?
 if ! command -v figlet >/dev/null 2>&1; then
     debug_log "info: figlet not installed"
 fi    
@@ -1352,7 +1359,7 @@ function select_opt() {
     return $result
 } 
 
-# Function to reload the firewall #2do
+# Function to reload the firewall #2do (maybe move to vipb-core??)
 function reload_firewall() {
     if [[ "$USE_FIREWALLD" == "true" ]]; then
         firewall-cmd --reload

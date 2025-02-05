@@ -71,7 +71,7 @@ function check_dependencies() { #needs rewrite
     IPSET=true
     if ! command -v ipset &> /dev/null; then
         if [ "$CLI" == "false" ]; then
-            center "${RED}Error: ipset is not installed!"
+            echo -e "\033[31mError: ipset is not installed!\033[0m"
         fi
         log "@$LINENO: Error: ipset is not installed."
         IPSET=false
@@ -81,7 +81,7 @@ function check_dependencies() { #needs rewrite
     CRON=true
     if ! command -v cron &> /dev/null && ! command -v crond &> /dev/null; then
         if [ "$CLI" == "false" ]; then
-            center "${ORG}Warning: cron/crond not found!"
+            echo -e "\033[38;5;11mWarning: cron/crond not found!\033[0m"
         fi
         log "@$LINENO: Warning: cron/crond not found."
         CRON=false
@@ -633,7 +633,9 @@ function compressor() {
             log "$subnet16_count /16 subnets (@ $c16 )"
             log "====================="
             echo 
-            subtitle "info"
+            echo "•  ┏  ";
+            echo "┓┏┓╋┏┓";
+            echo "┗┛┗┛┗┛ ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰";
             echo -e "${GRN}IPs to Subnets aggregation finished!${NC}"
             echo
             echo -e "    Total processed:\t${VLT}$total_ips IPs ${NC}  \t  100% ◕ "
@@ -671,7 +673,7 @@ function compressor() {
     fi
 }
 
-function ban_core() { #has to be refactored - missing check if iptable exists ! 
+function ban_core() { #has to be refactored - missing check if iptable exists (now in ) 
     log "ban_core"
     echo "▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰"
     echo "Start VIPB ban"
@@ -719,7 +721,10 @@ function ban_core() { #has to be refactored - missing check if iptable exists !
     log "          TOTAL:   $count IPs banned by VIPB"
     log "▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰"
     if [ "$CLI" == "false" ]; then 
-        subtitle "info"
+            echo 
+            echo "•  ┏  ";
+            echo "┓┏┓╋┏┓";
+            echo "┗┛┗┛┗┛ ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰";
     fi
     if [ $err -ne 0 ]; then
         echo -e "Finished with $ERRORS errors.. check logs!"

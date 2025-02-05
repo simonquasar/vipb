@@ -40,6 +40,7 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 # Bootstrap VIPB core functions
 source "$SCRIPT_DIR/vipb-core.sh" "$@"
 
+# Check/Set dependencies first
 check_dependencies
 
 if [ "$CLI" == "false" ]; then
@@ -51,7 +52,8 @@ if [ "$CLI" == "false" ]; then
     dashboard
     menu_main
 
-    vquit
+    # Nice UI quit
+    vquit 
     
     echo "UI error? Exit."
     log "UI error? Exit."
@@ -70,12 +72,13 @@ elif [ "$CLI" == "true" ]; then
             "ban")      echo "ban IP $2"; ban_ip "$MANUAL_IPSET_NAME" "$2"; exit 0;;
             "unban")    echo "unban IP $2"; unban_ip "$MANUAL_IPSET_NAME" "$2"; exit 0;;
             "stats")    echo "Banned in VIPB-set: $(count_ipset "$IPSET_NAME")" 
-                        echo "banned in user set: $(count_ipset "$MANUAL_IPSET_NAME")"
+                        echo "Banned in user set: $(count_ipset "$MANUAL_IPSET_NAME")"
                         exit 0;;
-            "true"|"debug"|"")  debug_log "Starting autoban VIPB ban_core" # default CLI operation > ban blacklist.ipb
+            "true"|"debug"|"")  echo "Starting core autoban...";
+                        debug_log "Starting core autoban..." # default CLI operation > ban blacklist.ipb
                         debug_log "args: $@"
-                        debug_log "BLACKLIST_SOURCE: $BLACKLIST_FILE" 
-                        ban_core $BLACKLIST_FILE
+                        debug_log "Blacklist source file: $BLACKLIST_FILE" 
+                        ban_core $BLACKLIST_FILE # core default operation
                         log "▤▤▤▤ VIPB $VER END. ▤▤▤▤ (CLI $CLI)"
                         exit 0 
                         ;;
