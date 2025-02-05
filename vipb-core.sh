@@ -328,7 +328,7 @@ function add_ips() {
         echo "You must provide one name for the ipset and AT LEAST one IP address. ERR@$LINENO add_ips(): $*"; return 1
     fi
     local ipset="$1"
-    check_dependencies
+    check_dependencies #recheck function&code logic!
     if [ "$IPSET" == "false" ]; then
         if [ "$FIREWALL" == "iptables" ]; then
             for ip in "${IPS[@]}"; do
@@ -692,9 +692,13 @@ function ban_core() { #has to be refactored - missing check if iptable exists !
         exit 1
     fi
 
+    # check if the ipset exists!
+
     add_ips "$ipset" "${IPS[@]}"   
     err=$? 
+
     count=$(count_ipset $ipset)
+
     log "▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱"
     log " VIPB-Ban finished!"
     if [ $err -ne 0 ]; then
