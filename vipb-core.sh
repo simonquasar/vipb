@@ -664,7 +664,7 @@ function compressor() {
     fi
 }
 
-function ban_core() {
+function ban_core() { #has to be refactored - missing check if iptable exists ! 
     log "ban_core"
     echo "▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰"
     echo "Start VIPB ban"

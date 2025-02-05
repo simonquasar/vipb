@@ -1127,7 +1127,7 @@ if ! command -v figlet >/dev/null 2>&1; then
 fi    
 
 
-function multiselect() {
+function multiselect() { #@2do issue: not working in all terminals.. 
     
     # source github https://unix.stackexchange.com/questions/146570/arrow-key-enter-menu
     #   Arguments   : list of options, maximum of 256
