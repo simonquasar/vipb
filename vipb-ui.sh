@@ -1229,14 +1229,14 @@ function multiselect() { #@2do issue: not working in all terminals..
     eval $return_value='("${selected[@]}")'
 }
 
-function select_option {
+function select_option_NEW {
     local options=("$@")
     local selected=0
 
     #tty terminal fallback
     
     function print_menu {
-        clear  # using clear
+        clear  # using clear NO GOOOD
         local i=0
         for opt in "${options[@]}"; do
             if [ $i -eq $selected ]; then
@@ -1272,7 +1272,7 @@ function select_option {
     done
 }
 
-function select_option_OLD() {
+function select_option() {
     # source github see multiselect()
     # little helpers for terminal print control and key input
     ESC=$( printf "\033")
