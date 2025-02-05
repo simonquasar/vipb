@@ -243,7 +243,6 @@ function handle_blacklist_ban() {
     header
     title "lists ban"
     echo
-    check_dependencies
     if [[ $IPSET == "false" ]]; then
         echo -e "${RED}No option available."
     else

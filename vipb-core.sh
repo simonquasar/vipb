@@ -7,8 +7,15 @@ source "$SCRIPT_DIR/vipb-globals.sh" "$@"
 
 # VIPB Core functions
 
-function check_dependencies() {
+function check_dependencies() { #needs rewrite 
     err=0
+    
+    #   1. Check Services check_service
+    #       - list.. (for glob vars?)
+    #   2. Check Firewalls check_firewall (uses check_service & global vars)
+    #   3. Checks ipset / cron / curl global vars(???)
+    #   mhh
+    #   
 
     check_service() {
         local service_name=$1
@@ -40,7 +47,7 @@ function check_dependencies() {
         return 1
     }
 
-    function check_firewall() {
+    function check_firewall() { #??
         if command -v firewall-cmd &> /dev/null && check_service firewalld; then
             USE_FIREWALLD=true
             FIREWALL="firewalld"
@@ -250,7 +257,7 @@ function ban_ip() { #2do  better ban and fw checks
             log "@$LINENO: Error: ipset ${ipset_name} does not exist."
             return 1
         fi
-        if firewall-cmd --ipset="${c}" --query-source="$ip" &>/dev/null; then
+        if firewall-cmd --ipset="${ipset_name}" --query-source="$ip" &>/dev/null; then
             ban_ip_result=2
         else
             firewall-cmd --permanent --ipset="${ipset_name}" --add-entry="$ip"
@@ -328,7 +335,7 @@ function add_ips() {
         echo "You must provide one name for the ipset and AT LEAST one IP address. ERR@$LINENO add_ips(): $*"; return 1
     fi
     local ipset="$1"
-    check_dependencies #recheck function&code logic!
+
     if [ "$IPSET" == "false" ]; then
         if [ "$FIREWALL" == "iptables" ]; then
             for ip in "${IPS[@]}"; do

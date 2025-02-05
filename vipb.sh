@@ -40,6 +40,8 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 # Bootstrap VIPB core functions
 source "$SCRIPT_DIR/vipb-core.sh" "$@"
 
+check_dependencies
+
 if [ "$CLI" == "false" ]; then
     # load UI
     source "$SCRIPT_DIR/vipb-ui.sh"
@@ -58,7 +60,7 @@ if [ "$CLI" == "false" ]; then
 elif [ "$CLI" == "true" ]; then
     # If CLI then parse arguments
     echo "VIPB $VER loaded in CLI/CronJob mode"
-    log "▤▤▤▤ VIPB $VER starting ▤▤▤▤ in CLI/CronJob mode"
+    log "▤▤▤▤ VIPB $VER loaded ▤▤▤▤ in CLI/CronJob mode"
     debug_log "args: $*"
     check_args() {
         case $1 in
