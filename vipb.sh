@@ -79,7 +79,7 @@ elif [ "$CLI" == "true" ]; then
                         ;;
                     *)  echo "invalid argument: $@"
                         echo
-                        echo "► VIPB.sh CLI ARGUMENTS"
+                        echo "► VIPB.sh ($VER) CLI ARGUMENTS"
                         echo
                         echo "  ban #.#.#.#               ban single IP in manual/user list"
                         echo "  unban #.#.#.#             unban single IP in manual/user list"

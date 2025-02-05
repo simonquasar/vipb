@@ -250,7 +250,7 @@ function ban_ip() { #2do  better ban and fw checks
             log "@$LINENO: Error: ipset ${ipset_name} does not exist."
             return 1
         fi
-        if firewall-cmd --ipset="${ipset_name}" --query-source="$ip" &>/dev/null; then
+        if firewall-cmd --ipset="${c}" --query-source="$ip" &>/dev/null; then
             ban_ip_result=2
         else
             firewall-cmd --permanent --ipset="${ipset_name}" --add-entry="$ip"
@@ -692,8 +692,7 @@ function ban_core() { #has to be refactored - missing check if iptable exists !
         exit 1
     fi
 
-    # check if the ipset exists!
-
+    setup_ipset "$ipset"
     add_ips "$ipset" "${IPS[@]}"   
     err=$? 
 
