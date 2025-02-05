@@ -1229,7 +1229,50 @@ function multiselect() { #@2do issue: not working in all terminals..
     eval $return_value='("${selected[@]}")'
 }
 
-function select_option() {
+function select_option {
+    local options=("$@")
+    local selected=0
+
+    #tty terminal fallback
+    
+    function print_menu {
+        clear  # using clear
+        local i=0
+        for opt in "${options[@]}"; do
+            if [ $i -eq $selected ]; then
+                printf " * %s\n" "$opt"  # marker
+            else
+                printf "   %s\n" "$opt"
+            fi
+            ((i++))
+        done
+    }
+
+    while true; do
+        print_menu
+        read -rsn1 input
+        case "$input" in
+            A|k) # UP o 'k'
+                ((selected--))
+                if [ $selected -lt 0 ]; then
+                    selected=$((${#options[@]}-1))
+                fi
+                ;;
+            B|j) # DOWN o 'j'
+                ((selected++))
+                if [ $selected -ge ${#options[@]} ]; then
+                    selected=0
+                fi
+                ;;
+            "") # Enter
+                echo
+                return $selected
+                ;;
+        esac
+    done
+}
+
+function select_option_OLD() {
     # source github see multiselect()
     # little helpers for terminal print control and key input
     ESC=$( printf "\033")

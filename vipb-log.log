@@ -1,0 +1,12 @@
+2025-02-05 18:16:23 - [/workspaces/vipb/vipb-globals.sh] - ▤▤▤▤ VIPB v0.9beta START ▤▤▤▤
+2025-02-05 18:16:23 - [/workspaces/vipb/vipb-globals.sh] - globals.sh loaded / CLI false / DEBUG false
+2025-02-05 18:16:23 - [/workspaces/vipb/vipb-core.sh] - vipb-core.sh loaded / CLI false / DEBUG false
+2025-02-05 18:16:23 - [/workspaces/vipb/vipb-ui.sh] - *** VIPB v0.9beta *** Hello Human! loading UI interface...
+2025-02-05 18:16:23 - [/workspaces/vipb/vipb-ui.sh] - vipb-ui.sh loaded / args: 
+2025-02-05 18:16:24 - [/workspaces/vipb/vipb-core.sh] - @69: Error: ipset is not installed.
+2025-02-05 18:16:24 - [/workspaces/vipb/vipb-core.sh] - @79: Warning: cron/crond not found.
+2025-02-05 18:16:36 - [/workspaces/vipb/vipb-core.sh] - @69: Error: ipset is not installed.
+2025-02-05 18:16:36 - [/workspaces/vipb/vipb-core.sh] - @79: Warning: cron/crond not found.
+2025-02-05 18:16:38 - [/workspaces/vipb/vipb-ui.sh] - * Download IPsum Blacklist
+2025-02-05 18:16:44 - [/workspaces/vipb/vipb-core.sh] - @69: Error: ipset is not installed.
+2025-02-05 18:16:44 - [/workspaces/vipb/vipb-core.sh] - @79: Warning: cron/crond not found.
