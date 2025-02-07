@@ -146,12 +146,12 @@ function handle_ipsum_download() {
     echo -e "see IPsum's URL ${BG}https://github.com/stamparm/ipsum/${NC}${GRY} for more infos${NC}"
     echo
     echo -e "${BD}Level # => IPs appears on at least # blacklists${NC}"
-    echo -e "Select ${BG}IPsum${NC} Blacklist level ${BG}(2 more strict, caution big list! -- less strict 8)${NC}\n"
+    echo -e "Select ${BG}IPsum${NC} Blacklist level ${BG}(2 more strict -- less strict 8)${NC}\n"
 	read -p "[LV (2-8)]: " choice
 	echo -e "${NC}"
 	case $choice in
     case $select_lv in
-        0)  back ;;
+        1)  back ;;
         [2-8]) 
             download_blacklist $select_lv
             next

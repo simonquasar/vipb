@@ -7,6 +7,7 @@
 # |  |  | |   __| __ -|  
 #  \___/|_|__|  |_____| v0.9beta  
 #
+
 # check if debug mode is enabled
 check_debug_mode() {
     DEBUG="false"
