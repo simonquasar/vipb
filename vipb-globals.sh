@@ -2,12 +2,12 @@
 set -o pipefail
 
 # Variables
-VER="v0.9beta"
-BLACKLIST_LV=4
+VER="v0.9beta2"
+BLACKLIST_LV=3
 BASECRJ='https://raw.githubusercontent.com/stamparm/ipsum/master/levels/'
 BLACKLIST_URL="$BASECRJ${BLACKLIST_LV}.txt" 
 BLACKLIST_FILE="$SCRIPT_DIR/vipb-blacklist.ipb"
-OPTIMIZED_FILE="$SCRIPT_DIR/vipb-optimized.ipb"
+OPTIMIZED_FILE="$SCRIPT_DIR/vipb-optimised.ipb"
 SUBNETS24_FILE="$SCRIPT_DIR/vipb-subnets24.ipb"
 SUBNETS16_FILE="$SCRIPT_DIR/vipb-subnets16.ipb"
 LOG_FILE="$SCRIPT_DIR/vipb-log.log"
@@ -19,8 +19,7 @@ ADDED_IPS=0
 ALREADYBAN_IPS=0
 REMOVED_IPS=0
 IPS=()
-USE_FIREWALLD=false
-CRON=false
+
 
 function debug_log() {
     if [[ $DEBUG == "true" ]]; then
@@ -39,4 +38,4 @@ function log() {
 }
 
 log "▤▤▤▤ VIPB $VER START ▤▤▤▤"
-log "globals.sh loaded / CLI $CLI / DEBUG $DEBUG"
+log "globals.sh loaded [CLI $CLI / DEBUG $DEBUG]"

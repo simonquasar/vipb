@@ -7,53 +7,52 @@ source "$SCRIPT_DIR/vipb-globals.sh" "$@"
 
 # VIPB Core functions
 
-function check_dependencies() { #needs rewrite 
+function check_dependencies() {
+    
     err=0
     
-    #   1. Check Services check_service
-    #       - list.. (for glob vars?)
-    #   2. Check Firewalls check_firewall (uses check_service & global vars)
-    #   3. Checks ipset / cron / curl global vars(???)
-    #   mhh
-    #   
-
-    check_service() {
+    function check_service() {
         local service_name=$1
+        local is_active=false
         
-        if [ -f /.dockerenv ] || [ -f /run/.containerenv ] || grep -q container=lxc /proc/1/environ 2>/dev/null; then
-            if pgrep -f "$service_name" >/dev/null; then
-                return 0
-            else
-                return 1
-            fi
+        if command -v "$service_name" &> /dev/null; then
+            is_active=true
+            echo "$is_active"
+            return
         fi
-
+        
         if command -v systemctl &>/dev/null; then
-            if systemctl is-active --quiet "$service_name" 2>/dev/null; then
-                return 0
+            if systemctl is-active --quiet "$service_name" 2>/dev/null ||
+            systemctl status "$service_name" 2>/dev/null | grep -q "active (exited)"; then
+                is_active=true
+                echo "$is_active"
+                return
             fi
-            if systemctl status "$service_name" 2>/dev/null | grep -q "active (exited)"; then
-                return 0
-            fi
-            return 1
         fi
-
+        
         if command -v service &>/dev/null; then
-            service "$service_name" status &>/dev/null
-            return $?
+            if service "$service_name" status &>/dev/null; then
+                is_active=true
+                echo "$is_active"
+                return
+            fi
         fi
-
-        log "check_service $1 fail"
-        return 1
+        
+        log "check_service $1 failed"
+        echo "$is_active"
     }
 
-    function check_firewall() { #??
-        if command -v firewall-cmd &> /dev/null && check_service firewalld; then
-            USE_FIREWALLD=true
+    function check_firewall() {
+        UFW=$(check_service "ufw")
+        IPTABLES=$(check_service "iptables")
+        FIREWALLD=$(check_service "firewall-cmd")
+
+        if [[ "$FIREWALLD" = "true" ]]; then
             FIREWALL="firewalld"
-        elif [ -x "/sbin/iptables" ]; then
-            USE_FIREWALLD=false
+        elif [[ "$IPTABLES" = "true" ]]; then
             FIREWALL="iptables"
+        elif [[ "$UFW" = "true" ]]; then
+            FIREWALL="ufw"
         else
             echo -e "${RED}@$LINENO: Critical Error: No firewall system found?!${NC} ${FIREWALL}"
             log "@$LINENO: Critical Error: No firewall system found."
@@ -63,37 +62,33 @@ function check_dependencies() { #needs rewrite
                 exit 1
             fi
         fi
+
+        log "FIREWALL: $FIREWALL"
+        debug_log "FIREWALLD: $FIREWALLD"
+        debug_log "IPTABLES: $IPTABLES"
+        debug_log "UFW: $UFW"
         return $err    
     }
 
     check_firewall
 
-    IPSET=true
-    if ! command -v ipset &> /dev/null; then
-        if [ "$CLI" == "false" ]; then
-            echo -e "\033[31mError: ipset is not installed!\033[0m"
-        fi
-        log "@$LINENO: Error: ipset is not installed."
-        IPSET=false
-        err=0
-    fi
+    IPSET=$(check_service "ipset")
+    debug_log "IPSET: $IPSET"
 
-    CRON=true
-    if ! command -v cron &> /dev/null && ! command -v crond &> /dev/null; then
-        if [ "$CLI" == "false" ]; then
-            echo -e "\033[38;5;11mWarning: cron/crond not found!\033[0m"
-        fi
-        log "@$LINENO: Warning: cron/crond not found."
-        CRON=false
-    fi
+    PERSISTENT=$(check_service "netfilter-persistent")
+    debug_log "netfilter-persistent: $PERSISTENT"
 
-    CURL=true
-    if ! command -v curl &> /dev/null; then
-        echo -e "${RED}Error: curl is not installed!"
-        log "@$LINENO: Error: curl is not installed."
-        CURL=false
-    fi
-    
+    CRON=$(check_service "cron")
+    debug_log "CRON: $CRON"
+
+    CURL=$(check_service "curl") #no fallback
+    debug_log "CURL: $CURL"
+
+    FAIL2BAN=$(check_service "fail2ban")
+    debug_log "FAIL2BAN: $FAIL2BAN"
+
+
+    log "check_dependencies() return: $err"
     return "$err"
 }
 
@@ -139,7 +134,7 @@ function check_ipset() { #CLI
 
 function reload_firewall() {
     log "reload_firewall"
-    if [[ "$USE_FIREWALLD" == "true" ]]; then
+    if [[ "$FIREWALLD" == "true" ]]; then
         echo -e "${YLW}Restarting Firewalld...${NC}"
         firewall-cmd --reload
         echo -e "${GRN}Firewalld reloaded.${NC}"
@@ -157,10 +152,10 @@ function reload_firewall() {
 }
 
 function add_firewall_rules() {
-    log "add_firewall_rules USE_FIREWALLD = $USE_FIREWALLD : $*"
+    log "add_firewall_rules FIREWALLD = $FIREWALLD : $*"
     
     local ipset=${1:-"$IPSET_NAME"}
-    if [[ "$USE_FIREWALLD" = "true" ]]; then
+    if [[ "$FIREWALLD" = "true" ]]; then
         # Firewalld
         if ! firewall-cmd --query-ipset="${ipset}" &>/dev/null; then
             echo "${YLW}Creating new firewalld ipset (permanent)...${NC}"
@@ -247,11 +242,11 @@ function ban_ip() { #2do  better ban and fw checks
     
     local ipset_name="$1"
     local ip="$2" 
-    debug_log "$USE_FIREWALLD" "$IPSET" "$ipset_name" "$ip" "$FIREWALL"
+    debug_log "$FIREWALLD" "$IPSET" "$ipset_name" "$ip" "$FIREWALL"
     
     local ban_ip_result=0
     
-    if [[ "$USE_FIREWALLD" == "true" ]]; then
+    if [[ "$FIREWALLD" == "true" ]]; then
         if ! firewall-cmd --query-ipset="${ipset_name}" &>/dev/null; then
             echo -e "${RED}Error: ipset ${BG}${ipset_name}${NC} does not exist.${NC} Please create one."
             log "@$LINENO: Error: ipset ${ipset_name} does not exist."
@@ -298,7 +293,7 @@ function ban_ip() { #2do  better ban and fw checks
             ((ADDED_IPS++))
             if  [ "$INFOS" == "true" ]; then
                 echo -ne "+ ${GRN}IP $ip \t"
-                if [[ "$USE_FIREWALLD" == "true" ]]; then
+                if [[ "$FIREWALLD" == "true" ]]; then
                     echo -ne "permanently"
                 fi
                 echo -e "added${NC} $ipset_name"
@@ -365,7 +360,7 @@ function add_ips() {
                 (($ERRORS++))
             fi
         done
-        if [[ "$USE_FIREWALLD" == "true" ]]; then
+        if [[ "$FIREWALLD" == "true" ]]; then
             reload_firewall
         fi
         echo
@@ -451,9 +446,10 @@ function check_blacklist_file() {
             line_count=$(wc -l < "$1")
             MODIFIED=$(stat -c "%y" "$1" | cut -d. -f1)
             if [ "$line_count" == "0" ]; then
-                echo -ne "${ORG}empty ${NC}\t\t$line_count lines\t$file_size KB\t$MODIFIED \t${BG}$1"
+                echo -ne "${ORG}empty ${NC}\t\t$line_count lines \t$file_size KB\t$MODIFIED"
+                # \n${BG}$1${NC}
             else
-                echo -ne "${GRN}found ${NC}\t\t$line_count lines\t$file_size KB\t$MODIFIED \t${BG}$1"
+                echo -ne "${GRN}found ${NC}\t\t$line_count lines   \t$file_size KB\t$MODIFIED"
             fi
         fi
     else
@@ -677,6 +673,14 @@ function ban_core() { #has to be refactored - missing check if iptable exists (n
     log "ban_core"
     echo "▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰"
     echo "Start VIPB ban"
+    if [ "$CLI" == "false" ]; then 
+        echo -ne "${VLT}"
+        echo "┓     "
+        echo "┣┓┏┓┏┓"
+        echo "┗┛┗┻┛┗ ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰"
+        echo
+    fi
+    
     # ban_core blacklist (ipset_name)
 
     local modified=""
@@ -721,7 +725,7 @@ function ban_core() { #has to be refactored - missing check if iptable exists (n
     log "          TOTAL:   $count IPs banned by VIPB"
     log "▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰"
     if [ "$CLI" == "false" ]; then 
-            echo 
+            echo
             echo "•  ┏  ";
             echo "┓┏┓╋┏┓";
             echo "┗┛┗┛┗┛ ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰";
@@ -739,4 +743,4 @@ function ban_core() { #has to be refactored - missing check if iptable exists (n
     return $err
 }
 
-log "vipb-core.sh loaded / CLI $CLI / DEBUG $DEBUG"
+log "vipb-core.sh loaded [CLI $CLI / DEBUG $DEBUG]"

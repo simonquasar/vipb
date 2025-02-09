@@ -5,27 +5,28 @@
 #  _____ _ _____ _____   
 # |  |  |_|  _  | __  |  
 # |  |  | |   __| __ -|  
-#  \___/|_|__|  |_____| v0.9beta  
+#  \___/|_|__|  |_____| v0.9beta2  
 #
+
 # check if debug mode is enabled
 check_debug_mode() {
     DEBUG="false"
-    CLI=false
+    CLI="false"
 
     if [ "$1" == "debug" ]; then
-        echo ">> DEBUG mode: $1"
         DEBUG="true"
+        echo ">> DEBUG mode: $DEBUG"
         shift
 	fi
 
     if [ "$1" == "true" ]; then
         echo ">> CLI simulation: $@"
-        CLI=true
+        CLI="true"
         shift
     elif [ -t 0 ] && [ $# -eq 0 ]; then
-        CLI=false
+        CLI="false"
     else
-        CLI=true
+        CLI="true"
     fi
     # echo "@$LINENO - args: $@ / count: $# / first: $1 / CLI: $CLI / DEBUG: $DEBUG"
 }
@@ -37,8 +38,10 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 # Bootstrap VIPB core functions
 source "$SCRIPT_DIR/vipb-core.sh" "$@"
+debug_log "vipb-core loaded"
 
-# Check/Set dependencies first
+# Check/Set dependencies and set variables
+log "Checking dependencies..."
 check_dependencies
 
 if [ "$CLI" == "false" ]; then
