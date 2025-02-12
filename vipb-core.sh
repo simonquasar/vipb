@@ -134,7 +134,7 @@ function check_ipset() { #CLI
 
 function reload_firewall() {
     log "reload_firewall"
-    if [[ "$FIREWALLD" == "true" ]]; then
+    if [[ "$FIREWALLD" = "true" ]]; then
         echo -e "${YLW}Restarting Firewalld...${NC}"
         firewall-cmd --reload
         echo -e "${GRN}Firewalld reloaded.${NC}"
@@ -242,11 +242,11 @@ function ban_ip() { #2do  better ban and fw checks
     
     local ipset_name="$1"
     local ip="$2" 
-    debug_log "$FIREWALLD" "$IPSET" "$ipset_name" "$ip" "$FIREWALL"
+    debug_log "$FIREWALL" "$ipset_name" "$ip"
     
     local ban_ip_result=0
     
-    if [[ "$FIREWALLD" == "true" ]]; then
+    if [[ "$FIREWALL" == "firewalld" ]]; then
         if ! firewall-cmd --query-ipset="${ipset_name}" &>/dev/null; then
             echo -e "${RED}Error: ipset ${BG}${ipset_name}${NC} does not exist.${NC} Please create one."
             log "@$LINENO: Error: ipset ${ipset_name} does not exist."

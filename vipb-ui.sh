@@ -12,52 +12,91 @@ if [ "$CLI" == "true" ]; then
     fi
 else
     log "*** VIPB ${VER} *** Hello Human! loading UI interface..."
-    echo -ne "*** VIPB ${VER} *** Hello Human! loading UI interface"
-    
-    #here add a check if it is a 256 colors terminal, otherwise set to 8 colors
-    
-    # Check if terminal supports 256 colors
-    if tput colors | grep -q '256' && ! [ "$DEBUG" == "true" ]; then
-        # UI then define COLORS!
-        SLM='\033[38:5:209m' # SALMON
-        VLT='\033[38;5;183m'
-        BLU='\033[38;5;12m'
-        CYN='\033[38;5;50m'
-        S24='\033[38;5;195m' # AZURE
-        S16='\033[38;5;194m' # LIGHTGREEN
-        GRN='\033[38;5;192m'
-        YLW='\033[38;5;11m'
-        ORG='\033[38;5;215m'
-        RED='\033[31m'
-        GRY='\033[38;5;7m' # GREY
-    else
-        # Fallback to 8 colors
-        # deactivate multimenu
-        S24='\033[34m' # BLUE
-        BLU='\033[34m'
-        CYN='\033[36m' # CYAN
-        S16='\033[32m' # GREEN
-        GRN='\033[32m'
-        YLW='\033[33m' # YELLOW
-        ORG='\033[33m'
-        SLM='\033[35m' # MAGENTA
-        VLT='\033[35m'
-        RED='\033[31m' # RED
-        GRY='\033[37m' # WHITE???
+    echo -e "*** VIPB ${VER} *** Hello Human! loading UI interface..."
+            
+    ############################## TERMINAL DEBUG ##############################
+    if [ "$DEBUG" == "true" ]; then
+        debug_log "Terminal type: $TERM" 
+        debug_log "Number of colors supported: $(tput colors 2>/dev/null || echo "unknown")"
+        debug_log "Can clear screen: $(tput clear >/dev/null 2>&1 && echo "Yes" || echo "No")"
+        debug_log "Can position cursor: $(tput cup 0 0 >/dev/null 2>&1 && echo "Yes" || echo "No")"
+        debug_log "Can move cursor: $(tput cup 1 1 >/dev/null 2>&1 && echo "Yes" || echo "No")"
+        debug_log "Can set foreground color: $(tput setaf 1 >/dev/null 2>&1 && echo "Yes" || echo "No")"
+        debug_log "Can set background color: $(tput setab 1 >/dev/null 2>&1 && echo "Yes" || echo "No")"
+        #for i in {0..255} ; do
+        #     printf "\x1b[48;5;%sm%3d\e[0m " "$i" "$i"
+        #done
     fi
+    ############################################################################
     NC='\033[0m' # No Color (reset)
     BD='\033[1m' # bold
-    DM='\033[2m' # dim color #2do check if/when used
-    BG='\033[3m' # italic / BG white #2do check if/when used
-    
-    # 2do: remove across the script
-    BL='\033[5m' # blink
-    BR='\033[25m' # reset blink
-    TB='\033[33m' # text blink????? see YLW & ORG
-
-    NB='\033[49m' # No BG #2do check if/when used
-
-    echo -e " and... ${RED}c${VLT}o${ORG}l${YLW}o${S16}r${CYN}s${BLU}!${NC}"
+    DM='\033[2m' # dim color
+    BG='\033[3m' # italic ?      #2do check if/when used
+    # UI then define COLORS!
+    # Check if terminal supports 256 colors
+    if tput colors | grep -q '256' && ! [ "$DEBUG" == "true" ]; then
+        VLT='\033[38;5;183m'    # plum 
+        BLU='\033[38;5;81m'     # steelblue
+        CYN='\033[38;5;44m'     # darkturquoise
+        S24='\033[38;5;79m'     # aquamarine 
+        S16='\033[38;5;194m'    # honeydew
+        GRN='\033[38;5;191m'    # darkolivegreen
+        YLW='\033[38;5;11m'     # lightyellow
+        ORG='\033[38;5;222m'    # goldenrod 
+        SLM='\033[38:5:210m'    # lightcoral
+        RED='\033[38;5;196m'    # red
+        GRY='\033[38;5;15m'     # white
+        #   activate advanced menu
+        #   USAGE:
+        #   menu_options=()
+        #   menu_options+=("${GRN}Lookup IP${NC}")
+        #   select_opt "${NC}${DM}<< Back${NC}" "${menu_options[@]}"
+        #   menu_choice=$?
+        #   case $menu_choice in
+        #   ...
+        function select_opt() {
+            select_option "$@" 1>&2
+            local result=$?
+            echo $result
+            return $result
+        } 
+    else
+        # .. or fallback to 8 colors
+        VLT='\033[35m' # magenta
+        BLU='\033[34m' # blue
+        CYN='\033[36m' # cyan
+        S24='\033[36m' # cyan
+        S16='\033[32m' # cyan
+        GRN='\033[32m' # green
+        YLW='\033[33m' # yellow
+        ORG='\033[33m' # yellow
+        SLM='\033[33m' # yellow
+        RED='\033[31m' # red
+        GRY='\033[37m' # white
+        #use simple menu 
+        function select_opt() {
+            local options=("$@")
+            local selected=""
+            local i=0
+            echo -ne "${DM}"
+            for option in "${options[@]}"; do
+                echo -ne "$i. $option"
+                echo -e "${NC}"
+                ((i++))
+            done
+            while true; do
+                echo -ne "${YLW}"
+                read -p "_ " selected
+                echo -e "${NC}"
+                case $selected in
+                    [0-9]) return "$selected"; break;;
+                    *) echo -e "${YLW}Invalid option. ${BG}[0-$((${#options[@]} - 1))]${NC}" ;;
+                esac
+            done      
+        } 
+    fi
+    echo
+    echo -e "${GRN}... UI loaded with ${NC}${RED}c${VLT}o${ORG}l${YLW}o${S16}r${CYN}s${BLU}!${NC}"
 fi
 
 #  UI-CORE functions
@@ -157,7 +196,7 @@ function level_bar(){
 function handle_ipsum_download() {
     log "* Download IPsum Blacklist" 
     header
-    echo -ne "${S16}"
+    echo
     title "download list"
     echo -e "${VLT}Current Blacklist: "
     check_blacklist_file $BLACKLIST_FILE infos
@@ -181,6 +220,9 @@ function handle_ipsum_download() {
 # blacklist compression (Menu 2) aggregator & files
 function handle_blacklist_files() {
     debug_log "* Blacklists Files & aggregator"
+    
+    loglen=25
+    
     header
     echo -ne "${CYN}"
     title "aggregator"
@@ -198,7 +240,6 @@ function handle_blacklist_files() {
     fi
 
     #2do add handling of custom .ipb files (see menu 3)
-
     echo
     echo -ne "${S24} Subnets /24 "
     check_blacklist_file $SUBNETS24_FILE infos    
@@ -207,14 +248,10 @@ function handle_blacklist_files() {
     check_blacklist_file $SUBNETS16_FILE infos
     echo
 	echo
-	echo
-    echo -e "1. ${CYN}Start IPsum to Subnets Aggregation${NC}" 
-    echo -e "2. ${ORG}Delete current blacklists files"
-    echo -e "${YLW}"
-    read -p "[1-2|0]: " select_blackl
-	echo -e "${NC}"
-    #select_blackl=$(select_opt "${NC}${DM}<< Back${NC}" "${CYN}Start IPsum to Subnets Aggregation${NC}" "Delete current blacklists files")
-    loglen=25
+	blacklist_options=()
+    blacklist_options+=("${CYN}Start IPsum to Subnets Aggregation${NC}" "${ORG}Delete current blacklists files${NC}")
+    select_opt "${NC}${DM}<< Back${NC}" "${blacklist_options[@]}"
+    select_blackl=$?
     case $select_blackl in
         0)  debug_log "** $select_blackl. < Back to Menu"
             back
@@ -283,16 +320,16 @@ function handle_blacklist_ban() {
         echo
         echo -e "All ready. What do you want to do?" 
         echo
-        echo -e "1. Ban ${VLT}original blacklist${NC} (${VLT}$(wc -l < "$BLACKLIST_FILE") IPs${NC})"
-        echo -e "2. Ban ${CYN}all optimized${NC} (${CYN}$(wc -l < "$OPTIMIZED_FILE") sources${NC})"
-        echo -e "3. Ban ${S24}/24 subnets${NC} (#.#.#.\e[37m0${NC}) (${S24}$(wc -l < "$SUBNETS24_FILE") networks${NC})"
-        echo -e "4. Ban ${S16}/16 subnets${NC} (#.#.\e[37m0.0${NC}) (${S16}$(wc -l < "$SUBNETS16_FILE") networks${NC})${ORG}!${NC}"
-        echo -e "5. Ban ${BLU}from ${BG}*.ipb${NC} files${NC}"
-        echo -e "6. View/Clear active ipsets"
-        echo -e "7. Re-create VIPB-sets ${ORG}!${NC}"
-        echo -e "8. Destroy sets ${ORG}!${NC}"
+        echo -e "\t1. Ban ${VLT}original blacklist${NC} (${VLT}$(wc -l < "$BLACKLIST_FILE") IPs${NC})"
+        echo -e "\t2. Ban ${CYN}all optimized${NC} (${CYN}$(wc -l < "$OPTIMIZED_FILE") sources${NC})"
+        echo -e "\t3. Ban ${S24}/24 subnets${NC} (#.#.#.\e[37m0${NC}) (${S24}$(wc -l < "$SUBNETS24_FILE") networks${NC})"
+        echo -e "\t4. Ban ${S16}/16 subnets${NC} (#.#.\e[37m0.0${NC}) (${S16}$(wc -l < "$SUBNETS16_FILE") networks${NC})${ORG}!${NC}"
+        echo -e "\t5. Ban ${BLU}from ${BG}*.ipb${NC} files${NC}"
+        echo -e "\t6. View/Clear active ipsets"
+        echo -e "\t7. Re-create VIPB-sets ${ORG}!${NC}"
+        echo -e "\t8. Destroy sets ${ORG}!${NC}"
         echo
-        echo "0. <<" 
+        echo -e "\t0. <<" 
         echo -e "\e[0m"
         echo
         while true; do
@@ -365,7 +402,6 @@ function handle_blacklist_ban() {
                 6)  debug_log "** $ipsets_choice. View/Clear" 
                     subtitle "clear ipsets" 
                     echo "Select with [space] the ipsets to clear, then press [enter] to continue."
-                    echo
 
                     #select_ipsets=($(ipset list -n | grep vipb))
                     select_ipsets=($(ipset list -n))
@@ -404,9 +440,9 @@ function handle_blacklist_ban() {
                     
                     next
                     ;;
-                7)  debug_log "** $ipsets_choice. Destroy"
-                    subtitle "destroy ipsets" 
-                    echo "Select with [space] the ipsets to destroy, then press [enter] to continue."
+                7)  debug_log "** $ipsets_choice. Re-Create VIPB-ipsets"
+                    subtitle "Create VIPB-ipsets" 
+                    echo "Select with [space] the VIPB-ipsets to recreate, then press [enter] to continue."
                     echo
 
                     select_ipsets=("$IPSET_NAME" "$MANUAL_IPSET_NAME")
@@ -435,8 +471,10 @@ function handle_blacklist_ban() {
                     if [[ ${#selected_ipsets[@]} -eq 0 ]]; then
                         echo -e "${RED}No ipsets selected.${NC}"
                     else
-                        echo    "Are you sure?"
-                        case `select_opt "No" "Yes"` in
+                        echo   "Are you sure? This will NOT remove related firewall rules! (use option 8 instead)"
+                        select_opt "No" "Yes"
+                        select_yesno=$?
+                        case $select_yesno in
                             0)  echo "Nothing to do."
                                 ;;
                             1)  echo "Refreshing selected ipsets..."
@@ -484,7 +522,9 @@ function handle_blacklist_ban() {
                     else
                         echo -e "${YLW}This action will also remove related firewall rules!"
                         echo    "Are you sure?"
-                        case `select_opt "No" "Yes"` in
+                        select_opt "No" "Yes"
+                        select_yesno=$?
+                        case $select_yesno in
                             0)  echo "Nothing to do."
                                 ;;
                             1)  echo "Deleting selected ipsets..." #2do rewrite with new vars/handlers
@@ -511,7 +551,7 @@ function handle_blacklist_ban() {
                     fi
                     next
                     ;;
-                0)  debug_log "** $ipsets_choice. < Back to Menu"
+                0)  debug_log "** $ipsets_choice. << Back to Menu"
                     back
                     ;;
             esac
@@ -533,19 +573,14 @@ function handle_manual_ban() {
 
     manual_options=()
     if [[ "$FIREWALL" == "iptables" ]] || [[ "$FIREWALL" == "firewalld" ]]; then
-        #manual_options+=("${YLW}Ban single IPs${NC}")
-        echo -e "1. ${YLW}Ban IPs${NC}"
+        manual_options+=("${YLW}Ban IPs${NC}")
     fi
     if [[ "$IPSET" == "true" ]]; then
-        #manual_options+=("View / Unban user Blacklist" "Export to file ($MANUAL_IPSET_NAME.ipb)")
-        echo -e "2. ${ORG}View / Unban List${NC}"
-        echo -e "3. ${BLU}Export to file ${BG}$MANUAL_IPSET_NAME.ipb${NC}"
+        manual_options+=("${ORG}View / Unban List${NC}" "${BLU}Export to file ${BG}$MANUAL_IPSET_NAME.ipb${NC}")
     fi
-    #manual_choice=$(select_opt "${NC}${DM}<< Back${NC}" "${manual_options[@]}")
-    echo -e "${NC}${DM}0. << Back${NC}"
     echo -e "${YLW}"
-    read -p "_ " manual_choice
-    echo -e "${NC}"
+    select_opt "${NC}${DM}<< Back${NC}" "${manual_options[@]}"
+    manual_choice=$?
     case $manual_choice in
         0)  debug_log "** $manual_choice. < Back to Menu"
             back
@@ -570,7 +605,9 @@ function handle_manual_ban() {
                 echo
                 if [[ $ADDED_IPS -gt 0 ]]; then
                     echo -e "${YLW}Do you want to reload the firewall rules?${NC}"
-                    case `select_opt "No" "Yes"` in
+                    select_opt "No" "Yes"
+                    select_yesno=$?
+                    case $select_yesno in
                         0)  echo "Nothing to do."
                             ;;
                         1)  echo "Reloading firewall rules..."
@@ -628,7 +665,7 @@ function handle_cron_jobs() {
     else
     
         if crontab -l | grep -q "vipb.sh"; then
-            echo -e " ${GRN}${BL}◉${BR} VIPB daily job found${NC}"
+            echo -e " ${GRN}◉ VIPB daily job found${NC}"
         else
             echo -e "  ${RED}VIPB daily job not found${NC}"
         fi
@@ -636,7 +673,7 @@ function handle_cron_jobs() {
         for blacklist_lv_check in {1..8}; do
             blacklist_url_check="$BASECRJ${blacklist_lv_check}.txt"
             if crontab -l | grep -q "$blacklist_url_check"; then
-                echo -e " ${GRN}${BL}▼${BR} Daily IPsum download @ ${VLT}LV $blacklist_lv_check${NC}"
+                echo -e " ${GRN}▼ Daily IPsum download @ ${VLT}LV $blacklist_lv_check${NC}"
             fi
         done
     
@@ -666,13 +703,15 @@ function handle_cron_jobs() {
     if [[ $CRON == "true" ]]; then
         cron_options+=("Add Daily Download Job" "Add VIPB Autoban Job" "Remove Cron Jobs")
     fi
-    cron_select=$(select_opt "${NC}${DM}<< Back${NC}" "${cron_options[@]}")
+    select_opt "${NC}${DM}<< Back${NC}" "${cron_options[@]}"
+    cron_select=$?
     case $cron_select in
         0)  back
             ;;
         1)  subtitle "fire level"
             # "Change default IPsum list level"
-            select_lv=$(($(select_opt "${NC}${DM}<< Back${NC}" "${RED}  2  caution! big list${NC}" "${YLW}  3  ${NC}" "${GRN}  4  ${NC}" "${S16}  5  ${NC}" "${YLW}  6  ${NC}" "${ORG}  7  ${NC}"  "${ORG}  8  ${NC}") + 1))
+            select_opt "${NC}${DM}<< Back${NC}" "${NC}${DM}<< Back${NC}" "${RED}  2  caution! big list${NC}" "${YLW}  3  ${NC}" "${GRN}  4  ${NC}" "${S16}  5  ${NC}" "${YLW}  6  ${NC}" "${ORG}  7  ${NC}"  "${ORG}  8  ${NC}"
+            select_lv=$?
             case $select_lv in
                 1)  back
                     ;;
@@ -685,13 +724,18 @@ function handle_cron_jobs() {
             ;;
         2)  # echo "Add new Download Cron Job ( lv. $BLACKLIST_LV )"
             subtitle "add daily dl"
-            echo "Adding new Download Cron Job ( lv. $BLACKLIST_LV )"
-            #select_crjlv=$(($(select_opt "${RED}\t2\t${NC}" "${ORG}\t3\t${NC}" "${GRN}\t4\t${NC}" "${S16}\t5\t${NC}" "${S16}\t6\t${NC}" "${YLW}\t7\t${NC}" "${NC}${DM}<< Back${NC}") + 2))
-            #case $select_crjlv in
-                #[2-7]) 
-            cronurl="https://raw.githubusercontent.com/stamparm/ipsum/master/levels/${BLACKLIST_LV}.txt"
-            (crontab -l 2>/dev/null; echo "0 4 * * * curl -o $BLACKLIST_FILE $cronurl") | crontab -
-            echo -e "${GRN}Cron Job added for daily IP blacklist update. ${NC} @ 4.00 AM server time"
+            select_opt "${NC}${DM}<< Back${NC}" "${NC}${DM}<< Back${NC}" "${RED}\t2\t${NC}" "${ORG}\t3\t${NC}" "${GRN}\t4\t${NC}" "${S16}\t5\t${NC}" "${S16}\t6\t${NC}" "${YLW}\t7\t${NC}"
+            select_crjlv=$?
+            case $select_crjlv in
+                [2-7]) echo "Adding new Download Cron Job ( lv. $BLACKLIST_LV )"
+                    cronurl="https://raw.githubusercontent.com/stamparm/ipsum/master/levels/${BLACKLIST_LV}.txt"
+                    (crontab -l 2>/dev/null; echo "0 4 * * * curl -o $BLACKLIST_FILE $cronurl") | crontab -
+                    echo -e "${GRN}Cron Job added for daily IP blacklist update. ${NC} @ 4.00 AM server time"
+                    next
+                    ;;
+                0)  back
+                    ;;
+            esac
             next
             ;;
         3)  # echo "Add VIPB autoban cron job"
@@ -757,7 +801,8 @@ function handle_firewall_rules() {
     if [[ "$FIREWALL" == "iptables" ]]; then
         fw_options+=("View iptables rules" "Refresh rules")
     fi
-    fw_choice=$(select_opt "${NC}${DM}<< Back${NC}" "${fw_options[@]}")
+    select_opt "${NC}${DM}<< Back${NC}" "${fw_options[@]}"
+    fw_choice=$?
     case $fw_choice in
         0)  back;;
         1)  subtitle "iptables rules"
@@ -808,10 +853,11 @@ function handle_geoip_info() {
     header
     title "geo ip lookup"
     echo -e 
-
     geo_options=()
     geo_options+=("${GRN}Lookup IP${NC}")
-    geo_choice=$(select_opt "${NC}${DM}<< Back${NC}" "${geo_options[@]}")
+    select_opt "${NC}${DM}<< Back${NC}" "${geo_options[@]}"
+    geo_choice=$?
+    # geo_choice=$(select_opt "${NC}${DM}<< Back${NC}" "${geo_options[@]}") old handling
     case $geo_choice in
         0)  debug_log "** $geo_choice. < Back to Menu"
             back
@@ -869,61 +915,51 @@ function handle_logs_info() {
     fi
     echo -e "${VLT}▗ ${BG}by IPsum \thttps://github.com/stamparm/ipsum/${NC}${VLT}"
     echo
-    echo -e "${YLW}▙ Blacklist Files${NC}\e[33m"
-    echo -ne "${YLW}▗ ${VLT}blacklist \t\t"
+    echo -e "${BLU}▙ Blacklist Files${NC}\e[33m"
+    echo -ne "${BLU}▗ ${VLT}blacklist \t\t"
     check_blacklist_file "$BLACKLIST_FILE" infos
     echo
-    echo -ne "${YLW}▗ ${BLU}optimized ${NC}\t\t"
+    echo -ne "${BLU}▗ optimized ${NC}\t\t"
     check_blacklist_file "$OPTIMIZED_FILE" infos
     echo
-    echo -ne "${YLW}▗ ${S24}/24subs${NC} (#.#.#.\e[37m0${NC})\t"
+    echo -ne "${BLU}▗ ${S24}/24subs${NC} (#.#.#.\e[37m0${NC})\t"
     check_blacklist_file "$SUBNETS24_FILE" infos
     echo
-    echo -ne "${YLW}▗ ${S16}/16subs${NC} (#.#.\e[37m0.0${NC})\t"
+    echo -ne "${BLU}▗ ${S16}/16subs${NC} (#.#.\e[37m0.0${NC})\t"
     check_blacklist_file "$SUBNETS16_FILE" infos
     echo
     echo
-    echo -e "${SLM}▙ Cron Jobs"
-    echo -e "${SLM}▗ User ${GRN}$(whoami)"
+    echo -e "${SLM}▙ Cron Jobs user ${GRN}$(whoami)"
     echo -ne "${SLM}▗_ Daily Download ${NC}" # curl.*${BASECRJ}
     if [[ $CRON == "true" ]]; then
-        crontab -l | grep -E "curl.*$BASECRJ|wget.*$BASECRJ|scp.*$BASECRJ|rsync.*$BASECRJ" | awk '{print "\t\033[38;5;192m\033[5m◉\033[0m " $0 }'
+        crontab -l | grep -E "curl.*$BASECRJ|wget.*$BASECRJ|scp.*$BASECRJ|rsync.*$BASECRJ" | awk '{print "\033[38;5;192m\033[5m◉\033[0m " $0 }'
     else
         echo -e " ${RED}◉${NC} no daily download found${NC}"
     fi
-    echo -ne "${SLM}▗_ Daily Autoban ${NC}" # vipb-core.sh
+    echo -ne "${SLM}▗_ Daily Autoban  ${NC}" # vipb-core.sh
     if [[ $CRON == "true" ]]; then
-        crontab -l | grep -E "vipb.sh" | awk '{print "\t\033[38;5;192m\033[5m◉\033[0m " $0 }'
+        crontab -l | grep -E "vipb.sh" | awk '{print "\033[38;5;192m\033[5m◉\033[0m " $0 }'
     else
         echo -e " ${RED}◉${NC} no daily VIPB-autoban job found"
     fi
     echo
-    echo -e "${YLW}▙ VIPB variables"
-    echo -e "${YLW}▗ Core ${NC}"
-    
+    echo -e "${YLW}▙ VIPB variables"    
     echo -e "${YLW}VER: ${NC}$VER, ${YLW}CLI: ${NC}$CLI, ${YLW}DEBUG: ${NC}$DEBUG"
     echo -e "${YLW}IPSET_NAME: ${NC}$IPSET_NAME, ${YLW}MANUAL_IPSET_NAME: ${NC}$MANUAL_IPSET_NAME, ${YLW}SCRIPT_DIR: ${NC}$SCRIPT_DIR"
     echo -e "${YLW}CRON: ${NC}$CRON, ${YLW}LOG_FILE: ${NC}$LOG_FILE"
-    
-    echo -e "${YLW}▗ Session ${NC}"
-
-    echo -e "${YLW}IPSET: ${NC}$IPSET, ${YLW}FIREWALL: ${NC}$FIREWALL, ${YLW}FIREWALLD: ${NC}$FIREWALLD"
-    echo -e "${YLW}ADDED_IPS: ${NC}$ADDED_IPS, ${YLW}ALREADYBAN_IPS: ${NC}$ALREADYBAN_IPS, ${YLW}INFOS: ${NC}$INFOS, ${YLW}MODIFIED: ${NC}$MODIFIED"
-    echo -e "${YLW}IPS: ${NC}${IPS[@]:0:3}... (total: ${#IPS[@]})"
+    echo -e "${YLW}IPSET: ${NC}$IPSET, ${YLW}FIREWALL: ${NC}$FIREWALL, ${YLW}FIREWALLD: ${NC}$FIREWALLD, ${YLW}UFW: ${NC}$UFW"
 
     log_selector(){
         echo
-        echo -e "${ORG}▙ LOGS${NC}"
-        echo -e "${ORG}select log:${NC}"
-        
+        echo -e "${ORG}■■■ LOG VIEWER ■■■ Select log:${NC}"
         
         log_options=("auth.log" "usermin" "webmin" "syslog" "journalctl" "VIPB" "Reset VIPB log")
-        if check_service fail2ban; then
+        if [[ $FAIL2BAN == "true" ]]; then
             log_options+=("Fail2Ban" "Fail2Ban [WARNINGS]")
         fi
         
-        select_log=$(select_opt "${NC}${DM}<< Back${NC}" "${ORG}${log_options[@]}")
-        
+        select_opt "${NC}${DM}<< Back${NC}" "${log_options[@]}"
+        select_log=$?
         loglen=25
         case $select_log in
             0)  back
@@ -1118,36 +1154,37 @@ function dashboard() {
     fi     
     echo
 
-    echo -ne "\t${SLM}⊙ Cron Jobs ${NC}"
+    echo -ne "\t${SLM}⊙ Cron Job ${NC}"
     if [ "$CRON" == "false" ]; then
         echo -e "${RED}error: Cannot read crontab${NC}"
     else
     
         if crontab -l | grep -q "vipb.sh"; then
-            echo -ne "\t${GRN}${BL}◉${BR} VIPB daily job found${NC}"
+            echo -ne "${GRN}◉ VIPB daily job found${NC}"
         else
-            echo -ne "\t${RED}VIPB daily job not found${NC}"
+            echo -ne "${RED}X VIPB daily job not found${NC}"
         fi
 
-        echo -ne " ${SLM}${BL} ▼${BR} Cron Download "
+        echo -ne " ${SLM} ▼ Cron Download"
 
         for blacklist_lv_check in {1..8}; do
             blacklist_url_check="$BASECRJ${blacklist_lv_check}.txt"
             if crontab -l | grep -q "$blacklist_url_check"; then
-                echo -ne " ${GRN}Level $blacklist_lv_check${NC}"
+                echo -ne " ${GRN}Lv. $blacklist_lv_check${NC}"
             fi
         done
     
     fi
     echo -e "${NC}"
-
-    echo -e "╘═══════════════════════════════════════════════════════════════════════════════╛"   
     if [ "$IPSET" == "true" ]; then
         ipset_bans=$(count_ipset "$IPSET_NAME")
         manual_ipset_bans=$(count_ipset "$MANUAL_IPSET_NAME")
-        #center "${VLT}${BD}$IPSET_NAME ${NC}▤▤ ${SLM}$MANUAL_IPSET_NAME${NC}" 90 
-        title "VIPB bans: $ipset_bans . USER bans: $manual_ipset_bans" 
+        center "------------------------------------------"
+        center "${CYN}VIPB banned:${BD} $ipset_bans ${NC}\t▓\t${YLW}USER bans: ${BD}$manual_ipset_bans${NC}" 70
+        #title "VIPB bans: $ipset_bans . USER bans: $manual_ipset_bans" 
     fi
+    echo -e "╘═══════════════════════════════════════════════════════════════════════════════╛"   
+
 }
 
 # Main menu
@@ -1155,21 +1192,21 @@ function menu_main() {
     echo -ne "${VLT}"
     #echo -e "┏┳┓┏┓┏┓┏ "
     #echo -e "┛┗┗┗ ┛┗┻ ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰"
-    center "▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰"
-    echo -e "\t${BG}${DIM}(You can directly enter an IP to ban.)${NC}"
+    #center "▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰"
+    echo -e "\t${BG}${DM}(You can directly enter an IP to ban.)${NC}"
     echo -e "${NC}"
     echo -e "\t1${VLT}. Download${NC} IPsum Blacklist"
-    echo -e "\t2${CYN}.${NC} Lists Files ⋯ ${CYN}Aggregator${NC}"
+    echo -e "\t2${CYN}.${NC} Lists Files ${CYN}& aggregate${NC}"
     if [[ $IPSET == "false" ]]; then
         echo -ne "${DM}"
     fi
-    echo -e "\t3. Ban Blacklists ${GRN}✦ ${FIREWALL}${NC}"
-    echo -e "\t4${YLW}. User${NC} IPs banlist"
+    echo -e "\t3${GRN}. Ban${NC} Blacklists ${GRN}w/ ${FIREWALL}${NC}"
+    echo -e "\t4${YLW}. Manual Banlist${NC}"
     if [[ $CRON == "false" ]]; then
         echo -ne "${DM}"
     fi
-    echo -e "\t5${S24}.${NC} Daily ${SLM}Cron ${NC}Ban Job"
-    echo -e "\t6${GRN}. Geo${NC} IP lookup"
+    echo -e "\t5${SLM}.${NC} Daily ${SLM}Cron ${NC}Ban Job"
+    echo -e "\t6${S24}. Geo IP${NC} lookup"
     #echo -e "\tX${SLM}.${NC} Firewall & Services"
     echo -e "\t7${ORG}. Logs ${NC}& Vars"
     if [[ $IPSET == "true" ]]; then
@@ -1179,9 +1216,10 @@ function menu_main() {
     echo
     echo -e "\t0. Exit"
     while true; do
+        local choice
         echo -e "${YLW}"
         read -p "[#|IP]: " choice
-        echo -e "${NC}"
+        echo -ne "${NC}"
         case $choice in
             1) handle_ipsum_download ;;
             2) handle_blacklist_files ;;
@@ -1209,115 +1247,160 @@ function menu_main() {
     done
 }
 
-#2do figlet > movable to ui?
-if ! command -v figlet >/dev/null 2>&1; then
-    debug_log "info: figlet not installed"
-fi    
+# Menu selector functions
 
-# 2do remove this multiselect stuff back to basic number input for better compatibility
 function multiselect() {
-
-    # source github https://unix.stackexchange.com/questions/146570/arrow-key-enter-menu
-    #   Arguments   : list of options, maximum of 256
-    #   Return value: selected index (0 for opt1, 1 for opt2 ...)
-
-    ESC=$( printf "\033")
-    cursor_blink_on()   { printf "$ESC[?25h"; }
-    cursor_blink_off()  { printf "$ESC[?25l"; }
-    cursor_to()         { printf "$ESC[$1;${2:-1}H"; }
-    # little helpers for terminal print control and key input
-    print_inactive()    { printf "$2   $1 "; }
-    print_active()      { printf "$2  $ESC[7m $1 $ESC[27m"; }
-    get_cursor_row()    { IFS=';' read -sdR -p $'\E[6n' ROW COL; echo ${ROW#*[}; }
 
     local return_value=$1
     local -n options=$2
     local -n defaults=$3
 
-    local selected=()
-    for ((i=0; i<${#options[@]}; i++)); do
-        if [[ ${defaults[i]} = "true" ]]; then
-            selected+=("true")
-        else
-            selected+=("false")
-        fi
-        printf "\n"
-    done
+    # source https://unix.stackexchange.com/a/673436
+    if tput colors | grep -q '256' && ! [ "$DEBUG" == "true" ]; then
+        
+        #my_options=(   "Option 1"  "Option 2"  "Option 3" )
+        #preselection=( "true"      "true"      "false"    )
+        #multiselect result my_options preselection (or false if no preselection)
+        #i=0
+        #for option in "${my_options[@]}"; do
+        #    echo -e "$option\t=> ${result[i]}"
+        #    ((i++))
+        #done
+        
+        ESC=$( printf "\033")
+        cursor_blink_on()   { printf "$ESC[?25h"; }
+        cursor_blink_off()  { printf "$ESC[?25l"; }
+        cursor_to()         { printf "$ESC[$1;${2:-1}H"; }
+        print_inactive()    { printf "$2   $1 "; }
+        print_active()      { printf "$2  $ESC[7m $1 $ESC[27m"; }
+        get_cursor_row()    { IFS=';' read -sdR -p $'\E[6n' ROW COL; echo ${ROW#*[}; }
 
-    # determine current screen position for overwriting the options
-    local lastrow=`get_cursor_row`
-    local startrow=$(($lastrow - ${#options[@]}))
-
-    # ensure cursor and input echoing back on upon a ctrl+c during read -s
-    trap "cursor_blink_on; stty echo; printf '\n'; exit" 2
-    cursor_blink_off
-
-    key_input() {
-        local key
-        IFS= read -rsn1 key 2>/dev/null >&2
-        if [[ $key = ""      ]]; then echo enter; fi;
-        if [[ $key = $'\x20' ]]; then echo space; fi;
-        if [[ $key = "k" ]]; then echo up; fi;
-        if [[ $key = "j" ]]; then echo down; fi;
-        if [[ $key = $'\x1b' ]]; then
-            read -rsn2 key
-            if [[ $key = [A || $key = k ]]; then echo up;    fi;
-            if [[ $key = [B || $key = j ]]; then echo down;  fi;
-        fi 
-    }
-
-    toggle_option() {
-        local option=$1
-        if [[ ${selected[option]} == true ]]; then
-            selected[option]=false
-        else
-            selected[option]=true
-        fi
-    }
-
-    print_options() {
-        # print options by overwriting the last lines
-        local idx=0
-        for option in "${options[@]}"; do
-            local prefix="[ ]"
-            if [[ ${selected[idx]} == true ]]; then
-              prefix="[\e[38;5;46m✔\e[0m]"
-            fi
-
-            cursor_to $(($startrow + $idx))
-            if [ $idx -eq $1 ]; then
-                print_active "$option" "$prefix"
+        local selected=()
+        for ((i=0; i<${#options[@]}; i++)); do
+            if [[ ${defaults[i]} = "true" ]]; then
+                selected+=("true")
             else
-                print_inactive "$option" "$prefix"
+                selected+=("false")
             fi
-            ((idx++))
+            printf "\n"
         done
-    }
+        # determine current screen position for overwriting the options
+        local lastrow=`get_cursor_row`
+        local startrow=$(($lastrow - ${#options[@]}))
 
-    local active=0
-    while true; do
-        print_options $active
+        # ensure cursor and input echoing back on upon a ctrl+c during read -s
+        trap "cursor_blink_on; stty echo; printf '\n'; exit" 2
+        cursor_blink_off
 
-        # user key control
-        case `key_input` in
-            space)  toggle_option $active;;
-            enter)  print_options -1; break;;
-            up)     ((active--));
-                    if [ $active -lt 0 ]; then active=$((${#options[@]} - 1)); fi;;
-            down)   ((active++));
-                    if [ $active -ge ${#options[@]} ]; then active=0; fi;;
-        esac
-    done
+        key_input() {
+            local key
+            IFS= read -rsn1 key 2>/dev/null >&2
+            if [[ $key = ""      ]]; then echo enter; fi;
+            if [[ $key = $'\x20' ]]; then echo space; fi;
+            if [[ $key = "k" ]]; then echo up; fi;
+            if [[ $key = "j" ]]; then echo down; fi;
+            if [[ $key = $'\x1b' ]]; then
+                read -rsn2 key
+                if [[ $key = [A || $key = k ]]; then echo up;    fi;
+                if [[ $key = [B || $key = j ]]; then echo down;  fi;
+            fi 
+        }
 
-    # cursor position back to normal
-    cursor_to $lastrow
-    printf "\n"
-    cursor_blink_on
+        toggle_option() {
+            local option=$1
+            if [[ ${selected[option]} == true ]]; then
+                selected[option]=false
+            else
+                selected[option]=true
+            fi
+        }
 
-    eval $return_value='("${selected[@]}")'
+        print_options() {
+            # print options by overwriting the last lines
+            local idx=0
+            for option in "${options[@]}"; do
+                local prefix="[ ]"
+                if [[ ${selected[idx]} == true ]]; then
+                prefix="[\e[38;5;46m✔\e[0m]"
+                fi
+
+                cursor_to $(($startrow + $idx))
+                if [ $idx -eq $1 ]; then
+                    print_active "$option" "$prefix"
+                else
+                    print_inactive "$option" "$prefix"
+                fi
+                ((idx++))
+            done
+        }
+
+        local active=0
+        while true; do
+            print_options $active
+
+            # user key control
+            case `key_input` in
+                space)  toggle_option $active;;
+                enter)  print_options -1; break;;
+                up)     ((active--));
+                        if [ $active -lt 0 ]; then active=$((${#options[@]} - 1)); fi;;
+                down)   ((active++));
+                        if [ $active -ge ${#options[@]} ]; then active=0; fi;;
+            esac
+        done
+
+        # cursor position back to normal
+        cursor_to $lastrow
+        printf "\n"
+        cursor_blink_on
+
+        eval $return_value='("${selected[@]}")'
+
+    else
+        local selected=()
+        for ((i=0; i<${#options[@]}; i++)); do
+            if [[ ${defaults[i]} = "true" ]]; then
+                selected+=("true")
+            else
+                selected+=("false")
+            fi
+        done
+
+        echo -e "${DM}(Multiselect not available in low color mode. Fallback to single # selection.)${NC}"
+        i=0
+        m=1
+        for option in "${options[@]}"; do
+            echo -ne "\t $m. $option"
+            echo -e "${NC}"
+            ((i++))
+            ((m++))
+        done
+
+        local multichoice=0
+        debug_log "multichoice ${multichoice} multichoice ${multichoice}"
+        
+        while true; do
+            echo -e "${YLW}"
+            read -p "[1-${#options[@]}]: " multichoice
+            case $multichoice in
+                [0])  break;;
+                [1-${#options[@]}])  
+                    ((multichoice--))
+                    selected[$multichoice]="true"; break;;
+                *)  echo; echo -ne "${YLW}Invalid option. ${BG}[0 to exit]${NC}" ;;
+            esac
+        done
+        echo -ne "${NC}"
+        #echo -e "multichoice ${multichoice} multichoice ${multichoice}"
+       
+        eval $return_value='("${selected[@]}")'
+    fi
 }
 
 function select_option() {
+     # source github https://unix.stackexchange.com/questions/146570/arrow-key-enter-menu
+        #   Arguments   : list of options, maximum of 256
+        #   Return value: selected index (0 for opt1, 1 for opt2 ...)
 
     # little helpers for terminal print control and key input
     ESC=$( printf "\033")
@@ -1375,11 +1458,5 @@ function select_option() {
     return $selected
 }
 
-function select_opt() {
-    select_option "$@" 1>&2
-    local result=$?
-    echo $result
-    return $result
-} 
 
 log "vipb-ui.sh loaded [DEBUG $DEBUG / ARGS: $*]"
