@@ -50,7 +50,6 @@ if [ "$CLI" == "false" ]; then
     
     # Start UI execution
     header
-    dashboard
     menu_main
 
     # Nice UI quit
@@ -79,7 +78,7 @@ elif [ "$CLI" == "true" ]; then
                         debug_log "Starting core autoban..." # default CLI operation > ban blacklist.ipb
                         debug_log "args: $@"
                         debug_log "Blacklist source file: $BLACKLIST_FILE" 
-                        ban_core $BLACKLIST_FILE # core default operation
+                        ban_core "$BLACKLIST_FILE" # core default operation
                         log "▤▤▤▤ VIPB $VER END. ▤▤▤▤ (CLI $CLI)"
                         exit 0 
                         ;;

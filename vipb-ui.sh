@@ -57,7 +57,8 @@ else
         function select_opt() {
             select_option "$@" 1>&2
             local result=$?
-            echo $result
+            #echo -ne "\033[0m"
+            #echo $result
             return $result
         } 
     else
@@ -103,22 +104,21 @@ fi
 
 function back {
     header
-    dashboard
     menu_main
 }
 
 function next() {
     echo -e "${NC}"
-    echo -ne "${YLW}press enter"
+    echo -ne "${YLW}${DM}[enter] to continue"
     read -p "_ " p
     echo -e "${NC}"
-    
+
     back
 }
 
 function vquit {
     echo -e "${NC}"
-    title "ViPB end."
+    subtitle "ViPB end."
     log "▩▩▩▩ VIPB $VER END. ▩▩▩▩"
     exit 0
 }
@@ -134,50 +134,12 @@ function center() {
 
 #  UI-OPT functions
 
-function title {
-    if command -v figlet >/dev/null 2>&1 && [ "$DEBUG" == "false" ]; then
-        figlet -cf "$SCRIPT_DIR/tmplr.flf" "$@"
-        echo -e "\t\t\t\t${VLT}≡▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔≡${NC}"
-    else
-        echo
-        center "▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤ ${BD}$@${NC} ▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤"
-    fi
-    echo
-}
-
 function subtitle {
     if command -v figlet >/dev/null 2>&1 && [ "$DEBUG" == "false" ]; then
         figlet -f "$SCRIPT_DIR/tmplr.flf" "$@"
     else
         echo
-        echo "-=≡≡ $@ "
-    fi
-    echo
-}
-
-function get_figlet() { #2do combine the font in the ui file
-    figlet -f "$SCRIPT_DIR/pagga.flf" "$1"
-}
-
-function big() {
-    local n1=$1
-    local n2=$2
-    local spacing=${3:-8}
-    if command -v figlet >/dev/null 2>&1; then
-
-        mapfile -t lines1 < <(get_figlet "$n1")
-        mapfile -t lines2 < <(get_figlet "$n2")
-        
-        local max_lines=$(( ${#lines1[@]} > ${#lines2[@]} ? ${#lines1[@]} : ${#lines2[@]} ))
-        
-        for (( i=0; i<max_lines; i++ )); do
-            local line1="${lines1[$i]:-}"
-            local line2="${lines2[$i]:-}"
-            
-            printf "%s%*s%s\n" "                    ${line1%"${line1##*[![:space:]]}"}" "$spacing" "" "$line2"
-        done
-    else
-         center "◢  $1  ✦  $2  ◣" 80
+        echo "-=≡≡ $@ ≡≡=-"
     fi
 }
 
@@ -194,17 +156,18 @@ function level_bar(){
 
 # IPsum blacklist download (Menu 1) download_blacklist
 function handle_ipsum_download() {
-    log "* Download IPsum Blacklist" 
-    header
-    echo
-    title "download list"
-    echo -e "${VLT}Current Blacklist: "
-    check_blacklist_file $BLACKLIST_FILE infos
-    echo -e "\n"
+    debug_log "* Download IPsum Blacklist" 
+    
+    subtitle "download ipsum list"
     echo -e "${GRY}${BG}IPsum${NC}${GRY} is a feed based on 30+ publicly available lists of suspicious and/or malicious IP addresses. The provided list is made of IP addresses matched with a number of (black)lists occurrences. "
-    echo -e "${S16}for more infos see IPsum's URL ${BG}https://github.com/stamparm/ipsum/${NC}"
+    echo -e "${S16}more infos: ${BG}https://github.com/stamparm/ipsum/${NC}"
     echo
-    echo -e "${YLW}Select ${BG}IPsum${NC} ${YLW}Blacklist level, where ${BD}level # => IPs appears on at least # blacklists:${NC} ${BG}${ORG}2 more strict (caution big list!) <--> less strict 8${NC}"
+    echo -ne "${VLT}Current Blacklist "
+    check_blacklist_file $BLACKLIST_FILE infos
+    echo
+    echo
+    echo -e "${GRY}Select ${BG}IPsum${NC} ${GRY}Blacklist level, where ${BD}level # => IPs appears on at least # blacklists${NC}"
+    echo -e "${BG}${ORG}2 more strict (caution big list!) <--> less strict 8${NC}"
     echo -e "${YLW}"
 	read -p "[LV 2-8|0]: " select_lv
 	echo -e "${NC}"
@@ -223,9 +186,7 @@ function handle_blacklist_files() {
     
     loglen=25
     
-    header
-    echo -ne "${CYN}"
-    title "aggregator"
+    subtitle "lists files and aggregator"
     echo
     echo -ne "${VLT} IPsum list  "
     check_blacklist_file "$BLACKLIST_FILE" infos
@@ -257,13 +218,11 @@ function handle_blacklist_files() {
             back
             ;;
         1)  debug_log "** $select_blackl. Aggregate Blacklist into Subnets"
-            header
-            title "compressor"
+            subtitle "vipb-compressor"
             compressor
             next
             ;;
         2)  debug_log "** $select_blackl. View / Clear blacklist files"
-            subtitle "delete lists" 
             echo "Select with [space] the Blacklists to clear, then press [enter] to continue."
             echo
 
@@ -307,10 +266,8 @@ function handle_blacklist_files() {
 
 # blacklist banning (Menu 3) ban_core & ipsets 
 function handle_blacklist_ban() {
-    debug_log "* Blacklists Ban (ipsets)"
-    header
-    title "lists ban"
-    echo
+    debug_log "* Blacklists Ban & ipsets"
+    subtitle "ban! lists & ipsets"
     if [[ $IPSET == "false" ]]; then
         echo -e "${RED}ipset not found. No option available."
     else
@@ -372,7 +329,7 @@ function handle_blacklist_ban() {
                         ipb_files+=("$file")
                     done < <(find "$SCRIPT_DIR" -maxdepth 1 -name '*.ipb' -print0)
 
-                    echo "Select with [space] the lists to import and ban, then press [enter] to continue."
+                    echo -e "Select with [space] the lists to import and ban into ${YLW}$MANUAL_IPSET_NAME${NC}, then press [enter] to continue."
                     echo
                     
                     multiselect result ipb_files false
@@ -388,7 +345,7 @@ function handle_blacklist_ban() {
                     if [[ ${#selected_ipbf[@]} -eq 0 ]]; then
                         echo -e "${RED}No files selected.${NC}"
                     else
-                        echo -e "Loading selected files into ${VLT}$IPSET_NAME${NC} ..."
+                        echo -e "Loading selected files into ${YLW}$MANUAL_IPSET_NAME${NC} ..."
                     for ipb_file in "${selected_ipbf[@]}"; do
                             echo -e "Banning from list ${BLU}$ipb_file${NC}... "
                             INFOS="true"
@@ -400,7 +357,6 @@ function handle_blacklist_ban() {
                     break
                     ;;
                 6)  debug_log "** $ipsets_choice. View/Clear" 
-                    subtitle "clear ipsets" 
                     echo "Select with [space] the ipsets to clear, then press [enter] to continue."
 
                     #select_ipsets=($(ipset list -n | grep vipb))
@@ -441,7 +397,6 @@ function handle_blacklist_ban() {
                     next
                     ;;
                 7)  debug_log "** $ipsets_choice. Re-Create VIPB-ipsets"
-                    subtitle "Create VIPB-ipsets" 
                     echo "Select with [space] the VIPB-ipsets to recreate, then press [enter] to continue."
                     echo
 
@@ -490,7 +445,6 @@ function handle_blacklist_ban() {
                     next
                     ;;
                 8)  debug_log "** $ipsets_choice. Destroy"
-                    subtitle "destroy ipsets" 
                     echo "Select with [space] the ipsets to destroy, then press [enter] to continue."
                     echo
 
@@ -563,11 +517,8 @@ function handle_blacklist_ban() {
 # manual banning (Menu 4)
 function handle_manual_ban() {
     debug_log "* Manual/User Ban"
-    header
-    title "manual ban"
-    echo
-
-    echo -e "${VLT}Last banned IPs:${NC}"
+    subtitle "manual ban"
+    echo -e "${YLW}Last 10 banned IPs:${NC}"
     ipset list $MANUAL_IPSET_NAME | grep -E '^[0-9]+\.' | tail -n 10
     echo
 
@@ -576,7 +527,7 @@ function handle_manual_ban() {
         manual_options+=("${YLW}Ban IPs${NC}")
     fi
     if [[ "$IPSET" == "true" ]]; then
-        manual_options+=("${ORG}View / Unban List${NC}" "${BLU}Export to file ${BG}$MANUAL_IPSET_NAME.ipb${NC}")
+        manual_options+=("${ORG}View all / Unban IPs${NC}" "${BLU}Export to file ${BG}$MANUAL_IPSET_NAME.ipb${NC}")
     fi
     echo -e "${YLW}"
     select_opt "${NC}${DM}<< Back${NC}" "${manual_options[@]}"
@@ -586,7 +537,6 @@ function handle_manual_ban() {
             back
             ;;
         1)  debug_log "** $manual_choice. Manual Ban"
-            subtitle "ban ips"   
             ask_IPS
             echo
             if [[ ${#IPS[@]} -eq 0 ]]; then
@@ -619,7 +569,6 @@ function handle_manual_ban() {
             next
             ;;
         2)  debug_log "** $manual_choice. View / Unban"
-            subtitle "view/unban"
             echo "Select with [space] the IPs to unban, then press [enter] to continue."
             echo
             select_ips=($(ipset list $MANUAL_IPSET_NAME | grep -E '^[0-9]+\.' | cut -f1))
@@ -658,8 +607,7 @@ function handle_manual_ban() {
 # cron jobs (Menu 5)
 function handle_cron_jobs() {
     debug_log "* Cron Jobs"
-    header
-    title "daily jobs"        
+    subtitle "daily jobs"        
     if ! crontab -l >/dev/null 2>&1; then
         echo -e "  ${RED}Error: Cannot read crontab${NC}"
     else
@@ -778,8 +726,7 @@ function handle_cron_jobs() {
 # firewall rules (Menu X) #maybe remove
 function handle_firewall_rules() {
     debug_log "* Firewall Rules"
-    header
-    title "firewall"
+    subtitle "firewall"
     services_row
     echo
     echo -ne "${YLW}▗ Firewall \t"
@@ -850,8 +797,7 @@ function handle_firewall_rules() {
 # Geo IP lookup (Menu 6)
 function handle_geoip_info() {
     debug_log "* GeoIP lookup"
-    header
-    title "geo ip lookup"
+    subtitle "geo ip lookup"
     echo -e 
     geo_options=()
     geo_options+=("${GRN}Lookup IP${NC}")
@@ -863,7 +809,6 @@ function handle_geoip_info() {
             back
             ;;
         1)  debug_log "** $geo_choice. GeoLookup IP"
-            subtitle "Geo ip"   
             ask_IPS
             echo
             if [[ ${#IPS[@]} -eq 0 ]]; then
@@ -899,8 +844,7 @@ function handle_geoip_info() {
 # logs and info (Menu 7)
 function handle_logs_info() {
     debug_log "* Logs & infos"
-    header
-    title "Logs & infos"
+    subtitle "Logs & infos"
     echo -ne "${VLT}▙ Blacklist URL "
     if [ ! "$BLACKLIST_LV" ]; then
         echo -e "▗ ${RED}core error: BLACKLIST_LV not set${NC}\t"
@@ -964,82 +908,41 @@ function handle_logs_info() {
         case $select_log in
             0)  back
                 ;;
-            1)  header
-                title "auth.log"
-                echo
-                echo -e "${CYN}▗ auth.log${NC}"
+            1)  echo -e "${CYN}▗ auth.log${NC}"
                 tail -n $loglen /var/log/auth.log | grep -v "occ background-job:worker"
-                echo
-                log_selector
                 ;;
-            2)  header #2do check if present
-                title "usermin"
-                echo -e "${GRN}▗ usermin${NC}"
+            2)  echo -e "${GRN}▗ usermin${NC}"
                 tail -n $loglen /var/usermin/miniserv.error
-                echo
-                log_selector
                 ;;
-            3)  header #2do check if present
-                title "webmin"
-                echo -e "${BLU}▗ webmin${NC}"
+            3)  echo -e "${BLU}▗ webmin${NC}"
                 tail -n $loglen /var/webmin/miniserv.error
-                echo
-                log_selector
                 ;;
-            4)  header
-                title "syslog"
-                echo -e "${S16}▗ syslog${NC}"
+            4)  echo -e "${S16}▗ syslog${NC}"
                 tail -n $loglen /var/log/syslog
-                echo
-                log_selector
                 ;;
-            5)  header
-                title "journalctl"
-                echo -e "${S24}▗ ${BG}journalctl -n $loglen${NC}"
+            5)  echo -e "${S24}▗ ${BG}journalctl -n $loglen${NC}"
                 journalctl -n "$loglen"
-                echo
-                log_selector
                 ;;
-            6)  header
-                title "ViPB log"
-                echo
-                echo -e "${VLT}▗ VIPB${NC}"
-                check_blacklist_file "$LOG_FILE" infos
-                echo
-                echo
+            6)  echo -e "${VLT}▗ VIPB${NC}"
                 tail -n $loglen $SCRIPT_DIR/vipb-log.log
-                echo
-                log_selector
                 ;;
-            7)  header
-                title "reset ViPB log"
-                echo
-                echo -e "${VLT}▗ VIPB${NC}"
+            7)  echo -ne "${VLT}▗ VIPB${NC}"
                 check_blacklist_file "$LOG_FILE" infos
                 echo
                 tail -n $SCRIPT_DIR/vipb-log.log
                 echo
                 > "$SCRIPT_DIR/vipb-log.log"
-                echo -e ".. VIPB-log now ${ORG}*** zeroed ***${NC}"
-                log_selector
+                echo -e "VIPB-log ${ORG}cleared${NC}"
                 ;;
-            8)  header
-                title "Fail2Ban" 
-                echo
-                echo -e "${SLM}▗ Fail2ban${NC}"
+            8)  echo -e "${SLM}▗ Fail2ban${NC}"
                 tail -n $loglen /var/log/fail2ban.log
-                echo
-                log_selector
                 ;;
-            9)  header
-                title "Fail2Ban Warnings" 
-                echo
-                echo -e "${SLM}▗ Fail2Ban [WARNING]${NC}"
+            9)  echo -e "${SLM}▗ Fail2Ban [WARNING]${NC}"
                 tail -n 1000 /var/log/fail2ban.log | grep "WARNING"
-                echo
-                log_selector
                 ;;
         esac
+        echo
+        log_selector
     }
     log_selector
     echo -e "\e[0m"
@@ -1049,8 +952,7 @@ function handle_logs_info() {
 # DOWNLOAD & BAN (Menu 9)
 function handle_download_and_ban() {
     debug_log "* DOWNLOAD & BAN!"
-    header
-    title "DOWNLOAD & BAN!"
+    subtitle "DOWNLOAD & BAN!"
     if [[ $IPSET == "false" ]]; then
         echo -e "${RED}No option available."
     else
@@ -1078,7 +980,7 @@ function header () {
     else
        clear
     fi
-    echo -e "${NC}${RED}${DM}"
+    echo -ne "${NC}${RED}${DM}"
     echo -e "    ▁ ▂ ▃ ▅ ▆ ▇ ▉ ▇ ▆ ▅ ▃ ▂ ${NC}${VLT}${BD}Versatile IPs Blacklister${NC}${RED}${DM} ▁ ▂ ▃ ▅ ▆ ▇ ▉ ▇ ▆ ▅ ▃ ▂${NC}"
     echo
     echo -e "  ██╗   ██╗██╗██████╗ ██████╗ "
@@ -1086,15 +988,9 @@ function header () {
     echo -e "  ██║   ██║██║██████╔╝██████╔╝     ${DM}    •${NC}"
     echo -e "  ╚██╗ ██╔╝██║██╔═══╝ ██╔══██╗     ${DM}   ┏┓┏┳┓┏┓┏┓┏┓┓┏┏┓┏┏┓┏┓${NC}"
     echo -e "   ╚████╔╝ ██║██║     ██████╔╝     ${DM}by ┛┗┛┗┗┗┛┛┗┗┫┗┻┗┻┛┗┻┛ ${NC}"
-    echo -e "    ╚═══╝  ╚═╝╚═╝     ╚═════╝                   ${DM}┗                      ${NC}${VER}"
-    #echo -e "${RED}${DM}▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤${NC}"
-}
-
-# Dashboard w/ check (2do minimize..)
-function dashboard() {
-    
+    echo -e "    ╚═══╝  ╚═╝╚═╝     ╚═════╝                   ${DM}┗                      ${VER}${NC}"
+     #echo -e "${RED}${DM}▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤${NC}"
     echo -e "╒═══════════════════════════════════════════════════════════════════════════════╕${NC}"
-   
     function services_row() {
         echo -ne "${NC}  [ "
 
@@ -1138,13 +1034,38 @@ function dashboard() {
         else
             echo -ne "${RED}"
         fi
-        echo -ne " ▩${NC} ${BG}fail2ban${NC}  "
+        echo -ne " ◉${NC} ${BG}fail2ban${NC}  "
         echo
     }
     services_row
+    
+    echo -ne "\t${SLM}⊙ Cron Job   ${NC}"
+    if [ "$CRON" == "false" ]; then
+        echo -e "${RED}error: Cannot read crontab${NC}"
+    else
+    
+        if crontab -l | grep -q "vipb.sh"; then
+            echo -ne "${GRN}daily ban active${NC}"
+        else
+            echo -ne "${RED}not found${NC}"
+        fi
+
+        echo -ne " ${SLM} ▼ DL Lv."
+
+        for blacklist_lv_check in {2..8}; do
+            blacklist_url_check="$BASECRJ${blacklist_lv_check}.txt"
+            if crontab -l | grep -q "$blacklist_url_check"; then
+                echo -ne " ${GRN}$blacklist_lv_check${NC}"
+            fi
+        done
+    
+    fi
+    echo -e "${NC}"
+    
     echo -ne "\t${VLT}░ ${BG}IPsum list${NC} "
     check_blacklist_file "$BLACKLIST_FILE"
-    echo -ne "  ${CYN}▒ VIPB list${NC} "
+    echo
+    echo -ne "\t${CYN}▒ VIPB list${NC}  "
     check_blacklist_file "$OPTIMIZED_FILE"
     if [ -f "$BLACKLIST_FILE" ] && [ -f "$OPTIMIZED_FILE" ] && [ -f "$MODIFIED" ]; then
         cmodified=$(stat -c "%y" "$BLACKLIST_FILE" | cut -d. -f1) 
@@ -1153,59 +1074,31 @@ function dashboard() {
         fi 
     fi     
     echo
-
-    echo -ne "\t${SLM}⊙ Cron Job ${NC}"
-    if [ "$CRON" == "false" ]; then
-        echo -e "${RED}error: Cannot read crontab${NC}"
-    else
-    
-        if crontab -l | grep -q "vipb.sh"; then
-            echo -ne "${GRN}◉ VIPB daily job found${NC}"
-        else
-            echo -ne "${RED}X VIPB daily job not found${NC}"
-        fi
-
-        echo -ne " ${SLM} ▼ Cron Download"
-
-        for blacklist_lv_check in {1..8}; do
-            blacklist_url_check="$BASECRJ${blacklist_lv_check}.txt"
-            if crontab -l | grep -q "$blacklist_url_check"; then
-                echo -ne " ${GRN}Lv. $blacklist_lv_check${NC}"
-            fi
-        done
-    
-    fi
-    echo -e "${NC}"
+    echo -e "╘═══════════════════════════════════════════════════════════════════════════════╛"   
     if [ "$IPSET" == "true" ]; then
         ipset_bans=$(count_ipset "$IPSET_NAME")
         manual_ipset_bans=$(count_ipset "$MANUAL_IPSET_NAME")
-        center "------------------------------------------"
-        center "${CYN}VIPB banned:${BD} $ipset_bans ${NC}\t▓\t${YLW}USER bans: ${BD}$manual_ipset_bans${NC}" 70
+        center "${CYN}VIPB bans:${BD} $ipset_bans ${NC} \t✦\t${YLW}USER bans: ${BD}$manual_ipset_bans${NC}" 70
         #title "VIPB bans: $ipset_bans . USER bans: $manual_ipset_bans" 
     fi
-    echo -e "╘═══════════════════════════════════════════════════════════════════════════════╛"   
-
+    
 }
+
 
 # Main menu
 function menu_main() {
-    echo -ne "${VLT}"
-    #echo -e "┏┳┓┏┓┏┓┏ "
-    #echo -e "┛┗┗┗ ┛┗┻ ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰"
-    #center "▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰"
-    echo -e "\t${BG}${DM}(You can directly enter an IP to ban.)${NC}"
     echo -e "${NC}"
     echo -e "\t1${VLT}. Download${NC} IPsum Blacklist"
-    echo -e "\t2${CYN}.${NC} Lists Files ${CYN}& aggregate${NC}"
+    echo -e "\t2${CYN}.${NC} Lists ${BLU}Files ${CYN}& aggregate${NC}"
     if [[ $IPSET == "false" ]]; then
         echo -ne "${DM}"
     fi
-    echo -e "\t3${GRN}. Ban${NC} Blacklists ${GRN}w/ ${FIREWALL}${NC}"
-    echo -e "\t4${YLW}. Manual Banlist${NC}"
+    echo -e "\t3${GRN}. Ban!${NC} Lists & ipsets ${GRN}w/ ${FIREWALL}${NC}"
+    echo -e "\t4${YLW}. Manual Ban ${NC}list"
     if [[ $CRON == "false" ]]; then
         echo -ne "${DM}"
     fi
-    echo -e "\t5${SLM}.${NC} Daily ${SLM}Cron ${NC}Ban Job"
+    echo -e "\t5${SLM}.${NC} Daily ${SLM}Cron${NC} DL&ban Job"
     echo -e "\t6${S24}. Geo IP${NC} lookup"
     #echo -e "\tX${SLM}.${NC} Firewall & Services"
     echo -e "\t7${ORG}. Logs ${NC}& Vars"
@@ -1215,6 +1108,7 @@ function menu_main() {
     fi
     echo
     echo -e "\t0. Exit"
+    echo -e "\t${YLW}${BG}${DM}You can directly enter an IP to ban.${NC}"
     while true; do
         local choice
         echo -e "${YLW}"
@@ -1393,6 +1287,7 @@ function multiselect() {
         echo -ne "${NC}"
         #echo -e "multichoice ${multichoice} multichoice ${multichoice}"
        
+
         eval $return_value='("${selected[@]}")'
     fi
 }
