@@ -4,105 +4,42 @@
 
 > [!IMPORTANT]  
 > Feb '25: Currently developing 0.9beta to a "stable" 0.9 release.
-> - Adding Geo IP lookup option (using `geoiplookup` or `whois`)
->   
 > 2do:
-> - better `check_dependencies()`
-> - better use `ban_ip()` along with `check_firewall_rules()`
-> - various 2dos in `vipb-ui.sh`
+> - better use firewall mangament along with `check_firewall_rules()`
 
 # VIPB - Versatile IP Blacklister
 
-Welcome to **VIPB (Versatile IP Blacklister)** – a comprehensive tool written in Bash for protecting your VPS Linux server from malicious sources using `ipset` with `iptables` or `firewalld`. It includes automation via `cron` jobs, integration with `fail2ban`, and a user-friendly interface for manual operations.
-
-**VIPB** automates downloading, processing, and maintaining [*IPsum*](https://github.com/stamparm/ipsum/) blacklists, and provides functionalities for firewall, ban, and log management.
+**VIPB (Versatile IP Blacklister)** is a little tool written in Bash automates for downloading, processing, and maintaining [*IPsum*](https://github.com/stamparm/ipsum/) blacklists, and provides functionalities for firewall, ban, and log management. It uses `ipset` with `iptables` or `firewalld` (`ufw` coming soon..). It includes automation via `cron` jobs, integration with `fail2ban`, and a user-friendly interface for manual operations.
 
 ## Features
 
 ### Automated & Manual IP Ban
 
-- **Ban IP Lists and Subnets**: Ban individual IPs, /16, and /24 subnets from a file.
+- **Ban IP Lists and/or Subnets**: Ban individual IPs, /16, and /24 subnets from a file.
 - **Dynamic Updates**: Automatically download and process IP blacklists from [*IPsum*](https://github.com/stamparm/ipsum/).
-- **Threat Level Control**: Supports multiple suspicious occurrences levels (2-8).
-- **Suspicious Subnets Generator**: Aggregates individual IPs into "suspicious" subnet ranges (/16 and /24).
 - **Dual Blacklists**: Maintains separate lists and ipsets for automated and manual IP bans.
 
 ### Suspicious IPs to Subnets Aggregator
 
 This function analyzes a list of potentially suspicious IP addresses, identifies patterns of repeated activity within subnets, and aggregates them into entire subnets (/24 or /16) based on user-defined tolerance thresholds.
 
-### Daily Ban Automation (Cron Jobs)
+### Daily Ban Automation (via Cron Jobs)
 
 - **Daily Download & Ban**: Automated daily IPsum list download and ban via cron jobs.
-- Command-line interface for easy automation.
 
 ### Firewall Integration
 
-- **Manage `ipset` Rules**: Creates and manages `ipset` rules for swift IP blocking.
-- **Dual Integration**: Integrates with both `firewalld` and `iptables` (as fallback).
-- **Fail2Ban Integration**: Works in harmony with `Fail2Ban`.
-
-### Log Management
-
-- **Read Common Log Files**: View logs from `auth.log`, `fail2ban.log`, etc.
-
-### User Interface
-
-- **Interactive Terminal UI**: User friendly and easy-to-use linux cli for all operations with status updates and counters.
-
-## Usage
-
-### Execute
-
-Launch the interactive interface or cron jobs and automation:
-
-```bash
-./vipb.sh
-```
-
-## Functions
-
-1. **Download IPsum Blacklist**
-   - Choose threat level (2-8).
-
-2. **Blacklist Compression**
-   - Aggregates IP lists into subnet ranges, creating /24 and /16 suspicious subnets lists.
-
-3. **Ban via Ipsets**
-   - Apply IP bans from different source lists (also user defined).
-   - Choose between original IP lists or the optimized subnets.
-   - View and manage active ipsets.
-
-4. **Manual/User Ban**
-   - Add individual IPs to manual blacklist.
-   - View and remove manually banned IPs.
-   - Export manual bans to a list file.
-
-5. **Cron Jobs**
-   - Set up automated daily updates.
-   - Configure blacklist download schedule.
-   - Manage automated ban operations.
-
-6. **Firewall Rules**
-   - Manage and refresh related firewall rules.
-   - Check integration status.
-
-7. **Logs & Info**
-   - View related system and operation logs.
-
-8. **Geo IP lookup**
-   - Lookup geographical infos of given IPs.
-     
-## Configuration
-
-No real configuration is needed. 
-
+- **Manage `ipset`**: Creates and manages `ipset` rules for swift IP blocking.
+- **Firewalls & Rules**: Integrates with both `firewalld` and `iptables`.
+- **Fail2Ban**: Works in harmony with `Fail2Ban`.
+  
 ## Installation
 
-Ensure required dependencies are installed:
+Ensure required dependencies are installed and active:
 
 - `ipset`
 - `firewalld` or `iptables`
+- `cron`
 - `curl`
 - `bash` 4.0+
 - *optional* `fail2ban`
