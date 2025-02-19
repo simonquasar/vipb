@@ -2,8 +2,10 @@
 set -o pipefail
 
 # Variables
-VER="v0.9beta2"
+VER="v0.9beta3"
 BLACKLIST_LV=3
+FIREWALL=''
+NOF2B=false
 BASECRJ='https://raw.githubusercontent.com/stamparm/ipsum/master/levels/'
 BLACKLIST_URL="$BASECRJ${BLACKLIST_LV}.txt" 
 BLACKLIST_FILE="$SCRIPT_DIR/vipb-blacklist.ipb"
