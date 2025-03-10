@@ -1,9 +1,47 @@
 #!/bin/bash
+set -o pipefail
 
-# VIPB Core functions
+# Variables & Logging
+# set the blacklisted IPsum level (2-8, default 3)
+BLACKLIST_LV=3
+# set the default files names and path
+BLACKLIST_FILE="$SCRIPT_DIR/vipb-blacklist.ipb"
+OPTIMIZED_FILE="$SCRIPT_DIR/vipb-optimised.ipb"
+SUBNETS24_FILE="$SCRIPT_DIR/vipb-subnets24.ipb"
+SUBNETS16_FILE="$SCRIPT_DIR/vipb-subnets16.ipb"
+LOG_FILE="$SCRIPT_DIR/vipb-log.log"
+# set the name of the ipsets used by VIPB
+IPSET_NAME='vipb-blacklist'
+MANUAL_IPSET_NAME='vipb-manualbans'
+# environment variables, do not change
+VER="v0.9beta3"
+BASECRJ='https://raw.githubusercontent.com/stamparm/ipsum/master/levels/'
+BLACKLIST_URL="$BASECRJ${BLACKLIST_LV}.txt" 
+FIREWALL=''
+NOF2B=false
+INFOS=false
+ADDED_IPS=0
+ALREADYBAN_IPS=0
+REMOVED_IPS=0
+IPS=()
 
-# Call core vars & settings
-source "$SCRIPT_DIR/vipb-globals.sh" "$@"
+function debug_log() {
+    if [[ $DEBUG == "true" ]]; then
+        echo "$(date '+%Y-%m-%d %H:%M:%S') - [${BASH_SOURCE[1]}] - $1" >> "$LOG_FILE"
+        echo ">> debug LOG [${BASH_SOURCE[1]}]:@$LINENO $@"
+    fi
+}
+
+function log() {
+    if [[ -n "$1" ]]; then
+        echo "$(date '+%Y-%m-%d %H:%M:%S') - [${BASH_SOURCE[1]}] - $1" >> "$LOG_FILE"
+        if [[ $DEBUG == "true" ]]; then
+            echo ">> LOG [${BASH_SOURCE[1]}]:@$LINENO $@"
+        fi
+    fi
+}
+
+log "▤▤▤▤ VIPB $VER START ▤▤▤▤"
 
 # VIPB Core functions
 
@@ -134,24 +172,22 @@ function check_ipset() { #CLI
 
 function reload_firewall() {
     log "reload_firewall"
-    if [[ "$FIREWALLD" = "true" ]]; then
-        echo -e "${YLW}Restarting Firewalld...${NC}"
+    if [[ "$FIREWALL" == "firewalld" ]]; then
+        echo -e "${YLW}Reloading $FIREWALL...${NC}"
         firewall-cmd --reload
-        echo -e "${GRN}Firewalld reloaded.${NC}"
+        echo -e "Firewalld ${GRN}reloaded.${NC}"
         log "$FIREWALL reloaded"
     fi
-    
-    if systemctl is-active --quiet fail2ban; then
+
+    if [[ "$FAIL2BAN" == "true" ]]; then
         echo -e "${YLW}Fail2Ban detected. Reloading...${NC}"
         systemctl reload fail2ban
-        echo -e "${GRN}Fail2Ban reloaded.${NC}"
-        log "Fail2Ban reloaded"
-    else
-        echo -e "${ORG}Fail2Ban not running or not installed.${NC}"
+        echo -e "Fail2Ban ${GRN}reloaded.${NC}"
+        log "Fail2Ban reloaded"a
     fi
 }
 
-function add_firewall_rules() {
+function add_firewall_rules() { #2do
     log "add_firewall_rules FIREWALL = $FIREWALL : $*"
     
     local ipset=${1:-"$IPSET_NAME"}
@@ -203,13 +239,13 @@ function setup_ipset() {
     if ! ipset list "$ipsetname" >/dev/null; then
         echo -e "ipset ${BG}$ipsetname${NC} ${ORG}does not exist!${NC}"
         echo -e "${YLW}Creating ipset '${BG}$ipsetname${NC}'..."
-        ipset create "$ipsetname" hash:net maxelem 99999
-        echo -e "ipset ${BG}$ipsetname hash:net maxelem 99999${NC} > ${GRN}OK"
-        # 2do firewall rules
-        # echo -e "${YLW}Adding firewall rules ${NC}..."
-        # add_firewall_rules "$ipsetname"
-        # echo -e "$FIREWALL rules for ${BG}$ipsetname ${GRN}added${NC}"
-        # reload_firewall
+        if [[ "$ipsetname" == "$MANUAL_IPSET_NAME" ]]; then
+            ipset create "$ipsetname" hash:net maxelem 254
+            echo -e "${BG}ipset create $ipsetname hash:net maxelem 254${NC} > ${GRN}OK"
+        else
+            ipset create "$ipsetname" hash:net maxelem 99999
+            echo -e "${BG}ipset create $ipsetname hash:net maxelem 99999${NC} > ${GRN}OK"
+        fi
         echo -e "ipset ${BG}$ipsetname ${GRN}created${NC}"
         log "$ipsetname created"
     else
@@ -229,12 +265,38 @@ function ask_IPS() {
             IPS+=("$ip")
         else
             echo -e "${RED}Invalid IP address.${NC}"
-            return 1
+            #return 1
         fi
     done
 }
 
-function ban_ip() { #2do  better ban and fw checks 
+function geo_ip() {
+    if [ "$#" -gt 0 ]; then
+        IPS=("$@") #intended to be used by default after ask_IPS()
+    fi
+    if command -v geoiplookup >/dev/null 2>&1; then
+        #echo -e "Using ${S24}${BG}geoiplookup${NC} for IP geolocation${NC}"
+        for ip in "${IPS[@]}"; do
+            echo -e "Looking up IP: ${S16}$ip${S24}"
+            geoiplookup "$ip"
+            echo -ne "${NC}"
+        done
+    else
+        echo -ne "geoiplookup not found,"
+        if command -v geoiplookup >/dev/null 2>&1; then
+            echo -e "using ${GRN}whois${NC} instead${NC}"
+            for ip in "${IPS[@]}"; do
+                echo -e "Looking up IP: $ip${NC}"
+                whois "$ip" | grep -E "Country|city|address|organization|OrgName|NetName" 2>/dev/null
+            done
+        else
+            echo -e "${ORG}whois not found.${NC}"
+            echo -e "${RED}Geo IP not available."
+        fi
+    fi
+}
+
+function ban_ip() {  
     if [ $# -lt 2 ]; then
         echo "ERR@$LINENO  ${BG}ban_ip ipset_name 192.168.1.1:${NC} $*"
         return 1 
@@ -256,7 +318,7 @@ function ban_ip() { #2do  better ban and fw checks
             ban_ip_result=2
         else
             firewall-cmd --permanent --ipset="${ipset_name}" --add-entry="$ip"
-            # REMEMBER TO RELOAD! (but not in this function)
+            # 2do EMEMBER TO RELOAD! (but not in this function)
             #   firewall-cmd --reload
             ban_ip_result=0
         fi
@@ -296,7 +358,7 @@ function ban_ip() { #2do  better ban and fw checks
                 if [ "$PERSISTENT" == "true" ]; then
                     echo -ne "permanently "
                 fi
-                echo -e "added to${NC} $ipset_name"
+                echo -e "added${NC}" # to ${BG}$ipset_name${NC}
             else
                 echo -ne "${GRN}✚${NC}"
             fi
@@ -346,7 +408,7 @@ function add_ips() {
         fi
     else
         log "Adding IPs into ipset $ipset..."
-        echo -e "Adding ${#ips[@]} IPs into ipset ${VLT}$ipset${NC}..."
+        echo -e "Adding ${GRN}${#IPS[@]} IPs${NC} into ipset ${BG}$ipset${NC}..."
         shift 
         local ips=("$@")  
         ADDED_IPS=0
@@ -360,10 +422,7 @@ function add_ips() {
                 (($ERRORS++))
             fi
         done
-        #2do check the firewall mgmt
-        if [[ "$FIREWALL" == "firewalld" ]]; then
-            reload_firewall
-        fi
+
         if [ $ERRORS -gt 0 ]; then
             return 1
         else
@@ -514,7 +573,7 @@ function compressor() {
    
     list_file=${1:-"$BLACKLIST_FILE"}
     
-    echo -ne "Loading Blacklist file ${BG}${BLU}$list_file${NC}... "
+    echo -ne "≡ VIPB-Blacklist file ${BG}${BLU}$list_file${NC}... "
 
     if ! check_blacklist_file "$list_file"; then
         echo -e "${RED}ERROR: no blacklist${NC} $list_file"
@@ -566,7 +625,7 @@ function compressor() {
                     elif [[ "$ip_occ" =~ ^[0]$ ]]; then
                         back
                     else
-                        echo -e "${NC}Invalid input. Please enter a number between 2 and 9. Exit with 0."
+                        echo -e "${NC}Invalid input. Please enter a number between 2 and 9. ${DM}Exit with 0.${NC}"
                     fi
                 done
             fi
@@ -673,11 +732,10 @@ function compressor() {
 }
 
 function ban_core() { 
-    # 2do has to be refactored - missing check if iptable exists (and firewall rules ) 
     log "ban_core"
-    echo -e "${VLT}▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱"
-    echo -e "\t VIPB-Ban started!"
-    echo -e "▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱${NC}"
+    echo -e "${VLT}▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰"
+    echo -e "      VIPB-Ban started!"
+    echo -e "▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰${NC}"
     
     # ban_core blacklist (ipset_name)
 
@@ -721,30 +779,30 @@ function ban_core() {
 
     count=$(count_ipset "$ipset")
     
-    echo -e "${GRN}▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱"
-    echo -e "\t VIPB-Ban finished "
+    echo -e "${GRN}▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰"
+    echo -e "      VIPB-Ban finished "
     if [ $err -ne 0 ]; then
-        echo -e "\t ${YLW}with $ERRORS errors.. check logs!"
+        echo -e " ⊗ ${YLW}with $ERRORS errors.. check logs!"
     fi
-    echo -e "▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱${NC}"
-    echo -e "${VLT}      Loaded:   $total_blacklist_read"
-    echo -e "${ORG}      Listed:   $ALREADYBAN_IPS"
-    echo -e "${GRN}       Added:   $ADDED_IPS"
-    echo -e "${GRN}       TOTAL:   $count banned${NC}"
-    echo "▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱"
-    log "▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱"
+    echo -e "▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰${NC}"
+    echo -e "${VLT}   Loaded:   $total_blacklist_read"
+    echo -e "${ORG} ◌ Listed:   $ALREADYBAN_IPS"
+    echo -e "${GRN} ✚  Added:   $ADDED_IPS"
+    echo -e "${GRN}    TOTAL:   $count banned${NC}"
+    echo "▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰"
+    log "▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰"
     log " VIPB-Ban finished!"
     if [ $err -ne 0 ]; then
         log "WITH $ERRORS ERRORS!"
         log "Function add_ipset() failed: $err"
     fi
-    log "▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱"
+    log "▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰"
     log "         Source:   $blacklist ($modified)"
     log "         Loaded:   $total_blacklist_read"
     log "          Added:   $ADDED_IPS"
     log "Already present:   $ALREADYBAN_IPS"
     log "          TOTAL:   $count IPs/sources banned in ipset"
-    log "▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱"
+    log "▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰"
     
     return $err
 }

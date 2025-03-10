@@ -1,11 +1,13 @@
 #!/bin/bash
-#export TERM=xterm-256color
-
+#########################################################################
+# VIPB.sh - Versatile IP Ban (VIPB) script
+# A simple, versatile and efficient IP ban script for Linux servers
+# by simonquasar @ github
 #########################################################################
 #  _____ _ _____ _____   
 # |  |  |_|  _  | __  |  
 # |  |  | |   __| __ -|  
-#  \___/|_|__|  |_____| v0.9beta2  
+#  \___/|_|__|  |_____| v0.9beta  
 #
 
 # check if debug mode is enabled
@@ -30,20 +32,20 @@ check_debug_mode() {
     fi
     # echo "@$LINENO - args: $@ / count: $# / first: $1 / CLI: $CLI / DEBUG: $DEBUG"
 }
-
 check_debug_mode "$@"
 
-# Use absolute path to source VIPB files
+# use absolute path to source VIPB files
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-# Bootstrap VIPB core functions
+# bootstrap VIPB core functions and variables
 source "$SCRIPT_DIR/vipb-core.sh" "$@"
-debug_log "vipb-core loaded"
+debug_log "VIPB-core loaded"
 
-# Check/Set dependencies and set variables
+# check/set dependencies
 log "Checking dependencies..."
 check_dependencies
 
+# if UI terminal > load vipb-ui.sh
 if [ "$CLI" == "false" ]; then
     # load UI
     source "$SCRIPT_DIR/vipb-ui.sh"
@@ -59,8 +61,8 @@ if [ "$CLI" == "false" ]; then
     log "UI error? Exit."
     exit 1
 
+# if CLI/CronJob > parse arguments
 elif [ "$CLI" == "true" ]; then
-    # If CLI then parse arguments
     echo "VIPB $VER loaded in CLI/CronJob mode"
     log "▤▤▤▤ VIPB $VER loaded ▤▤▤▤ in CLI/CronJob mode"
     debug_log "args: $*"
@@ -104,6 +106,7 @@ elif [ "$CLI" == "true" ]; then
     check_args "$@"
 fi
 
+# we should never reach this point
 echo "No console? Exit."
 log "No console? Exit."
 exit 1
