@@ -9,14 +9,15 @@ BLACKLIST_FILE="$SCRIPT_DIR/vipb-blacklist.ipb"
 OPTIMIZED_FILE="$SCRIPT_DIR/vipb-optimised.ipb"
 SUBNETS24_FILE="$SCRIPT_DIR/vipb-subnets24.ipb"
 SUBNETS16_FILE="$SCRIPT_DIR/vipb-subnets16.ipb"
-LOG_FILE="$SCRIPT_DIR/vipb-log.log"
 # set the name of the ipsets used by VIPB
 IPSET_NAME='vipb-blacklist'
 MANUAL_IPSET_NAME='vipb-manualbans'
 # environment variables, do not change
-VER="v0.9beta3"
 BASECRJ='https://raw.githubusercontent.com/stamparm/ipsum/master/levels/'
 BLACKLIST_URL="$BASECRJ${BLACKLIST_LV}.txt" 
+RED='\033[31m'
+GRN='\033[32m'
+NC='\033[0m'
 FIREWALL=''
 NOF2B=false
 INFOS=false
@@ -24,24 +25,6 @@ ADDED_IPS=0
 ALREADYBAN_IPS=0
 REMOVED_IPS=0
 IPS=()
-
-function debug_log() {
-    if [[ $DEBUG == "true" ]]; then
-        echo "$(date '+%Y-%m-%d %H:%M:%S') - [${BASH_SOURCE[1]}] - $1" >> "$LOG_FILE"
-        echo ">> debug LOG [${BASH_SOURCE[1]}]:@$LINENO $@"
-    fi
-}
-
-function log() {
-    if [[ -n "$1" ]]; then
-        echo "$(date '+%Y-%m-%d %H:%M:%S') - [${BASH_SOURCE[1]}] - $1" >> "$LOG_FILE"
-        if [[ $DEBUG == "true" ]]; then
-            echo ">> LOG [${BASH_SOURCE[1]}]:@$LINENO $@"
-        fi
-    fi
-}
-
-log "▤▤▤▤ VIPB $VER START ▤▤▤▤"
 
 # VIPB Core functions
 
@@ -55,28 +38,17 @@ function check_dependencies() {
         
         if command -v "$service_name" &> /dev/null; then
             is_active=true
-            echo "$is_active"
-            return
-        fi
-        
-        if command -v systemctl &>/dev/null; then
+        elif command -v systemctl &>/dev/null; then
             if systemctl is-active --quiet "$service_name" 2>/dev/null ||
             systemctl status "$service_name" 2>/dev/null | grep -q "active (exited)"; then
                 is_active=true
-                echo "$is_active"
-                return
             fi
-        fi
-        
-        if command -v service &>/dev/null; then
+        elif command -v service &>/dev/null; then
             if service "$service_name" status &>/dev/null; then
                 is_active=true
-                echo "$is_active"
-                return
             fi
         fi
         
-        log "check_service $1 failed"
         echo "$is_active"
     }
 
@@ -87,46 +59,53 @@ function check_dependencies() {
 
         #if [[ "$FIREWALLD" = "true" ]]; then
         #    FIREWALL="firewalld"
-        if [[ "$IPTABLES" = "true" ]]; then
+        if [[ "$IPTABLES" == "true" ]]; then
             FIREWALL="iptables"
-        elif [[ "$UFW" = "true" ]]; then
+        elif [[ "$UFW" == "true" ]]; then
             FIREWALL="ufw"
         else
-            echo -e "${RED}@$LINENO: Critical Error: No firewall system found?!${NC} ${FIREWALL}"
-            log "@$LINENO: Critical Error: No firewall system found."
             FIREWALL="ERROR"
             err=1
+        fi
+
+        debug_log "▤ FIREWALLD: $FIREWALLD"
+        debug_log "▤ IPTABLES: $IPTABLES"
+        debug_log "▤ UFW: $UFW"
+        if [[ "$FIREWALL" == "ERROR" ]]; then
+            log "▤ FIREWALL: $(echo -e "${RED}$FIREWALL${NC}")"
+        else
+            log "▤ FIREWALL: $FIREWALL"
+        fi
+        
+        if [[ "$FIREWALL" == "ERROR" ]]; then
+            log "@$LINENO: CRITICAL ERROR: No firewall system found."
+            echo -e "${RED}CRITICAL ERROR: No firewall system found?!${NC}"
             if [ ! "$DEBUG" == "true" ]; then
+                echo "Exit."
                 exit 1
             fi
         fi
 
-        log "FIREWALL: $FIREWALL"
-        debug_log "FIREWALLD: $FIREWALLD"
-        debug_log "IPTABLES: $IPTABLES"
-        debug_log "UFW: $UFW"
         return $err    
     }
 
-    check_firewall
-
-    IPSET=$(check_service "ipset")
-    debug_log "IPSET: $IPSET"
-
-    PERSISTENT=$(check_service "netfilter-persistent")
-    debug_log "netfilter-persistent: $PERSISTENT"
-
     CRON=$(check_service "cron")
-    debug_log "CRON: $CRON"
+    debug_log "▤ CRON: $CRON"
 
     CURL=$(check_service "curl") #no fallback
-    debug_log "CURL: $CURL"
+    debug_log "▤ CURL: $CURL"
+    
+    IPSET=$(check_service "ipset")
+    debug_log "▤ IPSET: $IPSET"
+
+    PERSISTENT=$(check_service "netfilter-persistent")
+    debug_log "▤ netfilter-persistent: $PERSISTENT"
 
     FAIL2BAN=$(check_service "fail2ban")
-    debug_log "FAIL2BAN: $FAIL2BAN"
+    debug_log "▤ FAIL2BAN: $FAIL2BAN"
+    
+    check_firewall
 
-
-    log "check_dependencies() return: $err"
     return "$err"
 }
 
@@ -157,7 +136,7 @@ function validate_ip() {
 }
 
 function check_ipset() { #CLI
-    log "check_ipset $*"
+    lg "*" "check_ipset $*"
     if [ $# -lt 1 ]; then
         echo "You must provide ONE name for the ipset. > check_ipset ipset_name @$LINENO : $*"
         return 1 
@@ -171,7 +150,7 @@ function check_ipset() { #CLI
 }
 
 function reload_firewall() {
-    log "reload_firewall"
+    lg "*" "reload_firewall"
     if [[ "$FIREWALL" == "firewalld" ]]; then
         echo -e "${YLW}Reloading $FIREWALL...${NC}"
         firewall-cmd --reload
@@ -188,7 +167,7 @@ function reload_firewall() {
 }
 
 function add_firewall_rules() { #2do
-    log "add_firewall_rules FIREWALL = $FIREWALL : $*"
+    lg "*" "add_firewall_rules FIREWALL = $FIREWALL : $*"
     
     local ipset=${1:-"$IPSET_NAME"}
     if [[ "$FIREWALL" = "firewalld" ]]; then
@@ -229,7 +208,7 @@ function add_firewall_rules() { #2do
 }
 
 function setup_ipset() {
-    log "setup_ipset $*"
+    lg "*" "setup_ipset $*"
     if [ $# -lt 1 ]; then
         echo "You must provide ONE name for the ipset. ERR@$LINENO setup_ipset(): $*"; return 1
     fi
@@ -268,9 +247,11 @@ function ask_IPS() {
             #return 1
         fi
     done
+    lg "*" "ask_IPS ${IPS[@]}"
 }
 
 function geo_ip() {
+    lg "*" "geo_ip $*"
     if [ "$#" -gt 0 ]; then
         IPS=("$@") #intended to be used by default after ask_IPS()
     fi
@@ -386,7 +367,7 @@ function ban_ip() {
 }
 
 function add_ips() { 
-    #log "add_ips $@"
+    lg "*" "add_ips $@"
     #ipset ip1 ip2 ip3 ip4 ip5...
     if [ $# -lt 2 ]; then
         echo "You must provide one name for the ipset and AT LEAST one IP address. ERR@$LINENO add_ips(): $*"; return 1
@@ -432,6 +413,7 @@ function add_ips() {
 }
 
 function unban_ip() {
+    lg "*" "unban_ip $*"
     if [ $# -lt 2 ]; then
         echo "You must provide ONE name for the ipset and ONE IP address. ERR@$LINENO unban_ip ipset_name 192.168.1.1 /" "$@"
         return 1 
@@ -451,7 +433,7 @@ function unban_ip() {
 }
 
 function remove_ips () { 
-    
+    lg "*" "remove_ips $*"    
     #ipset ip1 ip2 ip3 ip4 ip5...
     if [ $# -lt 2 ]; then
         echo "You must provide ONE name for the ipset and AT LEAST one IP address."
@@ -471,6 +453,7 @@ function remove_ips () {
 }
 
 function count_ipset() {
+    lg "*" "count_ipset $*"
     if [ $# -lt 1 ]; then
         echo "You must provide ONE name for the ipset. ERR@$LINENO count_ipset ipset_name: $*" >&2
         return 1 
@@ -489,6 +472,7 @@ function count_ipset() {
 }
 
 function check_blacklist_file() {
+    lg "*" "check_blacklist_file $*"
     #if [ $# -lt 1 ]; then
         #echo "You must provide one file. ERR@$LINENO check_blacklist_file(): $*"; return 1
     #fi
@@ -528,7 +512,7 @@ function check_blacklist_file() {
 }
 
 function set_blacklist_level() {
-    log "set_blacklist_level $1"
+    lg "*" "set_blacklist_level $*"
     BLACKLIST_LV=${1:-4}
     while [[ ! "$BLACKLIST_LV" =~ ^[2-8]$ ]]; do
         echo "Select IPsum Blacklist level (2 more strict -- less strict 7)"
@@ -545,7 +529,7 @@ function set_blacklist_level() {
 }
 
 function download_blacklist() {
-    log "download_blacklist $1"
+    lg "*" "download_blacklist $1"
 
     local level=${1:-$BLACKLIST_LV}
     BLACKLIST_URL="$BASECRJ$level.txt"
@@ -564,12 +548,12 @@ function download_blacklist() {
     echo -e "${GRN}IPsum Blacklist file [${VLT}LV $level${GRN}] downloaded successfully.${NC}"
     line_count=$(wc -l < "$BLACKLIST_FILE")
     echo -e "New IPsum Blacklist contains ${VLT}$line_count${NC} suspicious/malicious IPs."
-    log "Downloaded IPsum Blaclist @ LV $BLACKLIST_LV ($line_count)"
+    log "Downloaded IPsum Blaclist @ LV $level ($line_count IPs)"
     return 0
 }
  
 function compressor() {                                     
-    log "compressor [CLI=$CLI] $@"
+    lg "*" "compressor [CLI=$CLI] $@"
    
     list_file=${1:-"$BLACKLIST_FILE"}
     
@@ -732,7 +716,7 @@ function compressor() {
 }
 
 function ban_core() { 
-    log "ban_core"
+    lg "*" "ban_core $*"
     echo -e "${VLT}▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰"
     echo -e "      VIPB-Ban started!"
     echo -e "▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰${NC}"
@@ -807,4 +791,5 @@ function ban_core() {
     return $err
 }
 
-log "vipb-core.sh loaded [CLI $CLI / DEBUG $DEBUG]"
+debug_log "vipb-core.sh $( echo -e "${GRN}OK${NC}")"
+log "▤ [CLI $CLI / DEBUG $DEBUG]"

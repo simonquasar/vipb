@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #########################################################################
 # VIPB.sh - Versatile IP Ban (VIPB) script
 # A simple, versatile and efficient IP ban script for Linux servers
@@ -9,17 +9,18 @@
 # |  |  | |   __| __ -|  
 #  \___/|_|__|  |_____| v0.9beta  
 #
-
+VER="v0.9beta3"
 # check if debug mode is enabled
+echo "▤▤▤▤ VIPB START ▤▤▤▤"
 check_debug_mode() {
     DEBUG="false"
     CLI="false"
 
     if [ "$1" == "debug" ]; then
         DEBUG="true"
-        echo ">> DEBUG mode: $DEBUG"
+        echo ">> DEBUG MODE [$DEBUG]"
         shift
-	fi
+    fi
 
     if [ "$1" == "true" ]; then
         echo ">> CLI simulation: $@"
@@ -36,20 +37,53 @@ check_debug_mode "$@"
 
 # use absolute path to source VIPB files
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+LOG_FILE="$SCRIPT_DIR/vipb-log.log"
+
+# bootstrap log functions
+function lg {
+    local stripped_message
+    stripped_message=$(echo "$2" | sed 's/\x1b\[[0-9;]*m//g')
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - [${BASH_SOURCE[2]}] $1 $stripped_message" >> "$LOG_FILE"
+}
+
+function debug_log() {
+    if [[ $DEBUG == "true" ]]; then
+        lg "+" "$@"
+        echo "<< DBG [${BASH_SOURCE[1]}] $@"
+    fi
+}
+
+function log() {
+    if [[ -n "$1" ]]; then
+        lg "-" "$@"
+        if [[ $DEBUG == "true" ]]; then
+            echo ">> LOG [${BASH_SOURCE[1]}] $@"
+        fi
+    fi
+}
+
+log "▤▤▤▤ VIPB $VER START ▤▤▤▤"
+log "▤ [ARGS: $*]"
+debug_log "▤ DEBUG mode ENABLED"
 
 # bootstrap VIPB core functions and variables
 source "$SCRIPT_DIR/vipb-core.sh" "$@"
-debug_log "VIPB-core loaded"
+log "$SCRIPT_DIR/vipb-core.sh $( echo -e "${GRN}LOADED${NC}")"
 
 # check/set dependencies
 log "Checking dependencies..."
 check_dependencies
+err=$?
+if [ "$err" == 0 ]; then
+    log "Dependencies OK"
+fi
+debug_log "check_dependencies() error $err"
 
 # if UI terminal > load vipb-ui.sh
 if [ "$CLI" == "false" ]; then
     # load UI
     source "$SCRIPT_DIR/vipb-ui.sh"
-    
+    log "$SCRIPT_DIR/vipb-ui.sh $( echo -e "${GRN}LOADED${NC}")"
     # Start UI execution
     header
     menu_main

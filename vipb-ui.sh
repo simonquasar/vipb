@@ -11,27 +11,26 @@ if [ "$CLI" == "true" ]; then
         exit 1
     fi
 else
-    log "*** VIPB ${VER} *** Hello Human! loading UI interface..."
-    echo -e "*** VIPB ${VER} *** Hello Human! loading UI interface..."
-            
+    log "Loading UI interface..."
+    echo -e "▩▩▩ Hello Human! ▩▩▩"
+    BD='\033[1m' # bold
+    DM='\033[2m' # dim color
+    BG='\033[3m' # italic ? 
     ############################## TERMINAL DEBUG ##############################
     if [ "$DEBUG" == "true" ]; then
-        debug_log "Terminal type: $TERM" 
-        debug_log "Number of colors supported: $(tput colors 2>/dev/null || echo "unknown")"
-        debug_log "Can clear screen: $(tput clear >/dev/null 2>&1 && echo "Yes" || echo "No")"
-        debug_log "Can position cursor: $(tput cup 0 0 >/dev/null 2>&1 && echo "Yes" || echo "No")"
-        debug_log "Can move cursor: $(tput cup 1 1 >/dev/null 2>&1 && echo "Yes" || echo "No")"
-        debug_log "Can set foreground color: $(tput setaf 1 >/dev/null 2>&1 && echo "Yes" || echo "No")"
-        debug_log "Can set background color: $(tput setab 1 >/dev/null 2>&1 && echo "Yes" || echo "No")"
+        debug_log "≡≡ TERMINAL PROPERTIES ≡≡"
+        debug_log "≡ Terminal type: $(echo -e "${BG}$TERM${NC}")" 
+        debug_log "≡ Number of colors supported: $(tput colors 2>/dev/null || echo "unknown")"
+        debug_log "≡ Can clear screen: $(tput clear >/dev/null 2>&1 && echo -e "${GRN}Yes${NC}" || echo -e "${RED}No${NC}")"
+        debug_log "≡ Can position cursor: $(tput cup 0 0 >/dev/null 2>&1 && echo -e "${GRN}Yes${NC}" || echo -e "${RED}No${NC}")"
+        debug_log "≡ Can move cursor: $(tput cup 1 1 >/dev/null 2>&1 && echo -e "${GRN}Yes${NC}" || echo -e "${RED}No${NC}")"
+        debug_log "≡ Can set foreground color: $(tput setaf 1 >/dev/null 2>&1 && echo -e "${GRN}Yes${NC}" || echo -e "${RED}No${NC}")"
+        debug_log "≡ Can set background color: $(tput setab 1 >/dev/null 2>&1 && echo -e "${GRN}Yes${NC}" || echo -e "${RED}No${NC}")"
         #for i in {0..255} ; do
         #     printf "\x1b[48;5;%sm%3d\e[0m " "$i" "$i"
         #done
     fi
     ############################################################################
-    NC='\033[0m' # No Color (reset)
-    BD='\033[1m' # bold
-    DM='\033[2m' # dim color
-    BG='\033[3m' # italic ? 
     # UI then define COLORS!
     # Check if terminal supports 256 colors
     if tput colors | grep -q '256' && ! [ "$DEBUG" == "true" ]; then
@@ -57,8 +56,6 @@ else
         function select_opt() {
             select_option "$@" 1>&2
             local result=$?
-            #echo -ne "\033[0m"
-            #echo $result
             return $result
         } 
     else
@@ -96,8 +93,7 @@ else
             done      
         } 
     fi
-    echo
-    echo -e "${GRN}... UI loaded with ${NC}${RED}c${VLT}o${ORG}l${YLW}o${S16}r${CYN}s${BLU}!${NC}"
+    echo -e "VIPB-UI ${GRN}LOADED${NC} + ${RED}c${VLT}o${ORG}l${YLW}o${S16}r${CYN}s${BLU}!${NC}"
 fi
 
 #  UI-CORE functions
@@ -157,7 +153,7 @@ function level_bar(){
 
 # IPsum blacklist download (Menu 1) download_blacklist
 function handle_ipsum_download() {
-    debug_log "* Download ${BG}IPsum${NC} Blacklist" 
+    debug_log "1. Download IPsum Blacklist" 
     echo -ne "${VLT}"
     subtitle "Download IPsum Blacklist"
     echo -e "${BG}IPsum${NC} is a feed based on 30+ publicly available lists of suspicious and/or malicious IP addresses."
@@ -186,7 +182,7 @@ function handle_ipsum_download() {
 
 # blacklist compression (Menu 2) aggregator
 function handle_aggregator() {
-    debug_log "* VIPB-aggregator"
+    debug_log "2. VIPB-aggregator"
     echo -ne "${CYN}"
     subtitle "VIPB-aggregator"
     compressor
@@ -195,7 +191,7 @@ function handle_aggregator() {
 
 # blacklist files (Menu 3)
 function handle_blacklist_files() {
-    debug_log "* Blacklists Files"
+    debug_log "3. Blacklists Files"
     echo -ne "${BLU}"
     subtitle "Blacklists"
     echo -ne "${VLT} IPsum list  "
@@ -224,10 +220,10 @@ function handle_blacklist_files() {
     select_opt "${NC}${DM}<< Back${NC}" "${blacklist_options[@]}"
     select_blackl=$?
     case $select_blackl in
-        0)  debug_log "** $select_blackl. < Back to Menu"
+        0)  debug_log " $select_blackl. < Back to Menu"
             back
             ;;
-        1)  debug_log "** $select_blackl. View / Clear blacklist files"
+        1)  debug_log " $select_blackl. View / Clear blacklist files"
             echo "Select with [space] the Blacklists to clear, then press [enter] to continue."
             echo
 
@@ -271,7 +267,7 @@ function handle_blacklist_files() {
 
 # blacklist banning (Menu 4) ban_core 
 function handle_blacklist_ban() {
-    debug_log "* Ban"
+    debug_log "4. Ban"
     echo -ne "${VLT}"
     subtitle "Ban"
     if [[ $IPSET == "false" ]]; then
@@ -293,35 +289,35 @@ function handle_blacklist_ban() {
         echo -e "\e[0m"
         echo
         while true; do
-            read -p "_ " ipsets_choice
+            read -p "_ " blacklist_choice
             echo -e "${NC}"
-            case $ipsets_choice in
-                1)  debug_log "** $ipsets_choice. BLACKLIST_FILE"
+            case $blacklist_choice in
+                1)  debug_log " $blacklist_choice. BLACKLIST_FILE"
                     echo -e "${VLT}Ban original blacklist${NC}" 
                     ban_core "$BLACKLIST_FILE"
                     next
                     break
                     ;;    
-                2)  debug_log "** $ipsets_choice. OPTIMIZED_FILE"
+                2)  debug_log " $blacklist_choice. OPTIMIZED_FILE"
                     echo -e "${CYN}Ban all optimized${NC}"
                     ban_core "$OPTIMIZED_FILE"
                     next
                     break
                     ;;
-                3)  debug_log "** $ipsets_choice. SUBNETS24_FILE"
+                3)  debug_log " $blacklist_choice. SUBNETS24_FILE"
                     echo -e "${S24}Ban /24 subnets${NC} (#.#.#.\e[37m0${NC})"
                     ban_core "$SUBNETS24_FILE"
                     next
                     break
                     ;;
-                4)  debug_log "** $ipsets_choice. SUBNETS16_FILE"
+                4)  debug_log " $blacklist_choice. SUBNETS16_FILE"
                     echo -e "${S16}Ban /16 subnets${NC} (#.#.\e[37m0.0${NC})"
                     INFOS="true"
                     ban_core "$SUBNETS16_FILE"
                     next
                     break
                     ;;
-                5)  debug_log "** $ipsets_choice. IPB_FILE"
+                5)  debug_log " $blacklist_choice. IPB_FILE"
                     echo -e "${VLT}Import *.ipb list"
                     echo
                     echo -e "Looking for ${BG}.ipb${NC} files in ${BG}$SCRIPT_DIR${NC} ..."
@@ -360,7 +356,7 @@ function handle_blacklist_ban() {
                     fi
                     next
                     ;;
-                0)  debug_log "** $ipsets_choice. << Back to Menu"
+                0)  debug_log " $blacklist_choice. << Back to Menu"
                     back
                     ;;
             esac
@@ -371,7 +367,7 @@ function handle_blacklist_ban() {
 
 # manual banning (Menu 5)
 function handle_manual_ban() {
-    debug_log "* Manual ban IPs"
+    debug_log "5. Manual ban IPs"
     echo -ne "${YLW}"
     subtitle "Manual ban IPs"
     #echo -e "${YLW}Last 10 banned IPs:${NC}"
@@ -389,10 +385,10 @@ function handle_manual_ban() {
     select_opt "${NC}${DM}<< Back${NC}" "${manual_options[@]}"
     manual_choice=$?
     case $manual_choice in
-        0)  debug_log "** $manual_choice. < Back to Menu"
+        0)  debug_log " $manual_choice. < Back to Menu"
             back
             ;;
-        1)  debug_log "** $manual_choice. Manual Ban"
+        1)  debug_log " $manual_choice. Manual Ban"
             ask_IPS
             echo
             if [[ ${#IPS[@]} -eq 0 ]]; then
@@ -411,7 +407,7 @@ function handle_manual_ban() {
             fi
             next
             ;;
-        2)  debug_log "** $manual_choice. View / Unban"
+        2)  debug_log " $manual_choice. View / Unban"
             echo "Select with [space] the IPs to unban, then press [enter] to continue."
             echo
             select_ips=($(ipset list $MANUAL_IPSET_NAME | grep -E '^[0-9]+\.' | cut -f1))
@@ -438,7 +434,7 @@ function handle_manual_ban() {
             fi
             next
             ;;
-        3)  debug_log "** $manual_choice. Export to file"
+        3)  debug_log " $manual_choice. Export to file"
             subtitle "export"
             #2DO CHECK FUNCTION
             ipset save "$MANUAL_IPSET_NAME" > "$SCRIPT_DIR/$MANUAL_IPSET_NAME.ipb" THIS COMMAND SAVES ThE SEt!
@@ -451,7 +447,7 @@ function handle_manual_ban() {
 
 # manage banned sets (Menu 6)  
 function handle_firewalls() {
-    debug_log "* Firewall & Sets"
+    debug_log "6. Firewall & Sets"
     echo -ne "${ORG}"
     subtitle "Firewall & Sets"
     echo -ne "Firewall ${ORG}${BG}${FIREWALL}${NC} "
@@ -484,7 +480,7 @@ function handle_firewalls() {
         read -p "_ " ipsets_choice
         echo -e "${NC}"
         case $ipsets_choice in
-            1)  debug_log "** $ipsets_choice. View current rules"
+            1)  debug_log " $ipsets_choice. View current rules"
                 subtitle "$FIREWALL rules"
                 if [[ "$FIREWALL" == "iptables" ]]; then
                     iptables -L -v -n | head -n 20
@@ -495,7 +491,7 @@ function handle_firewalls() {
                 fi
                 next
                 ;;
-            2)  debug_log "** $ipsets_choice. Refresh rules"
+            2)  debug_log " $ipsets_choice. Refresh rules"
                 subtitle "refresh rules"
                 if [[ "$FIREWALL" == "iptables" ]]; then
                     
@@ -551,7 +547,7 @@ function handle_firewalls() {
                 fi
                 back
                 ;;
-            3)  debug_log "** $ipsets_choice. Change firewall"
+            3)  debug_log " $ipsets_choice. Change firewall"
                 echo
                 fw_options=()
 
@@ -568,23 +564,23 @@ function handle_firewalls() {
                 select_opt "${NC}${DM}<< Back${NC}" "${fw_options[@]}"
                 fw_options=$?
                 case $fw_options in
-                    0)  debug_log "** $fw_options. < Back to Menu"
+                    0)  debug_log " $fw_options. < Back to Menu"
                         back
                         ;;
-                    1)  debug_log "** $fw_options. iptables"
+                    1)  debug_log " $fw_options. iptables"
                         FIREWALL="iptables"
                         ;;
-                    2)  debug_log "** $fw_options. FirewallD"
+                    2)  debug_log " $fw_options. FirewallD"
                         FIREWALL="firewalld"
                         ;;
-                    3)  debug_log "** $fw_options. ufw"
+                    3)  debug_log " $fw_options. ufw"
                         FIREWALL="ufw"
                         ;;
                 esac
                 echo -e "Firewall changed to ${ORG}$FIREWALL${NC}."
                 next
                 ;;
-            4)  debug_log "** $ipsets_choice. View/Clear" 
+            4)  debug_log " $ipsets_choice. View/Clear" 
                 echo "Select with [space] the ipsets to clear, then press [enter] to continue."
                 echo
 
@@ -624,7 +620,7 @@ function handle_firewalls() {
                 
                 next
                 ;;
-            5)  debug_log "** $ipsets_choice. Re-Create VIPB-ipsets"
+            5)  debug_log " $ipsets_choice. Re-Create VIPB-ipsets"
                 echo "Select with [space] the VIPB-ipsets to recreate, then press [enter] to continue."
                 echo -e "This will NOT remove related firewall rules! ${DM}(use option 6 instead)${NC}"
                 echo
@@ -673,7 +669,7 @@ function handle_firewalls() {
                 fi
                 next
                 ;;
-            6)  debug_log "** $ipsets_choice. Destroy VIPB-ipsets and rules"
+            6)  debug_log " $ipsets_choice. Destroy VIPB-ipsets and rules"
                 echo -e "Select with [space] the ipsets to ${ORG}destroy${NC}, then press [enter] to continue."
                 echo -e "This action will also try to remove related ${ORG}$FIREWALL${NC} rules! ${DM}${BG}use option 5 instead${NC}"
                 echo
@@ -741,7 +737,7 @@ function handle_firewalls() {
                 fi
                 next
                 ;;
-            0)  debug_log "** $ipsets_choice. << Back to Menu"
+            0)  debug_log " $ipsets_choice. << Back to Menu"
                 back
                 ;;
         esac
@@ -751,7 +747,7 @@ function handle_firewalls() {
 
 # cron jobs (Menu 7)
 function handle_cron_jobs() {
-    debug_log "* Daily Cron Jobs"
+    debug_log "7. Daily Cron Jobs"
     echo -ne "${SLM}"
     subtitle "Daily Cron Jobs"        
     
@@ -862,7 +858,7 @@ function handle_cron_jobs() {
 
 # Geo IP lookup (Menu 8)
 function handle_geo_ip_info() {
-    debug_log "* GeoIP lookup"
+    debug_log "8. GeoIP lookup"
     echo -e "${S24}"
     subtitle "GeoIP lookup"
     echo -e 
@@ -880,7 +876,7 @@ function handle_geo_ip_info() {
 
 # logs and info (Menu 9)
 function handle_logs_info() {
-    debug_log "* Logs & infos"
+    debug_log "9. Logs & infos"
     header
     echo -ne "${ORG}"
     subtitle "Logs & infos"
@@ -946,7 +942,7 @@ function handle_logs_info() {
     next
 }
 
-# DOWNLOAD & BAN (Menu NONE!!) 2do
+# DOWNLOAD & BAN (Menu NONE!!) 2do?
 function handle_download_and_ban() {
     debug_log "* DOWNLOAD & BAN!"
     subtitle "DOWNLOAD & BAN!"
@@ -972,7 +968,7 @@ function handle_download_and_ban() {
 function header () {
     if [ "$DEBUG" == "true" ]; then
         echo
-        echo "▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤ DEBUG MODE ON ▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤"
+        echo -e "▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤ ${YLW}DEBUG MODE ON${NC} ▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤"
         echo
     else
        clear
@@ -989,12 +985,14 @@ function header () {
     echo -e "  ██║   ██║██║██████╔╝██████╔╝     ${DM}             ┗         ${NC}"
     echo -ne "  ╚██╗ ██╔╝██║██╔═══╝ ██╔══██╗    "
     if [ "$IPSET" == "true" ]; then
-        echo -e "✦ ${VLT}VIPB bans:${BD} $ipset_bans ${NC}"
+        echo -ne "✦ ${VLT}VIPB bans:${BD} $ipset_bans ${NC}"
     fi
+    echo
     echo -ne "   ╚████╔╝ ██║██║     ██████╔╝    "
     if [ "$IPSET" == "true" ]; then
-        echo -e "✦ ${YLW}USER bans: ${BD}$manual_ipset_bans${NC}"
+        echo -ne "✦ ${YLW}USER bans: ${BD}$manual_ipset_bans${NC}"
     fi
+    echo
     echo -e "    ╚═══╝  ╚═╝╚═╝     ╚═════╝      "
     
     function services_row() {  
@@ -1017,7 +1015,7 @@ function header () {
             if [ "$IPSET" == "true" ]; then
                 echo -ne " ✚"
             else
-                echo -ne "${RED} ⊗"
+                echo -ne "${RED} ✗"
             fi
             echo -ne " ipset"
 
@@ -1047,10 +1045,10 @@ function header () {
         else
             echo -ne "${DM}"
         fi 
-            if [ "$FIREWALLD" == "false" ]; then 
-                echo -ne "${DM}"
-            else
+            if [ "$FIREWALLD" == "true" ]; then 
                 echo -ne "${GRN}"
+            else
+                echo -ne "${DM}"
             fi
             echo -ne "firewalld ${NC}"
         if [ "$FIREWALL" == "firewalld" ]; then
@@ -1062,7 +1060,7 @@ function header () {
         if [ "$FAIL2BAN" == "true" ]; then
             echo -ne "${GRN}"
         else
-            echo -ne "${ORG}"
+            echo -ne "${NC}${DM}"
         fi
         echo -ne "${BG}fail2ban ${NC}"
         
@@ -1080,7 +1078,7 @@ function header () {
                 echo -ne "${GRN}↺ "
                 DAILYCRON=true
             else
-                echo -ne "${ORG}✗ "
+                echo -ne "${RED}✗ "
                 DAILYCRON=false
             fi
             CRONDL=false
@@ -1096,7 +1094,7 @@ function header () {
             done
             
             if [ "$CRONDL" == "false" ]; then
-                echo -ne "${ORG}✗"
+                echo -ne "${RED}✗"
             fi
         fi
         echo -e "${NC}"
@@ -1146,7 +1144,7 @@ function menu_main() {
             8) handle_geo_ip_info ;;
             9) handle_logs_info ;;
             Y) handle_download_and_ban; break ;;
-            0) debug_log "* Exit"; vquit; break ;;
+            0) debug_log "0. Exit"; vquit; break ;;
             *) if validate_ip "$choice"; then
                     echo -e "${YLW}Manual Ban IP: $choice${NC}"
                     geo_ip "$choice"
@@ -1372,4 +1370,4 @@ function select_option() {
     return $selected
 }
 
-log "vipb-ui.sh loaded [DEBUG $DEBUG / ARGS: $*]"
+debug_log "vipb-ui.sh $( echo -e "${GRN}OK${NC}")"
