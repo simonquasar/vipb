@@ -436,9 +436,7 @@ function handle_manual_ban() {
             ;;
         3)  debug_log " $manual_choice. Export to file"
             subtitle "export"
-            #2DO CHECK FUNCTION
-            ipset save "$MANUAL_IPSET_NAME" > "$SCRIPT_DIR/$MANUAL_IPSET_NAME.ipb" THIS COMMAND SAVES ThE SEt!
-            #iptables-save > "$SCRIPT_DIR/vipb-export.ipb" check persistent
+            ipset list "$MANUAL_IPSET_NAME" | grep -E '^[0-9]+\.' > "$SCRIPT_DIR/$MANUAL_IPSET_NAME.ipb"      
             echo -e "Saved to ${BG}${BLU}$SCRIPT_DIR/$MANUAL_IPSET_NAME.ipb${NC}"
             next
             ;;
