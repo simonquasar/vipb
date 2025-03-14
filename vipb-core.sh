@@ -12,12 +12,9 @@ SUBNETS16_FILE="$SCRIPT_DIR/vipb-subnets16.ipb"
 # set the name of the ipsets used by VIPB
 IPSET_NAME='vipb-blacklist'
 MANUAL_IPSET_NAME='vipb-manualbans'
-# environment variables, do not change
+# environment variables, DO NOT CHANGE
 BASECRJ='https://raw.githubusercontent.com/stamparm/ipsum/master/levels/'
 BLACKLIST_URL="$BASECRJ${BLACKLIST_LV}.txt" 
-RED='\033[31m'
-GRN='\033[32m'
-NC='\033[0m'
 FIREWALL=''
 NOF2B=false
 INFOS=false
@@ -25,8 +22,21 @@ ADDED_IPS=0
 ALREADYBAN_IPS=0
 REMOVED_IPS=0
 IPS=()
+# some basic colors
+RED='\033[31m'
+GRN='\033[32m'
+VLT='\033[35m'
+NC='\033[0m'
+# but if pure cli/cron, remove colors
+if [ "$(tput colors)" -eq 0 ]; then
+    RED=''
+    GRN=''
+    VLT=''
+    NC=''
+fi
 
 # VIPB Core functions
+echo -e "${VLT}✦ VIPB $VER ✦${NC}"
 
 function check_dependencies() {
     
@@ -285,50 +295,58 @@ function ban_ip() {
     
     local ipset_name="$1"
     local ip="$2" 
-    debug_log "$FIREWALL" "$ipset_name" "$ip"
+    #debug_log "$FIREWALL" "$ipset_name" "$ip"
     
     local ban_ip_result=0
     
-    if [[ "$FIREWALL" == "firewalld" ]]; then
-        if ! firewall-cmd --query-ipset="${ipset_name}" &>/dev/null; then
-            echo -e "${RED}Error: ipset ${BG}${ipset_name}${NC} does not exist.${NC} Please create one."
-            log "@$LINENO: Error: ipset ${ipset_name} does not exist."
-            return 1
-        fi
-        if firewall-cmd --ipset="${ipset_name}" --query-source="$ip" &>/dev/null; then
-            ban_ip_result=2
-        else
-            firewall-cmd --permanent --ipset="${ipset_name}" --add-entry="$ip"
-            # 2do EMEMBER TO RELOAD! (but not in this function)
-            #   firewall-cmd --reload
-            ban_ip_result=0
-        fi
-    elif [[ "$FIREWALL" == "iptables" ]]; then
-        if [[ "$IPSET" == "true" ]]; then
-            # ipset_path=$(which ipset)
-            if ! ipset test "$ipset_name" "$ip" &>/dev/null; then
-                ipset add "$ipset_name" "$ip"
-                ban_ip_result=0
-            else
-                ban_ip_result=2
+    if validate_ip "$ip"; then
+        if [[ "$FIREWALL" == "firewalld" ]]; then
+            if ! firewall-cmd --query-ipset="${ipset_name}" &>/dev/null; then
+                echo -e "${RED}Error: ipset ${BG}${ipset_name}${NC} does not exist.${NC} Please create one."
+                log "@$LINENO: Error: ipset ${ipset_name} does not exist."
+                return 1
             fi
-        else
-            # use iptables only
-            if ! iptables -C INPUT -s "$ip" -j DROP &>/dev/null; then
-                if iptables -I INPUT -s "$ip" -j DROP &>/dev/null; then
-                    iptables -I INPUT -s "$ip" -j DROP
+            if firewall-cmd --ipset="${ipset_name}" --query-source="$ip" &>/dev/null; then
+                ban_ip_result=2
+            else
+                firewall-cmd --permanent --ipset="${ipset_name}" --add-entry="$ip"
+                # 2do EMEMBER TO RELOAD! (but not in this function)
+                #   firewall-cmd --reload
+                ban_ip_result=0
+            fi
+        elif [[ "$FIREWALL" == "iptables" ]]; then
+            if [[ "$IPSET" == "true" ]]; then
+                # ipset_path=$(which ipset)
+                if ! ipset test "$ipset_name" "$ip" &>/dev/null; then
+                    ipset add "$ipset_name" "$ip"
                     ban_ip_result=0
                 else
-                    ban_ip_result=1
+                    # already banned
+                    ban_ip_result=2
                 fi
             else
-                ban_ip_result=2
+                # use iptables only
+                if ! iptables -C INPUT -s "$ip" -j DROP &>/dev/null; then
+                    if iptables -I INPUT -s "$ip" -j DROP &>/dev/null; then
+                        iptables -I INPUT -s "$ip" -j DROP
+                        ban_ip_result=0
+                    else
+                        ban_ip_result=1
+                    fi
+                else
+                    ban_ip_result=2
+                fi
             fi
+        elif [[ "$FIREWALL" == "ufw" ]]; then
+            echo -e "${YLW}DEVELOPMENT: ufw not supported yet!${NC} " #2do
+        else
+            echo -e "${RED}Error: No firewall system found!${NC}"
+            log "@$LINENO: Error: No firewall system found."
+            return 1
         fi
     else
-        echo -e "${RED}Error: No firewall system found!${NC}"
-        log "@$LINENO: Error: No firewall system found."
-        return 1
+        echo -e "${RED}Invalid IP/CIDR address!${NC}"
+        ban_ip_result=1
     fi
 
     case $ban_ip_result in
@@ -346,7 +364,7 @@ function ban_ip() {
             ;;
         1)  debug_log "IP $ip ban error"
             if [ "$INFOS" == "true" ]; then
-                echo -e "⊗ ${RED}IP $ip \tban error${NC}"
+                echo -e "✗ ${RED}IP $ip \tban error${NC}"
             else
                 echo -ne "${RED}⊗${NC}"
             fi
@@ -367,7 +385,7 @@ function ban_ip() {
 }
 
 function add_ips() { 
-    lg "*" "add_ips $@"
+    lg "*" "add_ips $*" 
     #ipset ip1 ip2 ip3 ip4 ip5...
     if [ $# -lt 2 ]; then
         echo "You must provide one name for the ipset and AT LEAST one IP address. ERR@$LINENO add_ips(): $*"; return 1
@@ -427,8 +445,10 @@ function unban_ip() {
         echo -e "- ${GRN}IP $ip \tremoved${NC}"
     else
         echo -e "? ${ORG}IP $ip \tnot found${NC}"
+        lg "*" "unban_ip ERROR"
         return 1
     fi
+    lg "*" "unban_ip OK"
     return 0
 }
 
@@ -523,7 +543,7 @@ function set_blacklist_level() {
     BLACKLIST_URL="$BASECRJ${BLACKLIST_LV}.txt" 
 
     # Update vipb-globals.sh with the new level
-    sed -i "s/^BLACKLIST_LV=.*/BLACKLIST_LV=$BLACKLIST_LV/" "$SCRIPT_DIR/vipb-globals.sh"
+    sed -i "s/^BLACKLIST_LV=.*/BLACKLIST_LV=$BLACKLIST_LV/" "$SCRIPT_DIR/vipb-core.sh"
     log "Level set to $BLACKLIST_LV"
 
 }
@@ -718,7 +738,7 @@ function compressor() {
 function ban_core() { 
     lg "*" "ban_core $*"
     echo -e "${VLT}▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰"
-    echo -e "      VIPB-Ban started!"
+    echo -e "   VIPB-Ban started!"
     echo -e "▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰${NC}"
     
     # ban_core blacklist (ipset_name)
@@ -763,12 +783,12 @@ function ban_core() {
 
     count=$(count_ipset "$ipset")
     
-    echo -e "${GRN}▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰"
-    echo -e "      VIPB-Ban finished "
+    echo -e "▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰"
+    echo -e "   VIPB-Ban finished "
     if [ $err -ne 0 ]; then
-        echo -e " ⊗ ${YLW}with $ERRORS errors.. check logs!"
+        echo -e " ⊗ ${YLW}with $ERRORS errors.. check logs!${NC}"
     fi
-    echo -e "▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰${NC}"
+    echo -e "▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰"
     echo -e "${VLT}   Loaded:   $total_blacklist_read"
     echo -e "${ORG} ◌ Listed:   $ALREADYBAN_IPS"
     echo -e "${GRN} ✚  Added:   $ADDED_IPS"

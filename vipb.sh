@@ -9,9 +9,10 @@
 # |  |  | |   __| __ -|  
 #  \___/|_|__|  |_____| v0.9beta  
 #
-VER="v0.9beta3"
+VER="v0.9beta4"
+ARGS=("$@")
+
 # check if debug mode is enabled
-echo "▤▤▤▤ VIPB START ▤▤▤▤"
 check_debug_mode() {
     DEBUG="false"
     CLI="false"
@@ -21,6 +22,7 @@ check_debug_mode() {
         echo ">> DEBUG MODE [$DEBUG]"
         shift
     fi
+    ARGS=("$@")
 
     if [ "$1" == "true" ]; then
         echo ">> CLI simulation: $@"
@@ -31,9 +33,9 @@ check_debug_mode() {
     else
         CLI="true"
     fi
-    # echo "@$LINENO - args: $@ / count: $# / first: $1 / CLI: $CLI / DEBUG: $DEBUG"
+    #echo "@$LINENO - args: $@ / count: $# / first: $1 / CLI: $CLI / DEBUG: $DEBUG"
 }
-check_debug_mode "$@"
+check_debug_mode "${ARGS[@]}"
 
 # use absolute path to source VIPB files
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
@@ -63,11 +65,11 @@ function log() {
 }
 
 log "▤▤▤▤ VIPB $VER START ▤▤▤▤"
-log "▤ [ARGS: $*]"
+log "▤ [ARGS: ""${ARGS[*]}""]"
 debug_log "▤ DEBUG mode ENABLED"
 
 # bootstrap VIPB core functions and variables
-source "$SCRIPT_DIR/vipb-core.sh" "$@"
+source "$SCRIPT_DIR/vipb-core.sh" "${ARGS[*]}"
 log "$SCRIPT_DIR/vipb-core.sh $( echo -e "${GRN}LOADED${NC}")"
 
 # check/set dependencies
@@ -78,6 +80,7 @@ if [ "$err" == 0 ]; then
     log "Dependencies OK"
 fi
 debug_log "check_dependencies() error $err"
+echo "Firewall: $FIREWALL"
 
 # if UI terminal > load vipb-ui.sh
 if [ "$CLI" == "false" ]; then
@@ -97,24 +100,24 @@ if [ "$CLI" == "false" ]; then
 
 # if CLI/CronJob > parse arguments
 elif [ "$CLI" == "true" ]; then
-    echo "VIPB $VER loaded in CLI/CronJob mode"
-    log "▤▤▤▤ VIPB $VER loaded ▤▤▤▤ in CLI/CronJob mode"
-    debug_log "args: $*"
+    #echo "VIPB $VER loaded in CLI/CronJob mode"
+    log "VIPB loaded in CLI/CronJob mode."
+    debug_log "(args: ${ARGS[*]})"
     check_args() {
-        case $1 in
-            "download") echo "download lv. $2"; download_blacklist "$2"; exit 0;;
-            "compress") echo "compress $2"; compressor "$2"; exit 0;;
-            "banlist")  echo "banlist $2"; ban_core "$2"; exit 0;;
-            "ban")      echo "ban IP $2"; ban_ip "$MANUAL_IPSET_NAME" "$2"; exit 0;;
-            "unban")    echo "unban IP $2"; unban_ip "$MANUAL_IPSET_NAME" "$2"; exit 0;;
-            "stats")    echo "Banned in VIPB-set: $(count_ipset "$IPSET_NAME")" 
-                        echo "Banned in user set: $(count_ipset "$MANUAL_IPSET_NAME")"
+        case ${ARGS[0]} in
+            "download") echo "download lv. ${ARGS[1]}"; download_blacklist "${ARGS[1]}"; exit 0;;
+            "compress") echo "compress ${ARGS[1]}"; compressor "${ARGS[1]}"; exit 0;;
+            "banlist")  echo "banlist ${ARGS[1]}"; ban_core "${ARGS[1]}"; exit 0;;
+            "ban")      echo "ban IP ${ARGS[1]}"; INFOS=true; ban_ip "$MANUAL_IPSET_NAME" "${ARGS[1]}"; exit 0;;
+            "unban")    echo "unban IP ${ARGS[1]}"; INFOS=true; unban_ip "$MANUAL_IPSET_NAME" "${ARGS[1]}"; exit 0;;
+            "stats")    echo "Banned in $IPSET_NAME set: $(count_ipset "$IPSET_NAME")" 
+                        echo "Banned in $MANUAL_IPSET_NAME set: $(count_ipset "$MANUAL_IPSET_NAME")"
                         exit 0;;
-            "true"|"debug"|"")  echo "Starting core autoban...";
-                        debug_log "Starting core autoban..." # default CLI operation > ban blacklist.ipb
-                        debug_log "args: $@"
+            "true"|"autoban"|"debug"|"")  echo "Starting CLI/cron core autoban...";
+                        debug_log "Starting CLI/cron core autoban..." 
+                        #debug_log "(args: $@)"
                         debug_log "Blacklist source file: $BLACKLIST_FILE" 
-                        ban_core "$BLACKLIST_FILE" # core default operation
+                        ban_core "$BLACKLIST_FILE" # default CLI operation > ban blacklist.ipb
                         log "▤▤▤▤ VIPB $VER END. ▤▤▤▤ (CLI $CLI)"
                         exit 0 
                         ;;
@@ -128,8 +131,8 @@ elif [ "$CLI" == "true" ]; then
                         echo "  compress [listfile.ipb]   compress IPs list [optional: file.ipb]"
                         echo "  banlist [listfile.ipb]    ban IPs/subnets list [optional: file.ipb]"
                         echo "  stats                     view banned VIPB IPs/subnets counts"
-                        echo "  true                      simulate cron/CLI (autoban)"
-                        echo "  debug [true]              debug mode (echoes logs) [optional: force CLI]"
+                        echo "  true                      simulate cron/CLI (or autoban)"
+                        echo "  debug                     debug mode (echoes logs)"
                         echo
                         echo "                            (*.ipb = list of IPs, one per line)"
                         echo
