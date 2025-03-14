@@ -3,9 +3,10 @@
 ![GitHub commit activity](https://img.shields.io/github/commit-activity/t/simonquasar/vipb)
 
 > [!IMPORTANT]  
-> Feb '25: Currently developing 0.9beta to a "stable" 0.9 release.
+> Mar '25: Currently developing 0.9beta4 to a "stable" 0.9 release.
+> 
 > 2do:
-> - better use firewall mangament along with `check_firewall_rules()`
+> - final check on firewall rules/setup (Menu 6.)
 
 # VIPB - Versatile IP Blacklister
 
@@ -30,9 +31,28 @@ This function analyzes a list of potentially suspicious IP addresses, identifies
 ### Firewall Integration
 
 - **Manage `ipset`**: Creates and manages `ipset` rules for swift IP blocking.
-- **Firewalls & Rules**: Integrates with both `firewalld` and `iptables`.
+- **Firewalls & Rules**: Integrates with both `firewalld` and `iptables` (`ufw` coming soon).
 - **Fail2Ban**: Works in harmony with `Fail2Ban`.
-  
+
+## CLI
+
+Run via CLI `./vipb.sh args`
+
+````
+► VIPB.sh (v0.9beta4) CLI ARGUMENTS
+
+  ban #.#.#.#               ban single IP in manual/user list
+  unban #.#.#.#             unban single IP in manual/user list
+  download #                download lv #
+  compress [listfile.ipb]   compress IPs list [optional: file.ipb]
+  banlist [listfile.ipb]    ban IPs/subnets list [optional: file.ipb]
+  stats                     view banned VIPB IPs/subnets counts
+  true                      simulate cron/CLI (or autoban)
+  debug                     debug mode (echoes logs)
+
+                            (*.ipb = list of IPs, one per line)                        
+````
+
 ## Installation
 
 Ensure required dependencies are installed and active:
