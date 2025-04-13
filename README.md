@@ -2,12 +2,6 @@
 ![GitHub top language](https://img.shields.io/github/languages/top/simonquasar/vipb)
 ![GitHub commit activity](https://img.shields.io/github/commit-activity/t/simonquasar/vipb)
 
-> [!IMPORTANT]  
-> Mar '25: Currently developing 0.9beta4 to a "stable" 0.9 release.
-> 
-> 2do:
-> - final check on firewall rules/setup (Menu 6.)
-
 # VIPB - Versatile IP Blacklister
 
 **VIPB (Versatile IP Blacklister)** is a little tool written in Bash automates for downloading, processing, and maintaining [*IPsum*](https://github.com/stamparm/ipsum/) blacklists, and provides functionalities for firewall, ban, and log management. It uses `ipset` with `iptables` or `firewalld` (`ufw` coming soon..). It includes automation via `cron` jobs, integration with `fail2ban`, and a user-friendly interface for manual operations.
