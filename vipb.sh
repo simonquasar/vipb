@@ -9,7 +9,7 @@
 # |  |  | |   __| __ -|  
 #  \___/|_|__|  |_____| v0.9beta  
 #
-VER="v0.9beta4"
+VER="v0.9beta5"
 ARGS=("$@")
 
 # check if debug mode is enabled
@@ -43,15 +43,15 @@ LOG_FILE="$SCRIPT_DIR/vipb-log.log"
 
 # bootstrap log functions
 function lg {
-    local stripped_message
+    local stripped_message 
     stripped_message=$(echo "$2" | sed 's/\x1b\[[0-9;]*m//g')
-    echo "$(date '+%Y-%m-%d %H:%M:%S') - [${BASH_SOURCE[2]}] $1 $stripped_message" >> "$LOG_FILE"
+    printf "%-19s %-13s %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$(basename "${BASH_SOURCE[2]}")" "$1 $stripped_message" >> "$LOG_FILE"
 }
-
+  
 function debug_log() {
     if [[ $DEBUG == "true" ]]; then
         lg "+" "$@"
-        echo "<< DBG [${BASH_SOURCE[1]}] $@"
+        echo "<< DBG [$(basename "${BASH_SOURCE[1]}")] $@"
     fi
 }
 
@@ -59,13 +59,13 @@ function log() {
     if [[ -n "$1" ]]; then
         lg "-" "$@"
         if [[ $DEBUG == "true" ]]; then
-            echo ">> LOG [${BASH_SOURCE[1]}] $@"
+            echo ">> LOG [$(basename "${BASH_SOURCE[1]}")] $@"
         fi
     fi
 }
 
-log "▤▤▤▤ VIPB $VER START ▤▤▤▤"
-log "▤ [ARGS: ""${ARGS[*]}""]"
+log "▤▤▤▤▤▤▤▤ VIPB START ▤▤▤▤ $VER"
+log "▤ ARGS [""${ARGS[*]}""]"
 debug_log "▤ DEBUG mode ENABLED"
 
 # bootstrap VIPB core functions and variables
@@ -78,8 +78,10 @@ check_dependencies
 err=$?
 if [ "$err" == 0 ]; then
     log "Dependencies OK"
+else
+    log "Dependencies ERROR $err"
 fi
-debug_log "check_dependencies() error $err"
+debug_log "check_dependencies() $err"
 echo "Firewall: $FIREWALL"
 
 # if UI terminal > load vipb-ui.sh
@@ -87,6 +89,7 @@ if [ "$CLI" == "false" ]; then
     # load UI
     source "$SCRIPT_DIR/vipb-ui.sh"
     log "$SCRIPT_DIR/vipb-ui.sh $( echo -e "${GRN}LOADED${NC}")"
+    log "UI interface OK"
     # Start UI execution
     header
     menu_main

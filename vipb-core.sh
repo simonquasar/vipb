@@ -3,7 +3,7 @@ set -o pipefail
 
 # Variables & Logging
 # set the blacklisted IPsum level (2-8, default 3)
-BLACKLIST_LV=3
+BLACKLIST_LV=4
 # set the default files names and path
 BLACKLIST_FILE="$SCRIPT_DIR/vipb-blacklist.ipb"
 OPTIMIZED_FILE="$SCRIPT_DIR/vipb-optimised.ipb"
@@ -27,8 +27,8 @@ RED='\033[31m'
 GRN='\033[32m'
 VLT='\033[35m'
 NC='\033[0m'
-# but if pure cli/cron, remove colors
-if [ "$(tput colors)" -eq 0 ]; then
+# but if pure cli/cron or no color support, remove colors
+if [ -z "$TERM" ] || ! tput colors >/dev/null 2>&1 || [ "$(tput colors 2>/dev/null || echo 0)" -eq 0 ]; then
     RED=''
     GRN=''
     VLT=''
@@ -99,7 +99,7 @@ function check_dependencies() {
         return $err    
     }
 
-    CRON=$(check_service "cron")
+    CRON=$(check_service "crontab")
     debug_log "▤ CRON: $CRON"
 
     CURL=$(check_service "curl") #no fallback
@@ -146,7 +146,7 @@ function validate_ip() {
 }
 
 function check_ipset() { #CLI
-    lg "*" "check_ipset $*"
+    #lg "*" "check_ipset $*"
     if [ $# -lt 1 ]; then
         echo "You must provide ONE name for the ipset. > check_ipset ipset_name @$LINENO : $*"
         return 1 
@@ -180,41 +180,68 @@ function add_firewall_rules() { #2do
     lg "*" "add_firewall_rules FIREWALL = $FIREWALL : $*"
     
     local ipset=${1:-"$IPSET_NAME"}
-    if [[ "$FIREWALL" = "firewalld" ]]; then
-        # Firewalld
-        if ! firewall-cmd --query-ipset="${ipset}" &>/dev/null; then
+    
+    if [[ "$FIREWALL" = "iptables" ]]; then
+            if ! iptables -C INPUT -m set --match-set "${ipset}" src -j DROP &>/dev/null; then
+                echo -e "${YLW}Adding iptables rule for ipset '${ipset}'...${NC}"
+                #iptables -D INPUT -m set --match-set ipsum src -j DROP 2>/dev/null
+                iptables -I INPUT -m set --match-set "${ipset}" src -j DROP
+                # Salva le regole per salvarle, per renderle  persistenti vs netfilter-persistent
+                # iptables-save > /etc/iptables/rules.v4
+                echo -e "${GRN}iptables rule for ipset '${ipset}' added.${NC}"
+            else
+                echo -e "${GRN}iptables rule for ipset '${ipset}' already exists.${NC}"
+            fi
+            if ipset list "${ipset}" &>/dev/null; then
+                echo -e "ipset '${ipset}' ${RED}does not exist${NC} remember to create it!"
+                log "@$LINENO: Error: ipset '${ipset}' does not exist"
+                exit 1
+            fi
+    elif [[ "$FIREWALL" = "firewalld" ]]; then
+        if ! firewall-cmd --permanent --query-ipset="${ipset}" &>/dev/null; then
             echo "${YLW}Creating new firewalld ipset (permanent)...${NC}"
             firewall-cmd --permanent --new-ipset="${ipset}" --type=hash:net
-            firewall-cmd --reload
         else
             echo -e "Firewalld${GRN} permanent ipset ${ipset} already exists.${NC}"
         fi
+        # firewall-cmd --permanent --new-ipset="$ipset" --type=hash:net
         
-        if ! firewall-cmd --query-rich-rule="rule family='ipv4' source ipset='${ipset}' drop" &>/dev/null; then
+        if ! firewall-cmd --permanent --direct --query-rule ipv4 filter INPUT 0 -m set --match-set "$ipset" src -j DROP &>/dev/null; then
             echo -e "${YLW}Adding firewalld rich-rule (permanent)...${NC}"
-            firewall-cmd --permanent --add-rich-rule="rule family='ipv4' source ipset='${ipset}' drop"
-            firewall-cmd --reload
+            #firewall-cmd --permanent --add-rich-rule="rule family='ipv4' source ipset='${ipset}' drop"
+            # check which is better! 2do
+            firewall-cmd --permanent --direct --add-rule ipv4 filter INPUT 0 -m set --match-set "$ipset" src -j DROP
         else
             echo -e "Firewalld${GRN} permanent rich-rule for ${ipset} already exists.${NC}"
         fi
+        echo -e "Reloading firewalld..."
+        firewall-cmd --reload
+
+    elif [[ "$FIREWALL" == "ufw" ]]; then
+        echo "2do"
     fi
-    # Iptables
-    if ipset list "${ipset}" &>/dev/null; then
-        if ! iptables -C INPUT -m set --match-set "${ipset}" src -j DROP &>/dev/null; then
-            echo -e "${YLW}Adding iptables rule for ipset '${ipset}'...${NC}"
-            #iptables -D INPUT -m set --match-set ipsum src -j DROP 2>/dev/null
-            iptables -I INPUT -m set --match-set "${ipset}" src -j DROP
-            # Salva le regole per salvarle, per renderle  persistenti vs netfilter-persistent
-            # iptables-save > /etc/iptables/rules.v4
-            echo -e "${GRN}iptables rule for ipset '${ipset}' added.${NC}"
-        else
-            echo -e "${GRN}iptables rule for ipset '${ipset}' already exists.${NC}"
+
+}
+
+function remove_firewall_rules(){ #2do
+    lg "*" "remove_firewall_rules FIREWALL = $FIREWALL : $*"
+    
+    local ipset=${1:-"$IPSET_NAME"}
+    err=0
+
+    if [[ "$FIREWALL" = "iptables" ]]; then
+        if iptables -C INPUT -m set --match-set "$ipset" src -j DROP 2>/dev/null; then
+            iptables -D INPUT -m set --match-set "$ipset" src -j DROP
         fi
-    else
-        echo -e "${RED}Error: ipset '${ipset}' does not exist${NC}"
-        log "@$LINENO: Error: ipset '${ipset}' does not exist"
-        exit 1
+    elif [[ "$FIREWALL" == "firewalld" ]]; then
+        echo -e "${VLT}Deleting old rules...${NC}"
+            firewall-cmd --permanent --delete-ipset="$ipset"
+            firewall-cmd --permanent --direct --remove-rule ipv4 filter INPUT 0 -m set --match-set "$ipset" src -j DROP
+    elif [[ "$FIREWALL" == "ufw" ]]; then
+        echo "2do"
     fi
+
+    return $err
 }
 
 function setup_ipset() {
@@ -295,7 +322,6 @@ function ban_ip() {
     
     local ipset_name="$1"
     local ip="$2" 
-    #debug_log "$FIREWALL" "$ipset_name" "$ip"
     
     local ban_ip_result=0
     
@@ -311,21 +337,18 @@ function ban_ip() {
             else
                 firewall-cmd --permanent --ipset="${ipset_name}" --add-entry="$ip"
                 # 2do EMEMBER TO RELOAD! (but not in this function)
-                #   firewall-cmd --reload
                 ban_ip_result=0
             fi
         elif [[ "$FIREWALL" == "iptables" ]]; then
             if [[ "$IPSET" == "true" ]]; then
-                # ipset_path=$(which ipset)
                 if ! ipset test "$ipset_name" "$ip" &>/dev/null; then
                     ipset add "$ipset_name" "$ip"
                     ban_ip_result=0
                 else
-                    # already banned
                     ban_ip_result=2
                 fi
             else
-                # use iptables only
+                # use iptables only, ban on single ip (not optimized)
                 if ! iptables -C INPUT -s "$ip" -j DROP &>/dev/null; then
                     if iptables -I INPUT -s "$ip" -j DROP &>/dev/null; then
                         iptables -I INPUT -s "$ip" -j DROP
@@ -339,7 +362,7 @@ function ban_ip() {
             fi
         elif [[ "$FIREWALL" == "ufw" ]]; then
             echo -e "${YLW}DEVELOPMENT: ufw not supported yet!${NC} " #2do
-        else
+        else #fallback should not happen
             echo -e "${RED}Error: No firewall system found!${NC}"
             log "@$LINENO: Error: No firewall system found."
             return 1
@@ -353,13 +376,13 @@ function ban_ip() {
         0)  debug_log "IP $ip added to $FIREWALL in $ipset_name"
             ((ADDED_IPS++))
             if  [ "$INFOS" == "true" ]; then
-                echo -ne "✚ ${GRN}IP $ip \t"
+                echo -ne "✓ ${GRN}IP $ip \t"
                 if [ "$PERSISTENT" == "true" ]; then
                     echo -ne "permanently "
                 fi
                 echo -e "added${NC}" # to ${BG}$ipset_name${NC}
             else
-                echo -ne "${GRN}✚${NC}"
+                echo -ne "${GRN}✓${NC}"
             fi
             ;;
         1)  debug_log "IP $ip ban error"
@@ -372,13 +395,12 @@ function ban_ip() {
         2)  debug_log "IP $ip already banned in $ipset_name"
             ((ALREADYBAN_IPS++))
             if [ "$INFOS" == "true" ]; then
-                echo -e "◌ ${ORG}IP $ip \talready banned${NC}"
+                echo -e "○ ${ORG}IP $ip \talready banned${NC}"
             else
-                echo -ne "${ORG}◌${NC}"
+                echo -ne "${ORG}○${NC}"
             fi
             ;;
-        *)  debug_log "? ban_ip_result: $ban_ip_result"
-            ;;
+        *)  debug_log "?? ban_ip_result: $ban_ip_result";;
     esac
 
     return $ban_ip_result
@@ -473,7 +495,7 @@ function remove_ips () {
 }
 
 function count_ipset() {
-    lg "*" "count_ipset $*"
+    # lg "*" "count_ipset $*"
     if [ $# -lt 1 ]; then
         echo "You must provide ONE name for the ipset. ERR@$LINENO count_ipset ipset_name: $*" >&2
         return 1 
@@ -492,7 +514,7 @@ function count_ipset() {
 }
 
 function check_blacklist_file() {
-    lg "*" "check_blacklist_file $*"
+    #lg "*" "check_blacklist_file $*"
     #if [ $# -lt 1 ]; then
         #echo "You must provide one file. ERR@$LINENO check_blacklist_file(): $*"; return 1
     #fi
@@ -737,8 +759,7 @@ function compressor() {
 
 function ban_core() { 
     lg "*" "ban_core $*"
-    echo -e "${VLT}▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰"
-    echo -e "   VIPB-Ban started!"
+    echo -e "${VLT}VIPB-Ban started!"
     echo -e "▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰${NC}"
     
     # ban_core blacklist (ipset_name)
@@ -762,7 +783,7 @@ function ban_core() {
             fi
         done < "$blacklist"
         total_blacklist_read=${#IPS[@]}
-        echo -e "Loaded ${VLT}${total_blacklist_read} IPs${NC} from list." 
+        echo -e "Loaded ${VLT}${total_blacklist_read} sources${NC} from list." 
         log "Loaded $total_blacklist_read IPs."
     else
         echo -e "${NC}Error: Blacklist file."
@@ -784,29 +805,26 @@ function ban_core() {
     count=$(count_ipset "$ipset")
     
     echo -e "▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰"
-    echo -e "   VIPB-Ban finished "
+    echo -e " VIPB-Ban finished "
     if [ $err -ne 0 ]; then
-        echo -e " ⊗ ${YLW}with $ERRORS errors.. check logs!${NC}"
+        echo -e " ${RED}✗ ${YLW}with $ERRORS errors.. check logs!${NC}"
     fi
-    echo -e "▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰"
-    echo -e "${VLT}   Loaded:   $total_blacklist_read"
-    echo -e "${ORG} ◌ Listed:   $ALREADYBAN_IPS"
-    echo -e "${GRN} ✚  Added:   $ADDED_IPS"
-    echo -e "${GRN}    TOTAL:   $count banned${NC}"
-    echo "▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰"
+    echo -e "${VLT} ≡ Loaded:  $total_blacklist_read"
+    echo -e "${ORG} ◌ Listed:  $ALREADYBAN_IPS"
+    echo -e "${GRN} ✓  Added:  $ADDED_IPS"
+    echo -e "${GRN}    TOTAL:  $count sources${NC} banned in set"
+
     log "▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰"
     log " VIPB-Ban finished!"
     if [ $err -ne 0 ]; then
         log "WITH $ERRORS ERRORS!"
         log "Function add_ipset() failed: $err"
     fi
-    log "▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰"
     log "         Source:   $blacklist ($modified)"
     log "         Loaded:   $total_blacklist_read"
     log "          Added:   $ADDED_IPS"
     log "Already present:   $ALREADYBAN_IPS"
     log "          TOTAL:   $count IPs/sources banned in ipset"
-    log "▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰"
     
     return $err
 }
