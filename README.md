@@ -1,6 +1,9 @@
-![Static Badge](https://img.shields.io/badge/version-0.9beta-orange)
+![Static Badge](https://img.shields.io/badge/VIPB-Versatile%20IP%20Blacklister-orange?logo=backblaze&logoColor=goldenrod&color=red)
+![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/simonquasar/vipb)
 ![GitHub top language](https://img.shields.io/github/languages/top/simonquasar/vipb)
-![GitHub commit activity](https://img.shields.io/github/commit-activity/t/simonquasar/vipb)
+![GitHub Tag](https://img.shields.io/github/v/tag/simonquasar/vipb)
+![GitHub commits since tagged version](https://img.shields.io/github/commits-since/simonquasar/vipb/0.9-pre)
+
 
 # VIPB - Versatile IP Blacklister
 
@@ -11,7 +14,7 @@
 ### Automated & Manual IP Ban
 
 - **Ban IP Lists and/or Subnets**: Ban individual IPs, /16, and /24 subnets from a file.
-- **Dynamic Updates**: Automatically download and process IP blacklists from [*IPsum*](https://github.com/stamparm/ipsum/).
+- **Daily Jobs**: Automatically download and process IP blacklists from [*IPsum*](https://github.com/stamparm/ipsum/).
 - **Dual Blacklists**: Maintains separate lists and ipsets for automated and manual IP bans.
 
 ### Suspicious IPs to Subnets Aggregator
@@ -20,12 +23,12 @@ This function analyzes a list of potentially suspicious IP addresses, identifies
 
 ### Daily Ban Automation (via Cron Jobs)
 
-- **Daily Download & Ban**: Automated daily IPsum list download and ban via cron jobs.
+- **Daily Download & Ban**: Automated daily IPsum list download and ban via cron job.
 
 ### Firewall Integration
 
 - **Manage `ipset`**: Creates and manages `ipset` rules for swift IP blocking.
-- **Firewalls & Rules**: Integrates with both `firewalld` and `iptables` (`ufw` coming soon).
+- **LInux firewalls**: Integrates with both `firewalld` and `iptables` (`ufw` coming soon).
 - **Fail2Ban**: Works in harmony with `Fail2Ban`.
 
 ## CLI
@@ -33,7 +36,7 @@ This function analyzes a list of potentially suspicious IP addresses, identifies
 Run via CLI `./vipb.sh args`
 
 ````
-► VIPB.sh (v0.9beta4) CLI ARGUMENTS
+► VIPB.sh (v0.9) CLI ARGUMENTS
 
   ban #.#.#.#               ban single IP in manual/user list
   unban #.#.#.#             unban single IP in manual/user list
