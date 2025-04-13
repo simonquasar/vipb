@@ -157,25 +157,24 @@ function level_bar(){
 # (Menu 1) IPsum blacklist download  download_blacklist
 function handle_ipsum_download() {
     debug_log "1. Download IPsum Blacklist" 
+    header
     echo -ne "${VLT}"
     subtitle "Download IPsum Blacklist"
-    echo -e "${BG}IPsum${NC} is a feed based on 30+ publicly available lists of suspicious and/or malicious IP addresses."
-    echo -e "The provided list is made of IP addresses matched with a number of (black)lists occurrences. "
+    echo -e "${BG}IPsum${NC} is a feed based on 30+ publicly available lists of suspicious and/or malicious IP addresses. The provided list is made of IP addresses matched with a number of (black)lists occurrences. "
     echo -e "more infos at ${BG}https://github.com/stamparm/ipsum${NC}"
     echo
-    echo -ne "≡ ${VLT}IPsum Blacklist "
+    echo -ne "≡ ${VLT}IPsum list "
     check_blacklist_file $BLACKLIST_FILE infos
     echo
     echo
-    echo -e "Select ${BG}IPsum${NC} blacklist level, where level # => IPs appears on at least # blacklists"
-    echo -e "${BD}${YLW}[2] more strict (caution big list!) <--> [8] less strict ${NC}"
+    echo -e "${YLW}Select level #, where # means IP appears on at least # blacklists"
+    echo -e "${BD}${YLW}[2] more strict ${BG}(caution big list!)${NC}${BD}${YLW} <--> [8] less strict ${NC}"
     echo -e "${DM}[suggested 3-4, exit with 0]${NC}"
     echo -e "${YLW}"
 	echo -ne "[LV 2-8${DM}|0${NC}${YLW}]: "
 	read -p "" select_lv
 	echo -e "${NC}"
     case $select_lv in
-        0)  back ;;
         [2-8]) 
             download_blacklist $select_lv
             echo "Proceed to the Aggregator!"
@@ -185,11 +184,13 @@ function handle_ipsum_download() {
     back
 }
 
-# (Menu 2) blacklist compression  aggregator
+# (Menu 2) Aggregator blacklist compression
 function handle_aggregator() {
     debug_log "2. VIPB-aggregator"
+    header
     echo -ne "${CYN}"
     subtitle "VIPB-aggregator"
+    echo "Aggregator is a script that compresses the IPsum blacklist into a smaller set of sources (subnetworks)."
     compressor
     next
     back
@@ -198,79 +199,80 @@ function handle_aggregator() {
 # (Menu 3) blacklist banning  
 function handle_blacklist_ban() {
     debug_log "3. Ban Blacklists"
+    header
     echo -ne "${BLU}"
-    subtitle "Blacklists"
-    echo -ne "${VLT} IPsum list  "
-    check_blacklist_file "$BLACKLIST_FILE" infos
-    echo
-    echo -ne "${CYN} Optimized   "
-    check_blacklist_file "$OPTIMIZED_FILE" infos
-    if [ -f "$BLACKLIST_FILE" ]; then
-        cmodified=$(stat -c "%y" "$BLACKLIST_FILE" | cut -d. -f1) 
-        if [[ "$cmodified" > "$MODIFIED" ]]; then
-            echo -ne " ${ORG}older!${NC}"
-        fi 
-    fi
-    echo
-    echo -ne "${S24} Subnets /24 "
-    check_blacklist_file $SUBNETS24_FILE infos    
-    echo
-    echo -ne "${S16} Subnets /16 "
-    check_blacklist_file $SUBNETS16_FILE infos
-    echo
+    subtitle "Blacklists banning"
+    # echo -e "${BG}VIPB blacklists:${NC}"
+    # echo -ne "${VLT} IPsum list  "
+    # check_blacklist_file "$BLACKLIST_FILE"
+    # echo
+    # echo -ne "${CYN} Optimized   "
+    # check_blacklist_file "$OPTIMIZED_FILE"
+    # if [ -f "$BLACKLIST_FILE" ]; then
+    #     cmodified=$(stat -c "%y" "$BLACKLIST_FILE" | cut -d. -f1) 
+    #     if [[ "$cmodified" > "$MODIFIED" ]]; then
+    #         echo -ne " ${ORG}older!${NC}"
+    #     fi 
+    # fi
+    # echo
+    # echo -ne "${S24}  Subnets /24 "
+    # check_blacklist_file $SUBNETS24_FILE    
+    # echo
+    # echo -ne "${S16}  Subnets /16 "
+    # check_blacklist_file $SUBNETS16_FILE
+    # echo
 	
     ipb_files=()
-    selected_ipbf=()
     while IFS= read -r -d '' file; do
         if [[ -f "$file" && ! "$file" =~ vipb- ]]; then
             ipb_files+=("$file")
         fi
     done < <(find "$SCRIPT_DIR" -maxdepth 1 -name '*.ipb' -print0)
-
-    for ipb_file in "${ipb_files[@]}"; do
-        echo -ne "${BLU} $ipb_file " 
-        check_blacklist_file "$ipb_file" infos
+    if ! [ ${#ipb_files[@]} -eq 0 ]; then
+        echo -e "${BG}Custom blacklists:${NC}"
+        for ipb_file in "${ipb_files[@]}"; do
+            echo -ne "${BLU} $ipb_file " 
+            check_blacklist_file "$ipb_file"
+            echo
+        done
         echo
-    done
-
-    echo
-    echo -ne "${VLT}"
-    subtitle "Ban"
+    fi
+    
     if [[ $IPSET == "false" ]]; then
         echo -e "${RED}ipset not found. No option available."
     else
-        check_ipset $IPSET_NAME
-        check_ipset $MANUAL_IPSET_NAME
         INFOS="false"
+        #check_ipset $IPSET_NAME
+        #check_ipset $MANUAL_IPSET_NAME
+        echo -e "${YLW}All ready. What do you want to do?${NC}" 
         echo
-        echo -e "All ready. What do you want to do?" 
-        echo
-        echo -e "\t1. Ban ${VLT}original blacklist${NC} (${VLT}$(wc -l < "$BLACKLIST_FILE") IPs${NC})"
-        echo -e "\t2. Ban ${CYN}all optimized${NC} (${CYN}$(wc -l < "$OPTIMIZED_FILE") sources${NC})"
-        echo -e "\t3. Ban ${S24}/24 subnets${NC} (#.#.#.\e[37m0${NC}) (${S24}$(wc -l < "$SUBNETS24_FILE") networks${NC})"
-        echo -e "\t4. Ban ${S16}/16 subnets${NC} (#.#.\e[37m0.0${NC}) (${S16}$(wc -l < "$SUBNETS16_FILE") networks${NC})${ORG}!${NC}"
-        echo -e "\t5. Ban ${BLU}from ${BG}*.ipb${NC} files${NC}"
-        echo -e "\t6. Clear ${BLU}Blacklists${NC} files${NC}"
+        echo -e "\t${BD}${CYN}1. Ban aggregated list ✓${NC}  \t${CYN}$(wc -l < "$OPTIMIZED_FILE") sources${NC}"
+        echo -e "\t${VLT}2. Ban source IPsum list${NC} \t${VLT}$(wc -l < "$BLACKLIST_FILE") IPs${NC}"
+        echo -e "\t3. Only ${S24}/24 subnets${NC} #.#.#.${BD}0${NC} \t${S24}$(wc -l < "$SUBNETS24_FILE") networks${NC}"
+        echo -e "\t4. Only ${S16}/16 subnets${NC} #.#.${BD}0.0${NC} \t${S16}$(wc -l < "$SUBNETS16_FILE") networks${NC}"
+        echo -e "\t5. Ban ${BLU}from ${BG}*.ipb${NC} files \t${DM}>>${NC}"
+        echo -e "\t6. ${ORG}Clear ${BLU}blacklists${NC} files \t${DM}>>${NC}"
         echo
         echo -e "\t${DM}0. <<" 
         echo -e "\e[0m"
         echo
         while true; do
+            echo -ne "${YLW}"
             read -p "_ " blacklist_choice
             echo -e "${NC}"
             case $blacklist_choice in
-                1)  debug_log " $blacklist_choice. BLACKLIST_FILE"
-                    echo -e "${VLT}Ban original blacklist${NC}" 
-                    ban_core "$BLACKLIST_FILE"
-                    next
-                    break
-                    ;;    
-                2)  debug_log " $blacklist_choice. OPTIMIZED_FILE"
+                1)  debug_log " $blacklist_choice. OPTIMIZED_FILE"
                     echo -e "${CYN}Ban all optimized${NC}"
                     ban_core "$OPTIMIZED_FILE"
                     next
                     break
                     ;;
+                2)  debug_log " $blacklist_choice. BLACKLIST_FILE"
+                    echo -e "${VLT}Ban original blacklist${NC}" 
+                    ban_core "$BLACKLIST_FILE"
+                    next
+                    break
+                    ;;    
                 3)  debug_log " $blacklist_choice. SUBNETS24_FILE"
                     echo -e "${S24}Ban /24 subnets${NC} (#.#.#.\e[37m0${NC})"
                     ban_core "$SUBNETS24_FILE"
@@ -287,14 +289,7 @@ function handle_blacklist_ban() {
                 5)  debug_log " $blacklist_choice. IPB_FILE"
                     echo -e "${VLT}Import *.ipb list"
                     echo
-                    echo -e "Looking for ${BG}.ipb${NC} files in ${BG}$SCRIPT_DIR${NC} ..."
-                    ipb_files=()
-                    selected_ipbf=()
-                    while IFS= read -r -d '' file; do
-                        ipb_files+=("$file")
-                    done < <(find "$SCRIPT_DIR" -maxdepth 1 -name '*.ipb' -print0)
-
-                    echo -e "Select with [space] the lists to import and ban into ${YLW}$IPSET_NAME${NC}, then press [enter] to continue."
+                    echo -e "${YLW}Select with [space] the lists to import and ban into ${BG}$IPSET_NAME${NC}, press [enter] to continue."
                     echo
                     
                     multiselect result ipb_files false
@@ -323,10 +318,10 @@ function handle_blacklist_ban() {
                     next
                     ;;
                 6)  debug_log " $blacklist_choice. Clear blacklist files"
-                    echo "Select with [space] the ${YLW}blacklists to clear${NC}, then press [enter] to continue."
+                    echo -e "${YLW}Select with [space] the blacklists to clear${NC}, press [enter] to continue."
                     echo
 
-                    select_lists=("${BG}IPsum${NC} Blacklist (Single IPs)" "Optimized Blacklist (IPs & Subnets)" "/24 subnets (#.#.#.255)" "/16 subnets (#.#.255.255)" )
+                    select_lists=("IPsum Blacklist" "Optimized Blacklist" "/24 subnets" "/16 subnets" )
 
                     multiselect result select_lists false
 
@@ -375,10 +370,18 @@ function handle_blacklist_ban() {
 # (Menu 4) manual banning 
 function handle_manual_ban() {
     debug_log "5. Manual ban IPs"
+    header
     echo -ne "${YLW}"
     subtitle "Manual ban IPs"
-    #echo -e "${YLW}Last 10 banned IPs:${NC}"
-    #ipset list $MANUAL_IPSET_NAME | grep -E '^[0-9]+\.' | tail -n 10
+    
+    echo -e "User bans are stored in ipset ${YLW}${BG}$MANUAL_IPSET_NAME${NC}. Max 244 sources allowed."
+    echo -e "${YLW}Last 10 banned IPs:${NC}"
+    last_banned_ips=$(ipset list "$MANUAL_IPSET_NAME" | grep -E '^[0-9]+\.' | tail -n 10)
+    if [[ -n "$last_banned_ips" ]]; then
+        echo "$last_banned_ips"
+    else
+        echo -e "${RED}No recently banned IPs found.${NC}"
+    fi
     echo
 
     manual_options=()
@@ -451,11 +454,47 @@ function handle_manual_ban() {
     back
 }
 
-# (Menu 5) manage banned sets  
+# (Menu 5) DOWNLOAD & BAN
+function handle_download_and_ban() {
+    debug_log "* DOWNLOAD & BAN!"
+    header
+    echo -ne "${VLT}"
+    subtitle "DOWNLOAD, ${CYN}AGGREGATE ${BLU}& BAN!"
+    if [[ $IPSET == "false" ]]; then
+        echo -e "${RED}No option available."
+    else
+        echo -e "${YLW}Proceed?"
+        select_opt "No" "Yes"
+        select_yesno=$?
+        echo -ne "${NC}"
+        case $select_yesno in
+            0)  echo "Nothing to do."
+                ;;
+            1)  subtitle "1. ${VLT} Download"
+                download_blacklist
+                subtitle "2. ${CYN} Aggregate"
+                tempcli=$CLI
+                CLI="true"
+                compressor
+                CLI=$templi
+                subtitle "3. ${BLU} Ban!"
+                setup_ipset $IPSET_NAME
+                INFOS="false"
+                ban_core $OPTIMIZED_FILE
+                ;;
+        esac
+       
+    fi
+    next
+    back
+}
+
+# (Menu 6) manage firewall and sets  
 function handle_firewalls() {
     debug_log "6. Firewall & Sets"
+    header
     echo -ne "${ORG}"
-    subtitle "Firewall & Sets"
+    subtitle "Firewall & IP sets"
     echo -ne "Firewall ${ORG}${BG}${FIREWALL}${NC} "
     if $FIREWALLD || $PERSISTENT; then
         echo -e "in use with ${S16}permanent rules${NC}"
@@ -468,20 +507,19 @@ function handle_firewalls() {
         echo -e "${RED}ipset not found."
     fi
     echo
-    echo -e "All ready. What do you want to do?" 
-    echo
-    echo -e "\t1. View current ${ORG}${BG}$FIREWALL${NC} rules"
-    echo -e "\t2. Re-/Create ${ORG}${BG}$FIREWALL${NC} rules${NC}"
+    echo -e "\t1. View current ${ORG}rules${NC}"
+    echo -e "\t2. Re-/Create ${ORG}rules${NC}"
     echo -e "\t3. Change firewall ${ORG}!${NC}"
     if [[ $IPSET == "true" ]]; then
-        echo
-        echo -e "\t4. View/Clear ${VLT}all ipsets${NC}"
+        echo -e "\t4. View/Clear ${BLU}all ipsets${NC}"
         echo -e "\t5. Re-/Create ${VLT}VIPB-ipsets${NC}"
         echo -e "\t6. Destroy ${VLT}VIPB-ipsets${NC} and ${ORG}rules !${NC}"
     fi
     echo
     echo -e "\t${DM}0. <<${NC}" 
     echo -e "\e[0m"
+    echo
+    echo -e "${YLW}All ready. What do you want to do?" 
     echo
     while true; do
         read -p "_ " ipsets_choice
@@ -491,7 +529,7 @@ function handle_firewalls() {
                 echo -ne "${ORG}"
                 subtitle "$FIREWALL rules"
                 if [[ "$FIREWALL" == "iptables" ]]; then
-                    iptables -L -n --line-numbers | awk 'NR>2 {print $1, $2, $3, $7, $8, $9, $10, $11, $12}' | column -t
+                    iptables -L INPUT -n --line-numbers | awk 'NR>2 {print $1, $2, $3, $7, $8, $9, $10, $11, $12}' | column -t
                 elif [[ "$FIREWALL" == "firewalld" ]]; then
                     firewall-cmd --list-all
                 elif [[ "$FIREWALL" == "ufw" ]]; then
@@ -502,23 +540,34 @@ function handle_firewalls() {
             2)  debug_log " $ipsets_choice. Re-/Create rules"
                 subtitle "Re-/Create rules"
 
-                echo -e "ipset ${BG}$IPSET_NAME${NC}"
-                remove_firewall_rules "$IPSET_NAME"
-                add_firewall_rules "$IPSET_NAME"
-                echo -e "Done."
-                
-                echo -e "ipset ${BG}$MANUAL_IPSET_NAME${NC}"
-                remove_firewall_rules "$MANUAL_IPSET_NAME"
-                add_firewall_rules "$MANUAL_IPSET_NAME"
-                echo -e "Done."
-                
-                echo
-                echo "Firewall rules refreshed."
-                
-                back
+                echo -e "This process won't remove any bans. ${YLW}Proceed?"
+                select_opt "No" "Yes"
+                select_yesno=$?
+                echo -ne "${NC}"
+                case $select_yesno in
+                    0)  echo "Nothing to do."
+                        ;;
+                    1)  echo -e "${ORG}Removing $FIREWALL rule for ipset '${IPSET_NAME}'...${NC}"
+                        remove_firewall_rules "$IPSET_NAME"
+                        echo -e "${YLW}Adding new $FIREWALL rule for ipset '${IPSET_NAME}'...${NC}"
+                        add_firewall_rules "$IPSET_NAME"
+                        echo -e "${S24}Done."
+                        
+                        #echo -e "ipset ${BG}$MANUAL_IPSET_NAME${NC}"
+                        echo -e "${ORG}Removing $FIREWALL rule for ipset '${MANUAL_IPSET_NAME}'...${NC}"
+                        remove_firewall_rules "$MANUAL_IPSET_NAME"
+                        echo -e "${YLW}Adding new $FIREWALL rule for ipset '${MANUAL_IPSET_NAME}'...${NC}"
+                        add_firewall_rules "$MANUAL_IPSET_NAME"
+                        echo -e "${S24}Done."
+                        
+                        echo
+                        echo "Firewall rules refreshed."
+                        ;;
+                esac                
+                next
                 ;;
             3)  debug_log " $ipsets_choice. Change firewall"
-                echo
+                echo -e "${ORG}Change firewall at your risk.${NC} This section is in still in development and not optimized for cross-use w/ FirewallD yet."
                 fw_options=()
 
                 if [ "$IPTABLES" == "true" ]; then
@@ -535,7 +584,7 @@ function handle_firewalls() {
                 fw_options=$?
                 case $fw_options in
                     0)  debug_log " $fw_options. < Back to Menu"
-                        back
+                        handle_firewalls
                         ;;
                     1)  debug_log " $fw_options. iptables"
                         FIREWALL="iptables"
@@ -547,7 +596,10 @@ function handle_firewalls() {
                         FIREWALL="ufw"
                         ;;
                 esac
-                echo -e "Firewall changed to ${ORG}$FIREWALL${NC} for the current session."
+                # Update vipb-core.sh with the new fw 
+                sed -i "0,/^FIREWALL='.*'/s//FIREWALL='$FIREWALL'/" "$SCRIPT_DIR/vipb-core.sh"
+                log "Firewall changed to $FIREWALL"
+                echo -e "Firewall changed to ${ORG}$FIREWALL${NC}"
                 next
                 ;;
             4)  debug_log " $ipsets_choice. View/Clear ipsets" 
@@ -587,11 +639,10 @@ function handle_firewalls() {
                         echo -e "${GRN}cleared${NC}"
                     done
                 fi
-                
                 next
                 ;;
             5)  debug_log " $ipsets_choice. Re-Create VIPB-ipsets"
-                echo "Select with [space] the VIPB-ipsets to recreate, then press [enter] to continue."
+                echo "${YLW}Select with [space] the VIPB-ipsets to recreate${NC}, press [enter] to continue."
                 echo -e "This will NOT remove related firewall rules! ${DM}(use option 6 instead)${NC}"
                 echo
 
@@ -640,7 +691,7 @@ function handle_firewalls() {
                 next
                 ;;
             6)  debug_log " $ipsets_choice. Destroy VIPB-ipsets and rules"
-                echo -e "Select with [space] the ipsets to ${ORG}destroy${NC}, then press [enter] to continue."
+                echo -e "${YLW}Select with [space] the ipsets to ${ORG}destroy${NC}, press [enter] to continue."
                 echo -e "This action will also try to remove related ${ORG}$FIREWALL${NC} rules! ${DM}${BG}use option 5 instead${NC}"
                 echo
 
@@ -711,13 +762,15 @@ function handle_firewalls() {
                 back
                 ;;
         esac
+        handle_firewalls
     done
-    back
+    
 }
 
-# (Menu 6) cron jobs 
+# (Menu 7) cron jobs 
 function handle_cron_jobs() {
-    debug_log "7. Daily Cron Jobs"
+    debug_log "7. Daily Cron Job"
+    header
     echo -ne "${SLM}"
     subtitle "Daily Cron Jobs"        
     
@@ -725,32 +778,13 @@ function handle_cron_jobs() {
         echo -e "${RED}Error: Cannot read crontab${NC}"
     else
         if [[ "$DAILYCRON" == "true" ]]; then
-            echo -e "↺  VIPB autoban job ${GRN}found${NC}" #2do add time details
+            echo -e "${SLM}↺${NC}  VIPB autoban job ${GRN}found${NC}" #2do add time details
         else
-            echo -e "↺  VIPB autoban job ${RED}not found${NC}"
+            echo -e "${SLM}↺${NC}  VIPB autoban job ${RED}not found${NC}"
         fi
-
-        if [ "$CRONDL" == "true" ]; then
-            blacklist_lvs=()
-            echo -ne "${NC}▼ VIPB download job${GRN}"
-            for blacklist_lv_check in {2..8}; do
-                blacklist_url_check="$BASECRJ${blacklist_lv_check}.txt"
-                if crontab -l | grep -q "$blacklist_url_check"; then
-                    echo -ne " lv. $blacklist_lv_check${RED}"
-                fi
-            done
-            echo
-        else
-            echo -e "${NC}▼ VIPB download job ${RED}not found${NC}"
-        fi
-    
-        #echo -ne "${NC}≡  IPsum list       "
-        #check_blacklist_file "$BLACKLIST_FILE" "infos"
-        echo
-
+        
         existing_cronjobs=$(crontab -l 2>/dev/null | grep -E "vipb")
         if [ -n "$existing_cronjobs" ]; then
-            echo -e "${SLM}VIPB-Cron Jobs${NC}"
             echo -e "${S16}$existing_cronjobs${NC}"
         else
             echo -e "${ORG} No active VIPB-Cron Jobs found.${NC}"
@@ -762,11 +796,6 @@ function handle_cron_jobs() {
     echo
     cron_options=("${VLT}Change IPsum ▼ download list level [ $BLACKLIST_LV ] ${NC}")
     if [[ $CRON == "true" ]]; then
-        if [[ "$CRONDL" == "true" ]]; then
-            cron_options+=("Remove ▼ VIPB download job")
-        else
-            cron_options+=("Add ▼ VIPB download job")
-        fi
         if [[ "$DAILYCRON" == "true" ]]; then
             cron_options+=("Remove ↺ VIPB autoban job")
         else
@@ -792,26 +821,7 @@ function handle_cron_jobs() {
             esac
             next
             ;;
-        2)  if [[ "$CRONDL" == "true" ]]; then
-            # echo "Add/Remove VIPB daily download cron job"
-                for blacklist_lv_check in {2..8}; do
-                    blacklist_url_check="$BASECRJ${blacklist_lv_check}.txt"
-                    if crontab -l | grep -q "$blacklist_url_check"; then
-                        crontab -l | grep -v "$blacklist_url_check" | crontab -
-                        echo -ne "Cron Job ${ORG}▼ lv $blacklist_lv_check removed"
-                        CRONDL=false
-                    fi
-                done
-            else
-                echo "Adding new Download Cron Job ${GRN}▼ lv $BLACKLIST_LV ${NC}"
-                cronurl="https://raw.githubusercontent.com/stamparm/ipsum/master/levels/${BLACKLIST_LV}.txt"
-                (crontab -l 2>/dev/null; echo "0 4 * * * curl -o $BLACKLIST_FILE $cronurl") | crontab -
-                echo -e "Cron Job ${GRN}added${NC} for daily ${BG}IPsum${NC} blacklist download.  @ 4.00 AM server time"
-                CRONDL=true
-            fi
-            next
-            ;;
-        3)  if [[ "$DAILYCRON" == "true" ]]; then
+        2)  if [[ "$DAILYCRON" == "true" ]]; then
                 DAILYCRON=false
                 crontab -l | grep -v "vipb.sh" | crontab -
                 echo -e "VIPB daily ban job ${ORG}removed.${NC}"
@@ -824,11 +834,13 @@ function handle_cron_jobs() {
             next           
             ;;
     esac
+    back
 }
 
-# (Menu 7) Geo IP lookup 
+# (Menu 8) Geo IP lookup 
 function handle_geo_ip_info() {
     debug_log "8. GeoIP lookup"
+    header
     echo -e "${S24}"
     subtitle "GeoIP lookup"
     echo -e 
@@ -842,9 +854,10 @@ function handle_geo_ip_info() {
         geo_ip 
     fi
     next
+    back
 }
 
-# (Menu 8)logs and info 
+# (Menu 9) Logs and info 
 function handle_logs_info() {
     debug_log "9. Logs & infos"
     header
@@ -920,30 +933,105 @@ function handle_logs_info() {
     log_selector
     echo -e "\e[0m"
     next
-}
-
-# (Menu 9) DOWNLOAD & BAN 2do? 
-function handle_download_and_ban() {
-    debug_log "* DOWNLOAD & BAN!"
-    subtitle "DOWNLOAD & BAN!"
-    if [[ $IPSET == "false" ]]; then
-        echo -e "${RED}No option available."
-    else
-        echo
-        download_blacklist
-        check_blacklist_file $BLACKLIST_FILE
-        echo
-        setup_ipset $IPSET_NAME
-        INFOS="false"
-        echo "here should start the ban"
-        #ban_core $BLACKLIST_FILE
-    fi
-    next
+    back
 }
 
 # Main UI
 
-# Nice header :)
+# Header Row
+function services_row() {  
+    echo -ne " ${NC}"
+    if [ "$FIREWALL" == "iptables" ]; then
+        echo -ne "${GRN}[ ✓"
+        else
+        echo -ne "${DM}"
+    fi 
+
+        if [ "$IPTABLES" == "false" ]; then
+            echo -ne " ${DM}"
+        fi
+        echo -ne " iptables"
+
+        if [ "$PERSISTENT" == "true" ]; then
+            echo -ne "-persistent"
+        fi
+        
+        if [ "$IPSET" == "true" ]; then
+            echo -ne " ✚"
+        else
+            echo -ne "${RED} ✗"
+        fi
+        echo -ne " ipset"
+
+    if [ "$FIREWALL" == "iptables" ]; then
+        echo -ne "${GRN} ]${NC}"
+    fi 
+
+    echo -ne " "
+    
+    if [ "$FIREWALL" == "ufw" ]; then
+        echo -ne "${GRN}[ ✓ "
+        else
+        echo -ne "${DM}"
+    fi 
+
+        if [ "$UFW" == "false" ]; then
+            echo -ne "${DM}"
+        fi 
+        echo -ne "ufw ${NC}"
+
+    if [ "$FIREWALL" == "ufw" ]; then
+        echo -ne "${GRN} ] ${NC}"
+    fi
+
+    if [ "$FIREWALL" == "firewalld" ]; then
+        echo -ne "${GRN}[ ✓ "
+    else
+        echo -ne "${DM}"
+    fi 
+        if [ "$FIREWALLD" == "true" ]; then 
+            echo -ne "${GRN}"
+        else
+            echo -ne "${DM}"
+        fi
+        echo -ne "firewalld ${NC}"
+    if [ "$FIREWALL" == "firewalld" ]; then
+        echo -ne "${GRN}] ${NC}"
+    fi
+
+    echo -ne "${DM}•${NC} "
+    
+    if [ "$FAIL2BAN" == "true" ]; then
+        echo -ne "${GRN}"
+    else
+        echo -ne "${NC}${DM}"
+    fi
+    echo -ne "${BG}fail2ban ${NC}"
+    
+    echo -ne "${DM}•${NC} "
+
+    if [ "$CRON" == "true" ]; then
+        echo -ne "${GRN}"
+    else
+        echo -ne "${DM}"
+    fi
+    echo -ne "${BG}cron ${NC}"
+
+    if [ "$CRON" == "true" ]; then
+        if crontab -l | grep -q "vipb\.sh"; then
+            echo -ne "${GRN}↺ "
+            DAILYCRON=true
+        else
+            echo -ne "${RED}✗ "
+            DAILYCRON=false
+        fi
+        echo -ne "$BLACKLIST_LV"
+    fi
+    echo -e "${NC}"
+
+}
+
+# Nice main header :)
 function header () {
     if [ "$DEBUG" == "true" ]; then
         echo
@@ -973,138 +1061,32 @@ function header () {
     fi
     echo
     echo -e "    ╚═══╝  ╚═╝╚═╝     ╚═════╝      "
-    
-    function services_row() {  
-        echo -ne " ${NC}"
-        if [ "$FIREWALL" == "iptables" ]; then
-            echo -ne "${GRN}[ ✓"
-         else
-            echo -ne "${DM}"
-        fi 
 
-            if [ "$IPTABLES" == "false" ]; then
-                echo -ne " ${DM}"
-            fi
-            echo -ne " iptables"
-
-            if [ "$PERSISTENT" == "true" ]; then
-                echo -ne "-persistent"
-            fi
-            
-            if [ "$IPSET" == "true" ]; then
-                echo -ne " ✚"
-            else
-                echo -ne "${RED} ✗"
-            fi
-            echo -ne " ipset"
-
-        if [ "$FIREWALL" == "iptables" ]; then
-            echo -ne "${GRN} ]${NC}"
-        fi 
-
-        echo -ne " "
-        
-        if [ "$FIREWALL" == "ufw" ]; then
-            echo -ne "${GRN}[ ✓ "
-         else
-            echo -ne "${DM}"
-        fi 
-
-            if [ "$UFW" == "false" ]; then
-                echo -ne "${DM}"
-            fi 
-            echo -ne "ufw ${NC}"
-
-        if [ "$FIREWALL" == "ufw" ]; then
-            echo -ne "${GRN} ] ${NC}"
-        fi
-
-        if [ "$FIREWALL" == "firewalld" ]; then
-            echo -ne "${GRN}[ ✓ "
-        else
-            echo -ne "${DM}"
-        fi 
-            if [ "$FIREWALLD" == "true" ]; then 
-                echo -ne "${GRN}"
-            else
-                echo -ne "${DM}"
-            fi
-            echo -ne "firewalld ${NC}"
-        if [ "$FIREWALL" == "firewalld" ]; then
-            echo -ne "${GRN}] ${NC}"
-        fi
-
-        echo -ne "${DM}•${NC} "
-        
-        if [ "$FAIL2BAN" == "true" ]; then
-            echo -ne "${GRN}"
-        else
-            echo -ne "${NC}${DM}"
-        fi
-        echo -ne "${BG}fail2ban ${NC}"
-        
-        echo -ne "${DM}•${NC} "
-
-        if [ "$CRON" == "true" ]; then
-            echo -ne "${GRN}"
-        else
-            echo -ne "${DM}"
-        fi
-        echo -ne "${BG}cron ${NC}"
-
-        if [ "$CRON" == "true" ]; then
-            if crontab -l | grep -q "vipb.sh"; then
-                echo -ne "${GRN}↺ "
-                DAILYCRON=true
-            else
-                echo -ne "${RED}✗ "
-                DAILYCRON=false
-            fi
-
-            CRONDL=false
-            blacklist_lvs=()
-            echo -ne "${GRN}" # first job will be ok, more than 1 not
-            for blacklist_lv_check in {2..8}; do
-                blacklist_url_check="$BASECRJ${blacklist_lv_check}.txt"
-                if crontab -l | grep -q "$blacklist_url_check"; then
-                    echo -ne " ▼ $blacklist_lv_check${RED}"
-                    blacklist_lvs+=("$blacklist_lv_check")
-                    CRONDL=true
-                fi
-            done            
-            if [ "$CRONDL" == "false" ]; then
-                echo -ne "${RED}✗"
-            fi
-
-        fi
-        echo -e "${NC}"
-
-    }
-    services_row
 }
 
 # Main menu
 function menu_main() {
+    services_row
+
     echo -e "${NC}"
     echo -e "\t${DM}✦ BLACKLISTS & BAN${NC}"
     echo -e "\t1${VLT}. Download${NC} ${BG}IPsum${NC} blacklist"
     echo -e "\t2${CYN}.${NC} ${CYN}Aggregate${NC} IPs into subnets"
     echo -e "\t3${BLU}. Ban ${NC}from Blacklists${NC}"
-    echo
     echo -e "\t4${YLW}. Manual ban ${NC}IPs"
+    echo
+    echo -e "\t${VLT}5. Download > ${CYN}Aggregate > ${BLU}Ban!${NC}"
     echo -e "\n\t${DM}✦ TOOLS${NC}"
     if [[ $IPSET == "false" ]]; then
         echo -ne "${DM}"
     fi
-    echo -e "\t5. Manage ${ORG}firewall${NC} & ${ORG}ipsets${NC}"
+    echo -e "\t6. Manage ${ORG}firewall${NC} & ${ORG}ipsets${NC}"
     if [[ $CRON == "false" ]]; then
         echo -ne "${DM}"
     fi
-    echo -e "\t6${SLM}.${NC} Daily ${SLM}Cron${NC} Jobs"
-    echo -e "\t7${S24}. Geo IP${NC} lookup"
-    echo -e "\t8${ORG}. Logs ${NC}& Vars"
-   # echo
-   # echo -e "\t${VLT}9. Download & ${BLU}Ban!${NC}"
+    echo -e "\t7${SLM}.${NC} Daily ${SLM}Cron${NC} Jobs"
+    echo -e "\t8${S24}. Geo IP${NC} lookup"
+    echo -e "\t9${ORG}. Logs ${NC}& Vars"
     echo
     echo -e "\t${DM}0. Exit${NC}"
     echo
@@ -1119,11 +1101,11 @@ function menu_main() {
             2) handle_aggregator ;;
             3) handle_blacklist_ban ;;
             4) handle_manual_ban ;;
-            5) handle_firewalls ;;
-            6) handle_cron_jobs ;;
-            7) handle_geo_ip_info ;;
-            8) handle_logs_info ;;
-            9) handle_download_and_ban; break ;;
+            5) handle_download_and_ban; break ;;
+            6) handle_firewalls ;;
+            7) handle_cron_jobs ;;
+            8) handle_geo_ip_info ;;
+            9) handle_logs_info ;;
             0) debug_log "0. Exit"; vquit; break ;;
             *) if validate_ip "$choice"; then
                     echo -e "${YLW}Manual Ban IP: $choice${NC}"

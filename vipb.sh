@@ -7,9 +7,9 @@
 #  _____ _ _____ _____   
 # |  |  |_|  _  | __  |  
 # |  |  | |   __| __ -|  
-#  \___/|_|__|  |_____| v0.9beta  
+#  \___/|_|__|  |_____| v0.9  
 #
-VER="v0.9beta5"
+VER="v0.9"
 ARGS=("$@")
 
 # check if debug mode is enabled
@@ -119,8 +119,9 @@ elif [ "$CLI" == "true" ]; then
             "true"|"autoban"|"debug"|"")  echo "Starting CLI/cron core autoban...";
                         debug_log "Starting CLI/cron core autoban..." 
                         #debug_log "(args: $@)"
-                        debug_log "Blacklist source file: $BLACKLIST_FILE" 
-                        ban_core "$BLACKLIST_FILE" # default CLI operation > ban blacklist.ipb
+                        download_blacklist
+                        compressor
+                        ban_core "$OPTIMIZED_FILE"
                         log "▤▤▤▤ VIPB $VER END. ▤▤▤▤ (CLI $CLI)"
                         exit 0 
                         ;;

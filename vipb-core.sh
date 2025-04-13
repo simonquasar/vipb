@@ -67,9 +67,9 @@ function check_dependencies() {
         IPTABLES=$(check_service "iptables")
         FIREWALLD=$(check_service "firewall-cmd")
 
-        #if [[ "$FIREWALLD" = "true" ]]; then
-        #    FIREWALL="firewalld"
-        if [[ "$IPTABLES" == "true" ]]; then
+        if [[ -n "$FIREWALL" ]]; then
+            FIREWALL="$FIREWALL"
+        elif [[ "$IPTABLES" == "true" ]]; then
             FIREWALL="iptables"
         elif [[ "$UFW" == "true" ]]; then
             FIREWALL="ufw"
@@ -183,7 +183,7 @@ function add_firewall_rules() { #2do
     
     if [[ "$FIREWALL" = "iptables" ]]; then
             if ! iptables -C INPUT -m set --match-set "${ipset}" src -j DROP &>/dev/null; then
-                echo -e "${YLW}Adding iptables rule for ipset '${ipset}'...${NC}"
+                #echo -e "${YLW}Adding iptables rule for ipset '${ipset}'...${NC}"
                 #iptables -D INPUT -m set --match-set ipsum src -j DROP 2>/dev/null
                 iptables -I INPUT -m set --match-set "${ipset}" src -j DROP
                 # Salva le regole per salvarle, per renderle  persistenti vs netfilter-persistent
@@ -192,10 +192,10 @@ function add_firewall_rules() { #2do
             else
                 echo -e "${GRN}iptables rule for ipset '${ipset}' already exists.${NC}"
             fi
-            if ipset list "${ipset}" &>/dev/null; then
+            if ! ipset list "${ipset}" &>/dev/null; then
                 echo -e "ipset '${ipset}' ${RED}does not exist${NC} remember to create it!"
                 log "@$LINENO: Error: ipset '${ipset}' does not exist"
-                exit 1
+                #exit 1
             fi
     elif [[ "$FIREWALL" = "firewalld" ]]; then
         if ! firewall-cmd --permanent --query-ipset="${ipset}" &>/dev/null; then
@@ -234,7 +234,6 @@ function remove_firewall_rules(){ #2do
             iptables -D INPUT -m set --match-set "$ipset" src -j DROP
         fi
     elif [[ "$FIREWALL" == "firewalld" ]]; then
-        echo -e "${VLT}Deleting old rules...${NC}"
             firewall-cmd --permanent --delete-ipset="$ipset"
             firewall-cmd --permanent --direct --remove-rule ipv4 filter INPUT 0 -m set --match-set "$ipset" src -j DROP
     elif [[ "$FIREWALL" == "ufw" ]]; then
@@ -599,7 +598,7 @@ function compressor() {
    
     list_file=${1:-"$BLACKLIST_FILE"}
     
-    echo -ne "≡ VIPB-Blacklist file ${BG}${BLU}$list_file${NC}... "
+    echo -ne "≡ Blacklist file ${BG}${BLU}$list_file${NC}... "
 
     if ! check_blacklist_file "$list_file"; then
         echo -e "${RED}ERROR: no blacklist${NC} $list_file"
@@ -629,9 +628,9 @@ function compressor() {
             c16=4
             
             if [ "$CLI" == "false" ]; then
-                echo -e "${NC}Set occurrence tolerance levels [2-9] ${DM}[Exit with 0]${NC}"
+                echo -e "${NC}${YLW}Set occurrence tolerance levels [2-9] ${DM}[Exit with 0]${NC}"
                 while true; do
-                    echo -ne "${NC}  for ${S24}/24 subnets${NC} (#.#.#.\e[37m0${NC}): ${S24}" 
+                    echo -ne "${NC}  for ${S24}/24 subnets${NC} (#.#.#.\e[37m0${NC}): ${YLW}" 
                     read ip_occ
                     if [[ "$ip_occ" =~ ^[2-9]$ ]]; then
                         c24="$ip_occ"
@@ -643,7 +642,7 @@ function compressor() {
                     fi
                 done
                 while true; do
-                    echo -ne "${NC}  for ${S16}/16 subnets${NC} (#.#.\e[37m0.0${NC}): ${S16}" 
+                    echo -ne "${NC}  for ${S16}/16 subnets${NC} (#.#.\e[37m0.0${NC}): ${YLW}" 
                     read ip_occ
                     if [[ "$ip_occ" =~ ^[2-9]$ ]]; then
                         c16="$ip_occ"
@@ -659,6 +658,7 @@ function compressor() {
             # Extract subnets
             echo
             echo -e "${CYN}START PROCESSING ..."
+            echo -ne "${VLT}◣ IPs list                ${NC}"
             log "====================="
             log "Start compression > /16 @ $c16 | /24 @ $c24"
 
@@ -669,16 +669,15 @@ function compressor() {
             sed 's/\([0-9]\+\.[0-9]\+\)\.[0-9]\+\.0\/24/\1.0.0\/16/' "$SUBNETS24_FILE" | \
                 sort | uniq -c | \
                 awk -v c="$c16" '$1 >= c {print $2}' > "$SUBNETS16_FILE"
+            echo -e "${GRN}Done. ${NC}"
 
             # Create  optimized list
             # /16 #.#.0.0
-            echo -ne "${S16}◣ /16 subnets${NC} (#.#.\e[37m0.0${NC})...   ${NC}"
             cat "$SUBNETS16_FILE" > "$OPTIMIZED_FILE"
             subnet16_count=$(wc -l < "$SUBNETS16_FILE")
-            echo -e "${GRN}Done. ${NC}"
             
             # /24 #.#.#.0
-            echo -ne "${S24}◣ /24 subnets${NC} (#.#.#.\e[37m0${NC})...   ${NC}"
+            echo -ne "${S24}◣ /24 subnets${NC} (#.#.#.\e[37m0${NC})   ${NC}"
             while read -r subnet16; do
                 prefix16=$(echo "$subnet16" | cut -d'/' -f1 | sed 's/\.0\.0$//')
                 grep -v "^$prefix16" "$SUBNETS24_FILE" > "$remaining_24_temp"
@@ -686,25 +685,27 @@ function compressor() {
             done < "$SUBNETS16_FILE"
             cat "$SUBNETS24_FILE" >> "$OPTIMIZED_FILE"
             subnet24_count=$(wc -l < "$SUBNETS24_FILE")
-            echo -e "${GRN}Done. ${NC}"
             
             # IPs #.#.#.#    
-            echo -ne "${BLU}◣ Single IPs...              ${NC}"
             while read -r subnet24; do
                 subnet_prefix=$(echo "$subnet24" | cut -d'/' -f1 | sed 's/\.0$//')
                 grep -v "^$subnet_prefix" "$temp_file" > "$subnet_temp"
                 mv "$subnet_temp" "$temp_file"
             done < "$SUBNETS24_FILE"
+            echo -e "${GRN}Done. ${S24}$subnet24_count subnets @ x $c24${NC}"
+            echo -ne "${S16}◣ /16 subnets${NC} (#.#.\e[37m0.0${NC})   ${NC}"
             while read -r subnet16; do
                 prefix16=$(echo "$subnet16" | cut -d'/' -f1 | sed 's/\.0\.0$//')
                 grep -v "^$prefix16" "$temp_file" > "$subnet_temp"
                 mv "$subnet_temp" "$temp_file"
             done < "$SUBNETS16_FILE"
+            echo -e "${GRN}Done. ${S16}$subnet16_count subnets @ x $c16${NC}"
+            echo -ne "${BLU}◣ Writing to file...      ${NC}"
             awk '{print $2}' "$temp_file" >> "$OPTIMIZED_FILE"
             optimized_count=$(wc -l < "$OPTIMIZED_FILE")
+            single_count=$((optimized_count - subnet16_count - subnet24_count))
             echo -e "${GRN}Done. ${NC}"
             
-            single_count=$((optimized_count - subnet16_count - subnet24_count))
             cut_count=$((total_ips - single_count))
             log "====================="
             log "Compression finished!"
@@ -716,21 +717,23 @@ function compressor() {
             log "$subnet24_count /24 subnets (@ $c24 ) and"
             log "$subnet16_count /16 subnets (@ $c16 )"
             log "====================="
-            #echo 
-            #echo "•  ┏  ";
-            #echo "┓┏┓╋┏┓";
-            #echo "┗┛┗┛┗┛ ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰";
-            echo -e "${GRN}IPs to Subnets aggregation finished!${NC}"
-            echo
-            echo -e "    Total processed:\t ${VLT}$total_ips IPs ${NC}  \t  100% ◕ "
-            echo -e "         ${CYN}reduced to:\t${NC}╔${CYN}$optimized_count sources${NC} \t   $((optimized_count * 100 / total_ips))% ◔ "
-            echo -e "                    \t║"
-            echo -e "         single IPs:\t╟${CYN}$single_count IPs${NC} \t[  \e[3m$((single_count * 100 / total_ips))%${NC} ]"
-            echo -e "       ╔ aggregated:\t║${ORG}$cut_count IPs${NC}\t[  \e[3m$((100-(single_count * 100 / total_ips)))%${NC} ]"
-            echo -e "       ╙ reduced to:\t╙${CYN}$((subnet24_count + subnet16_count)) subnets ${NC}"
-            echo -e "${S24}          /24 @ x$c24 :\t $subnet24_count subnets${NC}\t(#.#.#.\e[37m0${NC})"
-            echo -e "${S16}          /16 @ x$c16 :\t $subnet16_count subnets${NC}\t(#.#.\e[37m0.0${NC})"
             
+            progress=$((optimized_count * 100 / total_ips))
+            filled=$((progress / 2))
+            empty=$((50 - filled))
+            bar=$(printf "%0.s▰" $(seq 1 $filled))
+            spaces=$(printf "%0.s▱" $(seq 1 $empty))
+            echo
+            echo -e "${GRN}Blacklist aggregation finished!${NC}"
+            echo -e "${CYN}[${bar}${progress}%${spaces}]${NC}"
+            echo
+            echo -e "    Total processed\t100% ◕  ${VLT}$total_ips IPs ${NC}"
+            echo -e "         ${CYN}reduced to${NC}\t $progress% ◔  ${CYN}$optimized_count sources${NC}"
+            echo -e "   "
+            echo -e "               from\t \e[3m$((100-(single_count * 100 / total_ips)))%${NC}  ╔ ${VLT}$cut_count IPs${NC}"
+            echo -e "                 to\t \e[3m $((progress - (single_count * 100 / total_ips)))%${NC}  ╙ ${CYN}$((subnet24_count + subnet16_count)) subnets +${NC}"
+            echo -e "       uncompressed\t \e[3m$((single_count * 100 / total_ips))%${NC}    ${CYN}$single_count IPs${NC}"
+            echo            
             list_ips(){
             if [ "$2" -lt "$3" ]; then
                 while read -r subnet; do
@@ -740,7 +743,7 @@ function compressor() {
             }
             
             if [ "$subnet24_count" -lt "15" ]; then 
-                echo -e "${S24}  subs /24 shortist:${NC}"
+                echo -e "${S24}       /24 shortist:${NC}"
                 list_ips "$SUBNETS24_FILE" "$subnet24_count" 14
             fi
 
