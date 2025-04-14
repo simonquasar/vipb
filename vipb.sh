@@ -122,7 +122,7 @@ elif [ "$CLI" == "true" ]; then
                         download_blacklist
                         compressor
                         ban_core "$OPTIMIZED_FILE"
-                        log "▤▤▤▤ VIPB $VER END. ▤▤▤▤ (CLI $CLI)"
+                        log "▩▩▩▩▩▩▩▩ VIPB END.  ▩▩▩▩ [CLI $CLI]"
                         exit 0 
                         ;;
                     *)  echo "invalid argument: $@"

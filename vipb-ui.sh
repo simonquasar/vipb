@@ -110,7 +110,7 @@ function back {
 
 function next() {
     echo -e "${NC}"
-    echo -ne "${YLW}${DM}[enter] to continue"
+    echo -ne "${YLW}${DM}↵ to continue "
     read -p "_ " p
     echo -e "${NC}"
 }
@@ -118,7 +118,7 @@ function next() {
 function vquit {
     echo -e "${VLT}"
     subtitle "ViPB end."
-    log "▩▩▩▩▩▩▩▩ VIPB END. ▩▩▩▩"
+    log "▩▩▩▩▩▩▩▩ VIPB END.  ▩▩▩▩"
     exit 0
 }
 
@@ -163,7 +163,7 @@ function handle_ipsum_download() {
     echo -e "${BG}IPsum${NC} is a feed based on 30+ publicly available lists of suspicious and/or malicious IP addresses. The provided list is made of IP addresses matched with a number of (black)lists occurrences. "
     echo -e "more infos at ${BG}https://github.com/stamparm/ipsum${NC}"
     echo
-    echo -ne "≡ ${VLT}IPsum list "
+    echo -ne "${VLT}≡ IPsum list "
     check_blacklist_file $BLACKLIST_FILE infos
     echo
     echo
@@ -182,7 +182,7 @@ function handle_ipsum_download() {
             ;;
     esac
     back
-}
+} 
 
 # (Menu 2) Aggregator blacklist compression
 function handle_aggregator() {
@@ -231,7 +231,7 @@ function handle_blacklist_ban() {
     if ! [ ${#ipb_files[@]} -eq 0 ]; then
         echo -e "${BG}Custom blacklists:${NC}"
         for ipb_file in "${ipb_files[@]}"; do
-            echo -ne "${BLU} $ipb_file " 
+            echo -ne "${BLU}≡ $ipb_file " 
             check_blacklist_file "$ipb_file"
             echo
         done
@@ -240,6 +240,7 @@ function handle_blacklist_ban() {
     
     if [[ $IPSET == "false" ]]; then
         echo -e "${RED}ipset not found. No option available."
+        next
     else
         INFOS="false"
         #check_ipset $IPSET_NAME
@@ -262,7 +263,6 @@ function handle_blacklist_ban() {
             echo -e "${NC}"
             case $blacklist_choice in
                 1)  debug_log " $blacklist_choice. OPTIMIZED_FILE"
-                    echo -e "${CYN}Ban all optimized${NC}"
                     ban_core "$OPTIMIZED_FILE"
                     next
                     break
@@ -289,7 +289,7 @@ function handle_blacklist_ban() {
                 5)  debug_log " $blacklist_choice. IPB_FILE"
                     echo -e "${VLT}Import *.ipb list"
                     echo
-                    echo -e "${YLW}Select with [space] the lists to import and ban into ${BG}$IPSET_NAME${NC}, press [enter] to continue."
+                    echo -e "${YLW}Select with [space] the lists to import and ban into ${BG}$IPSET_NAME${NC}, press ↵ to continue."
                     echo
                     
                     multiselect result ipb_files false
@@ -316,9 +316,10 @@ function handle_blacklist_ban() {
                         echo -e "${GRN}All files parsed in ${YLW}${BG}$IPSET_NAME${NC}."
                     fi
                     next
+                    break
                     ;;
                 6)  debug_log " $blacklist_choice. Clear blacklist files"
-                    echo -e "${YLW}Select with [space] the blacklists to clear${NC}, press [enter] to continue."
+                    echo -e "${YLW}Select with [space] the blacklists to clear${NC}, press ↵ to continue."
                     echo
 
                     select_lists=("IPsum Blacklist" "Optimized Blacklist" "/24 subnets" "/16 subnets" )
@@ -360,10 +361,8 @@ function handle_blacklist_ban() {
                     back
                     ;;
             esac
-            back
         done
     fi
-    next
     back
 }
 
@@ -375,12 +374,14 @@ function handle_manual_ban() {
     subtitle "Manual ban IPs"
     
     echo -e "User bans are stored in ipset ${YLW}${BG}$MANUAL_IPSET_NAME${NC}. Max 244 sources allowed."
+    echo -e "You can use the ${YLW}ban${NC} command to add IPs to the manual ipset via CLI."
+    echo
     echo -e "${YLW}Last 10 banned IPs:${NC}"
     last_banned_ips=$(ipset list "$MANUAL_IPSET_NAME" | grep -E '^[0-9]+\.' | tail -n 10)
     if [[ -n "$last_banned_ips" ]]; then
-        echo "$last_banned_ips"
+        echo -e "$last_banned_ips"
     else
-        echo -e "${RED}No recently banned IPs found.${NC}"
+        echo -e "${BG}No manually banned IPs found.${NC}"
     fi
     echo
 
@@ -417,8 +418,8 @@ function handle_manual_ban() {
             fi
             next
             ;;
-        2)  debug_log " $manual_choice. View / Unban"
-            echo "Select with [space] the IPs to unban, then press [enter] to continue."
+        2)  debug_log " $manual_choice. Unban / View"
+            echo -e "${YLW}Select with [space] the IPs to unban, press ↵ to continue."
             echo
             select_ips=($(ipset list $MANUAL_IPSET_NAME | grep -E '^[0-9]+\.' | cut -f1))
             
@@ -489,12 +490,12 @@ function handle_download_and_ban() {
     back
 }
 
-# (Menu 6) manage firewall and sets  
+# (Menu 6) manage firewall and ipsets  
 function handle_firewalls() {
     debug_log "6. Firewall & Sets"
     header
     echo -ne "${ORG}"
-    subtitle "Firewall & IP sets"
+    subtitle "Firewall & ipsets"
     echo -ne "Firewall ${ORG}${BG}${FIREWALL}${NC} "
     if $FIREWALLD || $PERSISTENT; then
         echo -e "in use with ${S16}permanent rules${NC}"
@@ -509,11 +510,11 @@ function handle_firewalls() {
     echo
     echo -e "\t1. View current ${ORG}rules${NC}"
     echo -e "\t2. Re-/Create ${ORG}rules${NC}"
-    echo -e "\t3. Change firewall ${ORG}!${NC}"
+    echo -e "\t3. Change firewall \t\t${RED} !${NC}"
     if [[ $IPSET == "true" ]]; then
         echo -e "\t4. View/Clear ${BLU}all ipsets${NC}"
         echo -e "\t5. Re-/Create ${VLT}VIPB-ipsets${NC}"
-        echo -e "\t6. Destroy ${VLT}VIPB-ipsets${NC} and ${ORG}rules !${NC}"
+        echo -e "\t6. Destroy ${VLT}VIPB-ipsets${NC} and ${ORG}rules ${RED}!${NC}"
     fi
     echo
     echo -e "\t${DM}0. <<${NC}" 
@@ -603,7 +604,7 @@ function handle_firewalls() {
                 next
                 ;;
             4)  debug_log " $ipsets_choice. View/Clear ipsets" 
-                echo -e "${YLW}Select with [space] the ipsets to clear, press [enter] to continue.${NC}"
+                echo -e "${YLW}Select with [space] the ipsets to clear, press ↵ to continue.${NC}"
                 echo
 
                 select_ipsets=($(ipset list -n))
@@ -642,7 +643,7 @@ function handle_firewalls() {
                 next
                 ;;
             5)  debug_log " $ipsets_choice. Re-Create VIPB-ipsets"
-                echo "${YLW}Select with [space] the VIPB-ipsets to recreate${NC}, press [enter] to continue."
+                echo "${YLW}Select with [space] the VIPB-ipsets to recreate${NC}, press ↵ to continue."
                 echo -e "This will NOT remove related firewall rules! ${DM}(use option 6 instead)${NC}"
                 echo
 
@@ -691,7 +692,7 @@ function handle_firewalls() {
                 next
                 ;;
             6)  debug_log " $ipsets_choice. Destroy VIPB-ipsets and rules"
-                echo -e "${YLW}Select with [space] the ipsets to ${ORG}destroy${NC}, press [enter] to continue."
+                echo -e "${YLW}Select with [space] the ipsets to ${ORG}destroy${NC}, press ↵ to continue."
                 echo -e "This action will also try to remove related ${ORG}$FIREWALL${NC} rules! ${DM}${BG}use option 5 instead${NC}"
                 echo
 
@@ -767,12 +768,12 @@ function handle_firewalls() {
     
 }
 
-# (Menu 7) cron jobs 
+# (Menu 7) cron job daily autoban
 function handle_cron_jobs() {
     debug_log "7. Daily Cron Job"
     header
     echo -ne "${SLM}"
-    subtitle "Daily Cron Jobs"        
+    subtitle "Daily Cron Job"        
     
     if [ "$CRON" == "false" ]; then
         echo -e "${RED}Error: Cannot read crontab${NC}"

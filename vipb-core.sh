@@ -292,24 +292,20 @@ function geo_ip() {
         IPS=("$@") #intended to be used by default after ask_IPS()
     fi
     if command -v geoiplookup >/dev/null 2>&1; then
-        #echo -e "Using ${S24}${BG}geoiplookup${NC} for IP geolocation${NC}"
         for ip in "${IPS[@]}"; do
             echo -e "Looking up IP: ${S16}$ip${S24}"
             geoiplookup "$ip"
             echo -ne "${NC}"
+        done    
+    elif command -v whois >/dev/null 2>&1; then
+        for ip in "${IPS[@]}"; do
+            echo -e "Looking up IP: ${S16}$ip${NC}"
+            sleep 3
+            whois "$ip" | grep -E "country|Country|City|address|Organization|phone|route:|CIDR" 2>/dev/null
         done
     else
-        echo -ne "geoiplookup not found,"
-        if command -v geoiplookup >/dev/null 2>&1; then
-            echo -e "using ${GRN}whois${NC} instead${NC}"
-            for ip in "${IPS[@]}"; do
-                echo -e "Looking up IP: $ip${NC}"
-                whois "$ip" | grep -E "Country|city|address|organization|OrgName|NetName" 2>/dev/null
-            done
-        else
-            echo -e "${ORG}whois not found.${NC}"
             echo -e "${RED}Geo IP not available."
-        fi
+            echo -e "Install ${BG}geoiplookup${NC} or ${BG}whois${NC}."
     fi
 }
 
@@ -406,8 +402,7 @@ function ban_ip() {
 }
 
 function add_ips() { 
-    lg "*" "add_ips $*" 
-    #ipset ip1 ip2 ip3 ip4 ip5...
+    lg "*" "add_ips $1 $2 $3 ..." 
     if [ $# -lt 2 ]; then
         echo "You must provide one name for the ipset and AT LEAST one IP address. ERR@$LINENO add_ips(): $*"; return 1
     fi
@@ -598,7 +593,7 @@ function compressor() {
    
     list_file=${1:-"$BLACKLIST_FILE"}
     
-    echo -ne "≡ Blacklist file ${BG}${BLU}$list_file${NC}... "
+    echo -ne "${BLU}≡${NC} Blacklist file ${BG}${BLU}$list_file${NC}... "
 
     if ! check_blacklist_file "$list_file"; then
         echo -e "${RED}ERROR: no blacklist${NC} $list_file"
@@ -700,13 +695,27 @@ function compressor() {
                 mv "$subnet_temp" "$temp_file"
             done < "$SUBNETS16_FILE"
             echo -e "${GRN}Done. ${S16}$subnet16_count subnets @ x $c16${NC}"
+
             echo -ne "${BLU}◣ Writing to file...      ${NC}"
             awk '{print $2}' "$temp_file" >> "$OPTIMIZED_FILE"
             optimized_count=$(wc -l < "$OPTIMIZED_FILE")
-            single_count=$((optimized_count - subnet16_count - subnet24_count))
-            echo -e "${GRN}Done. ${NC}"
-            
+            single_count=$((optimized_count - subnet16_count - subnet24_count))            
             cut_count=$((total_ips - single_count))
+            
+            prog_ips=$((single_count * 100 / total_ips))
+            prog_nets=$(((subnet24_count + subnet16_count) * 100 / total_ips))
+            progress=$((prog_ips + prog_nets))
+            
+            filips=$((prog_ips / 2))
+            filnets=$((prog_nets / 2))
+            filled=$((progress / 2))
+            
+            empty=$((50 - filled))
+            barips=$(printf "%0.s▰" $(seq 1 $filips))
+            barnets=$(printf "%0.s▰" $(seq 1 $filnets))
+            spaces=$(printf "%0.s▱" $(seq 1 $empty))     
+            echo -e "${GRN}Done. ${NC}"
+
             log "====================="
             log "Compression finished!"
             log "====================="
@@ -718,14 +727,9 @@ function compressor() {
             log "$subnet16_count /16 subnets (@ $c16 )"
             log "====================="
             
-            progress=$((optimized_count * 100 / total_ips))
-            filled=$((progress / 2))
-            empty=$((50 - filled))
-            bar=$(printf "%0.s▰" $(seq 1 $filled))
-            spaces=$(printf "%0.s▱" $(seq 1 $empty))
             echo
             echo -e "${GRN}Blacklist aggregation finished!${NC}"
-            echo -e "${CYN}[${bar}${progress}%${spaces}]${NC}"
+            echo -e "${CYN}[${barips}${S16}${barnets}${CYN}${progress}%${spaces}]${NC}"
             echo
             echo -e "    Total processed\t100% ◕  ${VLT}$total_ips IPs ${NC}"
             echo -e "         ${CYN}reduced to${NC}\t $progress% ◔  ${CYN}$optimized_count sources${NC}"
@@ -807,7 +811,7 @@ function ban_core() {
 
     count=$(count_ipset "$ipset")
     
-    echo -e "▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰"
+    echo -e "${VLT}▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰"
     echo -e " VIPB-Ban finished "
     if [ $err -ne 0 ]; then
         echo -e " ${RED}✗ ${YLW}with $ERRORS errors.. check logs!${NC}"
@@ -815,7 +819,8 @@ function ban_core() {
     echo -e "${VLT} ≡ Loaded:  $total_blacklist_read"
     echo -e "${ORG} ◌ Listed:  $ALREADYBAN_IPS"
     echo -e "${GRN} ✓  Added:  $ADDED_IPS"
-    echo -e "${GRN}    TOTAL:  $count sources${NC} banned in set"
+    echo -e "${VLT}    TOTAL:  $count SOURCES BANNED"
+    echo -e "▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰${NC}"
 
     log "▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰"
     log " VIPB-Ban finished!"
