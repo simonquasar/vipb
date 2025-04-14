@@ -1,54 +1,37 @@
 ![Static Badge](https://img.shields.io/badge/VIPB-Versatile%20IP%20Blacklister-orange?logo=backblaze&logoColor=goldenrod&color=red)
 ![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/simonquasar/vipb)
 ![GitHub top language](https://img.shields.io/github/languages/top/simonquasar/vipb)
-![GitHub Tag](https://img.shields.io/github/v/tag/simonquasar/vipb)
-![GitHub commits since tagged version](https://img.shields.io/github/commits-since/simonquasar/vipb/0.9)
+![GitHub Release](https://img.shields.io/github/v/release/simonquasar/vipb)
+![GitHub commits since latest release](https://img.shields.io/github/commits-since/simonquasar/vipb/latest)
 
 
 # VIPB - Versatile IP Blacklister
 
-**VIPB (Versatile IP Blacklister)** is a little tool written in Bash automates for downloading, processing, and maintaining [*IPsum*](https://github.com/stamparm/ipsum/) blacklists, and provides functionalities for firewall, ban, and log management. It uses `ipset` with `iptables` or `firewalld` (`ufw` coming soon..). It includes automation via `cron` jobs, integration with `fail2ban`, and a user-friendly interface for manual operations.
+**VIPB (Versatile IP Blacklister)** is a Bash tool for downloading, processing, and maintaining [*IPsum*](https://github.com/stamparm/ipsum/) blacklists, and provides functionalities for managing firewalls and IP blacklists through automated and manual processes. It seamlessly integrates with Linux firewalls: it uses `ipset` along with `iptables` or `firewalld` (`ufw` support coming soon..). 
+It includes daily automation via `cron` job and integration with `fail2ban`.
 
 ## Features
 
 ### Automated & Manual IP Ban
 
-- **Ban IP Lists and/or Subnets**: Ban individual IPs, /16, and /24 subnets from a file.
-- **Daily Jobs**: Automatically download and process IP blacklists from [*IPsum*](https://github.com/stamparm/ipsum/).
-- **Dual Blacklists**: Maintains separate lists and ipsets for automated and manual IP bans.
+- **Daily Download & Ban**: Automatically download and process [*IPsum*](https://github.com/stamparm/ipsum/) blacklists every day via `cron` job.
+- **Bulk Ban IP Lists**: Process entire lists of IPs and subnets from a list file.
+- **Manual IP ban**: Ban/unban individual IP addresses on a separate user list.
 
-### Suspicious IPs to Subnets Aggregator
+### Aggregator: Suspicious IPs to Subnets
+
+- **IP Compression**: Optimize IP lists into /16 and /24 subnets for efficient security.
 
 This function analyzes a list of potentially suspicious IP addresses, identifies patterns of repeated activity within subnets, and aggregates them into entire subnets (/24 or /16) based on user-defined tolerance thresholds.
 
-### Daily Ban Automation (via Cron Jobs)
-
-- **Daily Download & Ban**: Automated daily IPsum list download and ban via cron job.
-
 ### Firewall Integration
 
-- **Manage `ipset`**: Creates and manages `ipset` rules for swift IP blocking.
-- **LInux firewalls**: Integrates with both `firewalld` and `iptables` (`ufw` coming soon).
+- **Manage ipsets**: Creates and manages `ipset` rules for swift IP blocking.
+- **Linux Firewall Support**:
+`iptables`
+`firewalld`
+(`ufw` support coming soon)
 - **Fail2Ban**: Works in harmony with `Fail2Ban`.
-
-## CLI
-
-Run via CLI `./vipb.sh args`
-
-````
-► VIPB.sh (v0.9) CLI ARGUMENTS
-
-  ban #.#.#.#               ban single IP in manual/user list
-  unban #.#.#.#             unban single IP in manual/user list
-  download #                download lv #
-  compress [listfile.ipb]   compress IPs list [optional: file.ipb]
-  banlist [listfile.ipb]    ban IPs/subnets list [optional: file.ipb]
-  stats                     view banned VIPB IPs/subnets counts
-  true                      simulate cron/CLI (or autoban)
-  debug                     debug mode (echoes logs)
-
-                            (*.ipb = list of IPs, one per line)                        
-````
 
 ## Installation
 
@@ -75,13 +58,43 @@ Make the scripts executable:
 chmod +x vipb.sh vipb-core.sh
 ```
 
-## Logs
+## Usage
 
-Operation logs are stored in the script directory.
+### User Interface
+Run `sudo ./vipb.sh`
+
+![VIPB UI](https://github.com/simonquasar/vipb/blob/main/inc/ScreenshotVIPB.png)
+> [!NOTE]  
+> IP lists should be in the same folder and use `.ipb` extension, with one IP per line in [CIDR](https://www.ipaddressguide.com/cidr) notation.
+
+
+### CLI Commands
+
+Run via CLI/cron `sudo ./vipb.sh [args]`
+
+````
+► VIPB.sh (v0.9) CLI ARGUMENTS
+
+  ban #.#.#.#               ban single IP in manual/user list
+  unban #.#.#.#             unban single IP in manual/user list
+  download #                download lv #
+  compress [listfile.ipb]   compress IPs list [optional: file.ipb]
+  banlist [listfile.ipb]    ban IPs/subnets list [optional: file.ipb]
+  stats                     view banned VIPB IPs/subnets counts
+  true                      simulate cron/CLI (or autoban)
+  debug                     debug mode (echoes logs)
+
+                            (*.ipb = list of IPs, one per line)                        
+````
+
+### Logs
+
+All operations are logged in the script directory.
+Debug mode provides detailed operation logging.
 
 ## Contributing
 
-Feel free to submit issues, fork the repository, and create pull requests for any improvements.
+Contributions are welcome! Feel free to submit pull requests or open issues for bugs and feature requests.
 
 ## License
 
@@ -95,4 +108,5 @@ This project is licensed under the GPL-2.0 License. See the LICENSE file for det
 
 ## Note
 
-This tool is designed for "domestic" server protection. Please use responsibly and ensure you know the implications of firewalling / IP blocking in your environment.
+> [!CAUTION]  
+> This tool is designed for "domestic" server protection. Please use responsibly and ensure you know the implications of firewalling / IP blocking in your environment before using this script.
