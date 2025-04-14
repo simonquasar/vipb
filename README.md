@@ -2,7 +2,7 @@
 ![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/simonquasar/vipb)
 ![GitHub top language](https://img.shields.io/github/languages/top/simonquasar/vipb)
 ![GitHub Tag](https://img.shields.io/github/v/tag/simonquasar/vipb)
-![GitHub commits since tagged version](https://img.shields.io/github/commits-since/simonquasar/vipb/0.9-pre)
+![GitHub commits since tagged version](https://img.shields.io/github/commits-since/simonquasar/vipb/0.9)
 
 
 # VIPB - Versatile IP Blacklister
