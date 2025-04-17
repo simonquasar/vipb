@@ -7,7 +7,6 @@ on:
   pull_request:
   
 jobs:
-  
   syntax-check:
     name: Syntax Check
     runs-on: ubuntu-latest
