@@ -29,7 +29,7 @@ jobs:
             fi
           done
           
- megalinter:
+  megalinter:
     name: MegaLinter
     runs-on: ubuntu-latest
     steps:          
