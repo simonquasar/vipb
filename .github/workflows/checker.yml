@@ -35,11 +35,3 @@ jobs:
     steps:          
        - name: MegaLinter
          uses: oxsecurity/megalinter@v8.5.0
-         DISABLE:
-           - CLOUDFORMATION
-           - COPYPASTE
-           - CSS
-           - EDITORCONFIG
-           - JAVASCRIPT
-           - TEKTON
-           
