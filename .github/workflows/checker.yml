@@ -36,12 +36,10 @@ jobs:
        - name: MegaLinter
          uses: oxsecurity/megalinter@v8.5.0
          DISABLE:
-          - CLOUDFORMATION
-          - COPYPASTE
-          - CSS
-          - EDITORCONFIG
-          - JAVASCRIPT
-          - TEKTON
-
-        
-          
+           - CLOUDFORMATION
+           - COPYPASTE
+           - CSS
+           - EDITORCONFIG
+           - JAVASCRIPT
+           - TEKTON
+           
