@@ -9,8 +9,14 @@
 # |  |  | |   __| __ -|  
 #  \___/|_|__|  |_____| v0.9  
 #
-VER="v0.9"
+VER="v0.9.1"
 ARGS=("$@")
+
+if [ "$EUID" -ne 0 ]; then
+    echo "✦ VIPB $VER ✦"
+    echo "Error: This script must be run as root. Please use sudo.${NC}"
+    exit 1
+fi
 
 # check if debug mode is enabled
 check_debug_mode() {

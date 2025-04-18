@@ -2,11 +2,7 @@
 
 # VIPB User Interface
 # A simple, versatile and efficient IP ban script for Linux servers
-if [ "$EUID" -ne 0 ]; then
-    echo -e "${RED}Error: This script must be run as root. Please use sudo.${NC}"
-    log "@$LINENO: SECURITY ERROR: Script must be run as root."
-    exit 1
-fi
+
 # Check if the script is running from CLI
 if [ "$CLI" == "true" ]; then
     log "*** VIPB ${VER} *** CLI interface not supported here."
@@ -20,7 +16,6 @@ else
     echo -e "▩▩▩ Hello Human! ▩▩▩"
     BD='\033[1m' # bold
     DM='\033[2m' # dim color
-    BG='\033[3m' # italic ? 
     ############################## TERMINAL DEBUG ##############################
     if [ "$DEBUG" == "true" ]; then
         debug_log "≡≡ TERMINAL PROPERTIES ≡≡"
@@ -864,23 +859,54 @@ function handle_logs_info() {
     header
     echo -ne "${ORG}"
     subtitle "Logs & infos"
-    echo
-    echo -e "${VLT}VIPB variables"    
-    echo -e "${VLT}VER: ${NC}$VER, ${VLT}CLI: ${NC}$CLI, ${VLT}DEBUG: ${NC}$DEBUG"
-    echo -e "${CYN}IPSET_NAME: ${NC}$IPSET_NAME, ${VLT}MANUAL_IPSET_NAME: ${NC}$MANUAL_IPSET_NAME, ${VLT}SCRIPT_DIR: ${NC}$SCRIPT_DIR"
-    echo -e "${SLM}CRON: ${NC}$CRON, ${SLM}DAILYCRON: ${NC}$DAILYCRON, ${SLM}CRONDL: ${NC}$CRONDL, ${SLM}LOG_FILE: ${NC}$LOG_FILE"
-    echo -e "${ORG}IPSET: ${NC}$IPSET, ${ORG}FIREWALL: ${NC}$FIREWALL, ${ORG}IPTABLES: ${NC}$IPTABLES, ${ORG}FIREWALLD: ${NC}$FIREWALLD, ${ORG}UFW: ${NC}$UFW, ${ORG}PERSISTENT: ${NC}$PERSISTENT"
-
+    
     log_selector(){
         
         loglen=20
+        more_loglen=$(($loglen * 100))
+
+        echo -e "${ORG}■■■ LOG & DATA VIEWER ■■■${NC}"
         echo
-        echo -e "${ORG}■■■ LOG VIEWER ■■■${NC}"
-        echo "Select log:"
+        echo "View system logs and extract IPs."
+
+        function log2IPs() {
+            # New! Extract IPs from the last tail of log
+            #lg "*" "log2IPs $*"
+            local log_file="$1"
+            local grep="$2"
+            local extracted_ips=()
+            if [[ -f "$log_file" ]]; then 
+                extracted_ips=($(tail -n $more_loglen "$log_file" | grep "$grep" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' | sort -u))
+                
+                if [[ ${#extracted_ips[@]} -eq 0 ]]; then
+                    echo -e "${SLM}No IPs found in log $log_file matching: ${BG}$grep.${NC}"
+                else
+                    echo -e "${SLM}Extracted IPs (last $more_loglen loglines):${NC}"
+                    for ip in "${extracted_ips[@]}"; do
+                        echo "$ip"
+                    done
+                    echo
+                    echo -e "${YLW}Should we ban them promptly?"
+                    select_opt "No" "Yes"
+                    select_yesno=$?
+                    echo -ne "${NC}"
+                    case $select_yesno in
+                        0)  echo "Nothing to do."
+                            ;;
+                        1)  echo "Sure!"
+                            INFOS="true"
+                            add_ips "$MANUAL_IPSET_NAME" "${extracted_ips[@]}"
+                            ;;
+                    esac                
+                fi
+            else
+                echo -e "${RED}Fail2Ban log file not found at ${BG}$log_file.${NC}"
+            fi
+        }
         
-        log_options=("${VLT}VIPB${NC}" "${YLW}Reset ${VLT}VIPB log${NC}" "${CYN}auth.log${NC}" "${S16}syslog${NC}" "${S16}journalctl${NC}" )
+        log_options=("${VLT}VIPB${NC}" "${VLT}VIPB${NC} ${ORG}variables" "${VLT}VIPB log${NC} ${YLW}*reset" "${CYN}auth.log${NC}" "${S16}syslog${NC}" "${S16}journalctl${NC}" )
         if [[ $FAIL2BAN == "true" ]]; then
-            log_options+=("${ORG}Fail2Ban${NC}" "${ORG}Fail2Ban ${YLW}[WARNINGS]${NC}")
+            log_options+=("${ORG}Fail2Ban${NC}" "${ORG}Fail2Ban ${YLW}[WARNING]s${NC}")
         fi
         
         select_opt "${NC}${DM}<< Back${NC}" "${log_options[@]}"
@@ -890,10 +916,48 @@ function handle_logs_info() {
                 ;;
             1)  header
                 echo
-                echo -e "${VLT}▗ VIPB${NC}"
+                echo -e "${VLT}▗ $SCRIPT_DIR/vipb-log.log${NC}"
                 tail -n $loglen $SCRIPT_DIR/vipb-log.log
                 ;;
             2)  header
+                echo
+                echo -e "${VLT}▗ VIPB variables"    
+                declare -A vars=(
+                    ["VER"]=$VER
+                    ["CLI"]=$CLI
+                    ["DEBUG"]=$DEBUG
+                    ["IPSET_NAME"]=$IPSET_NAME
+                    ["MANUAL_IPSET_NAME"]=$MANUAL_IPSET_NAME
+                    ["SCRIPT_DIR"]=$SCRIPT_DIR
+                    ["CRON"]=$CRON
+                    ["DAILYCRON"]=$DAILYCRON
+                    ["CRONDL"]=$CRONDL
+                    ["LOG_FILE"]=$LOG_FILE
+                    ["IPSET"]=$IPSET
+                    ["FIREWALL"]=$FIREWALL
+                    ["IPTABLES"]=$IPTABLES
+                    ["FIREWALLD"]=$FIREWALLD
+                    ["UFW"]=$UFW
+                    ["PERSISTENT"]=$PERSISTENT
+                )
+                for key in "${!vars[@]}"; do
+                    case $key in
+                        VER|CLI|DEBUG)
+                            echo -e "${VLT}${key}: ${NC}${vars[$key]}"
+                            ;;
+                        IPSET_NAME|MANUAL_IPSET_NAME|SCRIPT_DIR)
+                            echo -e "${CYN}${key}: ${NC}${vars[$key]}"
+                            ;;
+                        CRON|DAILYCRON|CRONDL|LOG_FILE)
+                            echo -e "${SLM}${key}: ${NC}${vars[$key]}"
+                            ;;
+                        IPSET|FIREWALL|IPTABLES|FIREWALLD|UFW|PERSISTENT)
+                            echo -e "${ORG}${key}: ${NC}${vars[$key]}"
+                            ;;
+                    esac
+                done
+                ;;
+            3)  header
                 echo
                 echo -e "${VLT}▗ VIPB${NC} (last $loglen lines)"
                 tail -n $loglen $SCRIPT_DIR/vipb-log.log
@@ -901,30 +965,35 @@ function handle_logs_info() {
                 > "$SCRIPT_DIR/vipb-log.log"
                 echo -e "VIPB-log ${YLW}cleared${NC}"
                 ;;
-            3)  header
-                echo
-                echo -e "${CYN}▗ auth.log${NC}"
-                tail -n $loglen /var/log/auth.log | grep -v "occ background-job:worker"
-                ;;
             4)  header
                 echo
-                echo -e "${S16}▗ syslog${NC}"
-                tail -n $loglen /var/log/syslog
+                echo -e "${CYN}▗ /var/log/auth.log${NC}"
+                tail -n $loglen /var/log/auth.log
+                echo
+                log2IPs "/var/log/auth.log" 'Connection closed'
                 ;;
             5)  header
+                echo
+                echo -e "${S16}▗ /var/log/syslog${NC}"
+                tail -n $loglen /var/log/syslog
+                ;;
+            6)  header
                 echo
                 echo -e "${S16}▗ ${BG}journalctl -n $loglen${NC}"
                 journalctl -n "$loglen"
                 ;;
-            6)  header
-                echo
-                echo -e "${SLM}▗ Fail2ban${NC}"
-                tail -n $loglen /var/log/fail2ban.log
-                ;;
             7)  header
                 echo
-                echo -e "${SLM}▗ Fail2Ban [WARNING]${NC}"
-                tail -n 1000 /var/log/fail2ban.log | grep "WARNING"
+                echo -e "${SLM}▗ /var/log/fail2ban.log${NC}"
+                tail -n $loglen /var/log/fail2ban.log
+                ;;
+            8)  header
+                echo
+                echo -e "${SLM}▗ Fail2Ban [WARNING]s${NC}"
+                tail -n $loglen /var/log/fail2ban.log | grep "WARNING"
+                echo
+                log2IPs "/var/log/fail2ban.log" "WARNING"
+                next
                 ;;
             
         esac

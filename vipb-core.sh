@@ -27,12 +27,14 @@ RED='\033[31m'
 GRN='\033[32m'
 VLT='\033[35m'
 NC='\033[0m'
+BG='\033[3m' # italic
 # but if pure cli/cron or no color support, remove colors
 if [ -z "$TERM" ] || ! tput colors >/dev/null 2>&1 || [ "$(tput colors 2>/dev/null || echo 0)" -eq 0 ]; then
     RED=''
     GRN=''
     VLT=''
     NC=''
+    BG=''
 fi
 
 # VIPB Core functions
@@ -409,23 +411,19 @@ function add_ips() {
     local ipset="$1"
 
     if [ "$IPSET" == "false" ]; then
-        if [ "$FIREWALL" == "iptables" ]; then
-            for ip in "${IPS[@]}"; do
-                ban_ip "$MANUAL_IPSET_NAME" "$ip"
-            done
-        else
-            echo "@$LINENO: Critical Error: cannot use ipset - not installed."
-            log "@$LINENO: Critical Error: cannot use ipset - not installed."
-            if [ ! "$DEBUG" == "true" ]; then
-                exit 1
-            fi
-            return 1
+        #2do
+        echo "@$LINENO: Critical Error: cannot use ipset - not installed."
+        log "@$LINENO: Critical Error: cannot use ipset - not installed."
+        if [ ! "$DEBUG" == "true" ]; then
+            exit 1
         fi
+        return 1
+
     else
         log "Adding IPs into ipset $ipset..."
-        echo -e "Adding ${GRN}${#IPS[@]} IPs${NC} into ipset ${BG}$ipset${NC}..."
         shift 
         local ips=("$@")  
+        echo -e "Adding ${GRN}${#ips[@]} IPs${NC} into ipset ${BG}$ipset${NC}..."
         ADDED_IPS=0
         ALREADYBAN_IPS=0
         err=0
@@ -625,7 +623,7 @@ function compressor() {
             if [ "$CLI" == "false" ]; then
                 echo -e "${NC}${YLW}Set occurrence tolerance levels [2-9] ${DM}[Exit with 0]${NC}"
                 while true; do
-                    echo -ne "${NC}  for ${S24}/24 subnets${NC} (#.#.#.\e[37m0${NC}): ${YLW}" 
+                    echo -ne "${NC}  for ${S24}/24 subnets${NC} (#.#.#.${BG}m0${NC}): ${YLW}" 
                     read ip_occ
                     if [[ "$ip_occ" =~ ^[2-9]$ ]]; then
                         c24="$ip_occ"
@@ -637,7 +635,7 @@ function compressor() {
                     fi
                 done
                 while true; do
-                    echo -ne "${NC}  for ${S16}/16 subnets${NC} (#.#.\e[37m0.0${NC}): ${YLW}" 
+                    echo -ne "${NC}  for ${S16}/16 subnets${NC} (#.#.${BG}0.0${NC}): ${YLW}" 
                     read ip_occ
                     if [[ "$ip_occ" =~ ^[2-9]$ ]]; then
                         c16="$ip_occ"
@@ -672,7 +670,7 @@ function compressor() {
             subnet16_count=$(wc -l < "$SUBNETS16_FILE")
             
             # /24 #.#.#.0
-            echo -ne "${S24}◣ /24 subnets${NC} (#.#.#.\e[37m0${NC})   ${NC}"
+            echo -ne "${S24}◣ /24 subnets${NC} (#.#.#.${BG}0${NC})   ${NC}"
             while read -r subnet16; do
                 prefix16=$(echo "$subnet16" | cut -d'/' -f1 | sed 's/\.0\.0$//')
                 grep -v "^$prefix16" "$SUBNETS24_FILE" > "$remaining_24_temp"
@@ -687,14 +685,14 @@ function compressor() {
                 grep -v "^$subnet_prefix" "$temp_file" > "$subnet_temp"
                 mv "$subnet_temp" "$temp_file"
             done < "$SUBNETS24_FILE"
-            echo -e "${GRN}Done. ${S24}$subnet24_count subnets @ x $c24${NC}"
-            echo -ne "${S16}◣ /16 subnets${NC} (#.#.\e[37m0.0${NC})   ${NC}"
+            echo -e "${GRN}Done. ${S24}($subnet24_count subnets x$c24)${NC}"
+            echo -ne "${S16}◣ /16 subnets${NC} (#.#.${BG}0.0${NC})   ${NC}"
             while read -r subnet16; do
                 prefix16=$(echo "$subnet16" | cut -d'/' -f1 | sed 's/\.0\.0$//')
                 grep -v "^$prefix16" "$temp_file" > "$subnet_temp"
                 mv "$subnet_temp" "$temp_file"
             done < "$SUBNETS16_FILE"
-            echo -e "${GRN}Done. ${S16}$subnet16_count subnets @ x $c16${NC}"
+            echo -e "${GRN}Done. ${S16}($subnet16_count subnets x$c16)${NC}"
 
             echo -ne "${BLU}◣ Writing to file...      ${NC}"
             awk '{print $2}' "$temp_file" >> "$OPTIMIZED_FILE"
@@ -709,11 +707,11 @@ function compressor() {
             filips=$((prog_ips / 2))
             filnets=$((prog_nets / 2))
             filled=$((progress / 2))
-            
             empty=$((50 - filled))
-            barips=$(printf "%0.s▰" $(seq 1 $filips))
-            barnets=$(printf "%0.s▰" $(seq 1 $filnets))
-            spaces=$(printf "%0.s▱" $(seq 1 $empty))     
+            barips=$(printf "%0.s■" $(seq 1 $filips))
+            barnets=$(printf "%0.s■" $(seq 1 $filnets))
+            spaces=$(printf "%0.s□" $(seq 1 $empty))     
+
             echo -e "${GRN}Done. ${NC}"
 
             log "====================="
@@ -723,8 +721,8 @@ function compressor() {
             log "$optimized_count compressed sources."
             log "$single_count single IPs"
             log "$cut_count source IPs compressed into"
-            log "$subnet24_count /24 subnets (@ $c24 ) and"
-            log "$subnet16_count /16 subnets (@ $c16 )"
+            log "$subnet24_count /24 subnets (x$c24) and"
+            log "$subnet16_count /16 subnets (x$c16)"
             log "====================="
             
             echo
@@ -734,9 +732,9 @@ function compressor() {
             echo -e "    Total processed\t100% ◕  ${VLT}$total_ips IPs ${NC}"
             echo -e "         ${CYN}reduced to${NC}\t $progress% ◔  ${CYN}$optimized_count sources${NC}"
             echo -e "   "
-            echo -e "               from\t \e[3m$((100-(single_count * 100 / total_ips)))%${NC}  ╔ ${VLT}$cut_count IPs${NC}"
-            echo -e "                 to\t \e[3m $((progress - (single_count * 100 / total_ips)))%${NC}  ╙ ${CYN}$((subnet24_count + subnet16_count)) subnets +${NC}"
-            echo -e "       uncompressed\t \e[3m$((single_count * 100 / total_ips))%${NC}    ${CYN}$single_count IPs${NC}"
+            echo -e "               from\t ${BG}$((100-(single_count * 100 / total_ips)))%${NC}  ╔ ${VLT}$cut_count IPs${NC}"
+            echo -e "                 to\t ${BG} $((progress - (single_count * 100 / total_ips)))%${NC}  ╙ ${CYN}$((subnet24_count + subnet16_count)) subnets +${NC}"
+            echo -e "       uncompressed\t ${BG}$((single_count * 100 / total_ips))%${NC}    ${CYN}$single_count IPs${NC}"
             echo            
             list_ips(){
             if [ "$2" -lt "$3" ]; then
@@ -755,6 +753,7 @@ function compressor() {
                 echo -e "${S16}  subs /16 shortist:${NC}"
                 list_ips "$SUBNETS16_FILE" "$subnet16_count" 14
             fi
+            echo
         else
             echo
             echo -e "${RED}ERROR reading blacklist:${NC} $1"
@@ -767,7 +766,7 @@ function compressor() {
 function ban_core() { 
     lg "*" "ban_core $*"
     echo -e "${VLT}VIPB-Ban started!"
-    echo -e "▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰${NC}"
+    echo -e "■■■■■■■■■■■■■■■■■■■■${NC}"
     
     # ban_core blacklist (ipset_name)
 
@@ -811,7 +810,7 @@ function ban_core() {
 
     count=$(count_ipset "$ipset")
     
-    echo -e "${VLT}▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰"
+    echo -e "${VLT}■■■■■■■■■■■■■■■■■■■■"
     echo -e " VIPB-Ban finished "
     if [ $err -ne 0 ]; then
         echo -e " ${RED}✗ ${YLW}with $ERRORS errors.. check logs!${NC}"
@@ -819,10 +818,10 @@ function ban_core() {
     echo -e "${VLT} ≡ Loaded:  $total_blacklist_read"
     echo -e "${ORG} ◌ Listed:  $ALREADYBAN_IPS"
     echo -e "${GRN} ✓  Added:  $ADDED_IPS"
-    echo -e "${VLT}    TOTAL:  $count SOURCES BANNED"
-    echo -e "▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰${NC}"
+    echo -e " ≡  TOTAL:  $count banned${VLT}"
+    echo -e "■■■■■■■■■■■■■■■■■■■■${NC}"
 
-    log "▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰"
+    log "■■■■■■■■■■■■■■■■■■■■"
     log " VIPB-Ban finished!"
     if [ $err -ne 0 ]; then
         log "WITH $ERRORS ERRORS!"
