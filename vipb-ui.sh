@@ -26,9 +26,6 @@ else
         debug_log "≡ Can move cursor: $(tput cup 1 1 >/dev/null 2>&1 && echo -e "${GRN}Yes${NC}" || echo -e "${RED}No${NC}")"
         debug_log "≡ Can set foreground color: $(tput setaf 1 >/dev/null 2>&1 && echo -e "${GRN}Yes${NC}" || echo -e "${RED}No${NC}")"
         debug_log "≡ Can set background color: $(tput setab 1 >/dev/null 2>&1 && echo -e "${GRN}Yes${NC}" || echo -e "${RED}No${NC}")"
-        #for i in {0..255} ; do
-        #     printf "\x1b[48;5;%sm%3d\e[0m " "$i" "$i"
-        #done
     fi
     ############################################################################
     # UI then define COLORS!
@@ -44,15 +41,8 @@ else
         ORG='\033[38;5;222m'    # goldenrod 
         SLM='\033[38;5;210m'    # lightcoral
         RED='\033[38;5;196m'    # red
-        GRY='\033[38;5;15m'     # white
-        #   activate advanced menu
-        #   USAGE:
-        #   menu_options=()
-        #   menu_options+=("${GRN}Lookup IP${NC}")
-        #   select_opt "${NC}${DM}<< Back${NC}" "${menu_options[@]}"
-        #   menu_choice=$?
-        #   case $menu_choice in
-        #   ...
+        GRY='\033[38;5;7m'      # grey
+        #   Activate advanced menu
         function select_opt() {
             select_option "$@" 1>&2
             local result=$?
@@ -70,8 +60,8 @@ else
         ORG='\033[33m' # yellow
         SLM='\033[33m' # yellow
         RED='\033[31m' # red
-        GRY='\033[97m' # white
-        #use simple menu 
+        GRY='\033[90m' # gray if too dark use 37
+        #   Use simple numbered menu 
         function select_opt() {
             local options=("$@")
             local selected=""
@@ -96,7 +86,7 @@ else
     echo -e "VIPB-UI ${GRN}LOADED${NC} + ${RED}c${VLT}o${ORG}l${YLW}o${S16}r${CYN}s${BLU}!${NC}"
 fi
 
-# UI-CORE functions
+### UI-CORE functions
 
 function back {
     header
@@ -117,7 +107,7 @@ function vquit {
     exit 0
 }
 
-# UI-OPT functions
+### UI-OPT functions
 
 function center() {
     text="$1"
@@ -147,7 +137,7 @@ function level_bar(){
     done
 }
 
-# UI-Handlers functions
+### UI-Handlers functions
 
 # (Menu 1) IPsum blacklist download  download_blacklist
 function handle_ipsum_download() {
@@ -172,7 +162,7 @@ function handle_ipsum_download() {
     case $select_lv in
         [2-8]) 
             download_blacklist $select_lv
-            echo "Proceed to the Aggregator!"
+            #echo -e "${GRY}Proceed to the Aggregator (2.) or Ban (3.) the whole list!${NC}"
             next
             ;;
     esac
@@ -457,7 +447,6 @@ function handle_download_and_ban() {
                 compressor
                 CLI=$tempcli
                 subtitle "3. ${BLU} Ban!"
-                setup_ipset $IPSET_NAME
                 INFOS="false"
                 ban_core $OPTIMIZED_FILE
                 ;;
@@ -478,16 +467,16 @@ function handle_firewalls() {
     if $FIREWALLD || $PERSISTENT; then
         echo -e "in use with ${S16}permanent rules${NC}"
     fi
-    if [[ $IPSET == "true" ]]; then
-        INFOS="true"
-        check_ipset $IPSET_NAME
-        check_ipset $MANUAL_IPSET_NAME
-    else
-        echo -e "${RED}ipset not found."
-    fi
+    #if [[ $IPSET == "true" ]]; then
+    #    INFOS="true"
+    #    check_ipset $IPSET_NAME
+    #    check_ipset $MANUAL_IPSET_NAME
+    #else
+    #    echo -e "${RED}ipset not found."
+    #fi
     echo
     echo -e "\t1. View current ${ORG}rules${NC}"
-    echo -e "\t2. Re-/Create ${ORG}rules${NC}"
+    echo -e "\t2. Re-/Create ${ORG}VIPB-rules${NC}"
     echo -e "\t3. Change firewall \t\t ${RED}!${NC}${DM}>>${NC}"
     if [[ $IPSET == "true" ]]; then
         echo -e "\t4. View/Clear ${BLU}all ipsets${NC}\t ${DM}>>${NC}"
@@ -554,17 +543,18 @@ function handle_firewalls() {
                 ;;
             3)  debug_log " $ipsets_choice. Change firewall"
                 subtitle "${ORG}Change firewall"
-                echo -e "${ORG}Change firewall at your risk.${NC} This section is in still in development and not optimized for cross-use between firewalls yet."
+                echo -e "${ORG}Change firewall at your risk.${NC}"
+                echo -e "This section is in still in development and not optimized for cross-use between firewalls yet."
                 fw_options=()
 
                 if [ "$IPTABLES" == "true" ]; then
-                    fw_options+=("iptables ${BG}(default)${NC}")
+                    fw_options+=("iptables ${BG}${S16}[default]${NC}")
                 fi
                 if [ "$FIREWALLD" == "true" ]; then 
                     fw_options+=("FirewallD")
                 fi
-                if [ "$UFW" == "true" ]; then
-                    fw_options+=("ufw (not supported)") #2do
+                if [ "$DEBUG" == "true" ]; then
+                    fw_options+=("ufw ${BG}[not supported]${NC}") #2do
                 fi
                 
                 select_opt "${NC}${DM}<< Back${NC}" "${fw_options[@]}"
@@ -1001,71 +991,81 @@ function handle_logs_info() {
     back
 }
 
-# Main UI
+### Main UI
 
 # Header Row
 function services_row() {  
-    echo -ne " ${NC}"
+    echo -ne "${DM}"
+    center "-----------------------------------------------------------------"
+    echo -ne "${NC}       "
+    #iptables
     if [ "$FIREWALL" == "iptables" ]; then
-        echo -ne "${GRN}[ ✓"
+        echo -ne "${GRN}[ ${NC}"
         else
         echo -ne "${DM}"
     fi 
 
-        if [ "$IPTABLES" == "false" ]; then
-            echo -ne " ${DM}"
+        if [ "$IPTABLES" == "true" ]; then
+            echo -ne "${GRN}"
+        else
+            echo -ne "${DM}"
         fi
-        echo -ne " iptables"
+        echo -ne "iptables"
 
         if [ "$PERSISTENT" == "true" ]; then
-            echo -ne "-persistent"
+            echo -ne "-persistent" # we have to check the save function
         fi
-        
+
+    #ipset        
         if [ "$IPSET" == "true" ]; then
-            echo -ne " ✚"
+            echo -ne "${GRN} +"
         else
-            echo -ne "${RED} ✗"
+            echo -ne "${DM}"
         fi
-        echo -ne " ipset"
+        echo -ne " ipset${NC}"
 
     if [ "$FIREWALL" == "iptables" ]; then
         echo -ne "${GRN} ]${NC}"
     fi 
-
-    echo -ne " "
     
+    #ufw
     if [ "$FIREWALL" == "ufw" ]; then
-        echo -ne "${GRN}[ ✓ "
+        echo -ne "${GRN} [ ${NC}"
         else
-        echo -ne "${DM}"
+        echo -ne "${DM} "
     fi 
 
-        if [ "$UFW" == "false" ]; then
-            echo -ne "${DM}"
+        if [ "$UFW" == "true" ]; then
+            echo -ne "${GRN}"
+        else
+            echo -ne "${GRY}"
         fi 
-        echo -ne "ufw ${NC}"
+        echo -ne "ufw${NC}"
 
     if [ "$FIREWALL" == "ufw" ]; then
-        echo -ne "${GRN} ] ${NC}"
+        echo -ne "${GRN} ]${NC}"
     fi
 
+    #firewalld
     if [ "$FIREWALL" == "firewalld" ]; then
-        echo -ne "${GRN}[ ✓ "
+        echo -ne "${GRN} [ "
     else
-        echo -ne "${DM}"
+        echo -ne "${DM} "
     fi 
         if [ "$FIREWALLD" == "true" ]; then 
             echo -ne "${GRN}"
         else
             echo -ne "${DM}"
         fi
-        echo -ne "firewalld ${NC}"
+        echo -ne "firewalld${NC}"
+
     if [ "$FIREWALL" == "firewalld" ]; then
-        echo -ne "${GRN}] ${NC}"
+        echo -ne "${GRN} ] ${NC}"
     fi
 
-    echo -ne "${DM}•${NC} "
+    echo -ne " ${DM}•${NC} "
     
+    #fail2ban
     if [ "$FAIL2BAN" == "true" ]; then
         echo -ne "${GRN}"
     else
@@ -1075,6 +1075,7 @@ function services_row() {
     
     echo -ne "${DM}•${NC} "
 
+    #cron
     if [ "$CRON" == "true" ]; then
         echo -ne "${GRN}"
     else
@@ -1109,24 +1110,36 @@ function header () {
         ipset_bans=$(count_ipset "$IPSET_NAME")
         manual_ipset_bans=$(count_ipset "$MANUAL_IPSET_NAME")
     fi
+    if [[ "$FIREWALL" == "iptables" ]]; then
+        iptables -L INPUT -n --line-numbers | grep -q "match-set vipb-" && FW_RULES="true" || FW_RULES="false"
+    elif [[ "$FIREWALL" == "firewalld" ]]; then
+        firewall-cmd --list-all | grep -q "vipb-" && FW_RULES="true" || FW_RULES="false"
+    elif [[ "$FIREWALL" == "ufw" ]]; then
+        ufw status | grep -q "vipb-" && FW_RULES="true" || FW_RULES="false"
+    fi
     echo -ne "${NC}${RED}${DM}"
     echo -e "▁ ▂ ▃ ▅ ▆ ▇ ▉ ▇ ▆ ▅ ▃ ▂ ${NC}${VLT}${BD}Versatile IPs Blacklister${NC} ${DM}${VER}${RED} ▁ ▂ ▃ ▅ ▆ ▇ ▉ ▇ ▆ ▅ ▃ ▂${NC}"
-    echo -e "                                   ${DM}    •                  ${NC}"     
-    echo -e "  ██╗   ██╗██╗██████╗ ██████╗      ${DM}   ┏┓┏┳┓┏┓┏┓┏┓┓┏┏┓┏┏┓┏┓${NC}"
-    echo -e "  ██║   ██║██║██╔══██╗██╔══██╗     ${DM}by ┛┗┛┗┗┗┛┛┗┗┫┗┻┗┻┛┗┻┛ ${NC}"
-    echo -e "  ██║   ██║██║██████╔╝██████╔╝     ${DM}             ┗         ${NC}"
-    echo -ne "  ╚██╗ ██╔╝██║██╔═══╝ ██╔══██╗    "
+    echo -e "\t                                   ${DM}    •                  ${NC}"     
+    echo -e "\t  ██╗   ██╗██╗██████╗ ██████╗      ${DM}   ┏┓┏┳┓┏┓┏┓┏┓┓┏┏┓┏┏┓┏┓${NC}"
+    echo -e "\t  ██║   ██║██║██╔══██╗██╔══██╗     ${DM}by ┛┗┛┗┗┗┛┛┗┗┫┗┻┗┻┛┗┻┛ ${NC}"
+    echo -e "\t  ██║   ██║██║██████╔╝██████╔╝     ${DM}             ┗         ${NC}"
+    echo -ne "\t  ╚██╗ ██╔╝██║██╔═══╝ ██╔══██╗    "
     if [ "$IPSET" == "true" ] || [ "$FIREWALLD" == "true" ]; then
-        echo -ne "✦ ${VLT}VIPB bans:${BD} $ipset_bans ${NC}"
+        echo -ne "✦ ${VLT}VIPB bans: ${BD}$ipset_bans ${NC}"
     fi
     echo
-    echo -ne "   ╚████╔╝ ██║██║     ██████╔╝    "
+    echo -ne "\t   ╚████╔╝ ██║██║     ██████╔╝    "
     if [ "$IPSET" == "true" ] || [ "$FIREWALLD" == "true" ]; then
         echo -ne "✦ ${YLW}USER bans: ${BD}$manual_ipset_bans${NC}"
     fi
     echo
-    echo -ne "    ╚═══╝  ╚═╝╚═╝     ╚═════╝     "
-    #echo -ne "✦ ${ORG}Firewall: $FIREWALL${NC}"
+    echo -ne "\t    ╚═══╝  ╚═╝╚═╝     ╚═════╝     "
+    echo -ne "✦ ${ORG}$FIREWALL: "
+    if [ "$FW_RULES" == "true" ] ; then
+        echo -ne "${GRN}✓${NC}"
+    else
+        echo -ne "${RED}✗${NC}"
+    fi
     echo
 }
 

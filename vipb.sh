@@ -31,7 +31,7 @@ check_debug_mode() {
     ARGS=("$@")
 
     if [ "$1" == "true" ]; then
-        echo ">> CLI simulation: $@"
+        echo ">> CLI simulation: $*"
         CLI="true"
         shift
     elif [ -t 0 ] && [ $# -eq 0 ]; then
@@ -57,7 +57,7 @@ function lg {
 function debug_log() {
     if [[ $DEBUG == "true" ]]; then
         lg "+" "$@"
-        echo "<< DBG [$(basename "${BASH_SOURCE[1]}")] $@"
+        echo "<< DBG [$(basename "${BASH_SOURCE[1]}")] $*"
     fi
 }
 
@@ -65,7 +65,7 @@ function log() {
     if [[ -n "$1" ]]; then
         lg "-" "$@"
         if [[ $DEBUG == "true" ]]; then
-            echo ">> LOG [$(basename "${BASH_SOURCE[1]}")] $@"
+            echo ">> LOG [$(basename "${BASH_SOURCE[1]}")] $*"
         fi
     fi
 }
@@ -95,7 +95,7 @@ if [ "$CLI" == "false" ]; then
     # load UI
     source "$SCRIPT_DIR/vipb-ui.sh"
     log "$SCRIPT_DIR/vipb-ui.sh $( echo -e "${GRN}LOADED${NC}")"
-    log "UI interface OK"
+    log "UI interface LOADED"
     # Start UI execution
     header
     menu_main
@@ -131,7 +131,7 @@ elif [ "$CLI" == "true" ]; then
                         log "▩▩▩▩▩▩▩▩ VIPB END.  ▩▩▩▩ [CLI $CLI]"
                         exit 0 
                         ;;
-                    *)  echo "invalid argument: $@"
+                    *)  echo "invalid argument: $*"
                         echo
                         echo "► VIPB.sh ($VER) CLI ARGUMENTS"
                         echo
