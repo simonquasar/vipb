@@ -462,7 +462,7 @@ function handle_download_and_ban() {
     back
 }
 
-# (Menu 6) manage firewall and ipsets  
+# (Menu 6) manage firewall and ipsets  #2do this section needs a refactoring
 function handle_firewalls() {
     debug_log "6. Firewall & Sets"
     header
@@ -473,6 +473,9 @@ function handle_firewalls() {
         echo -e "in use with ${S16}permanent rules${NC}"
     fi
  
+    
+
+
     echo
     echo -e "\t1. View current ${ORG}rules${NC}"
     echo -e "\t2. Re-/Create ${ORG}VIPB-rules${NC}"
@@ -565,6 +568,7 @@ function handle_firewalls() {
                 subtitle "${ORG}Change firewall"
                 echo -e "${ORG}Change firewall at your risk.${NC}"
                 echo -e "This section is in still in development and not optimized for cross-use between firewalls yet."
+                echo -e "Misuse could bring to orphaned rules or ipsets in your system."
                 fw_options=()
 
                 if [ "$IPTABLES" == "true" ]; then
@@ -601,19 +605,18 @@ function handle_firewalls() {
                 ;;
             4)  debug_log " $ipsets_choice. View/Clear ipsets" #2do
                 subtitle "${BLU}View/Clear ipsets"
-                echo -e  "${YLW} Select with [space] the ipsets to clear, press ↵ to continue.${NC}"
-                echo
-
+ 
                 if [[ "$FIREWALL" == "firewalld" ]]; then
                     select_ipsets=($(firewall-cmd --permanent --get-ipsets))
                 elif [[ "$IPSET" == "true" ]]; then
                     select_ipsets=($(ipset list -n))
                 fi
 
-                if [[ ${#selected_ipsets[@]} -eq 0 ]]; then
+                if [[ ${#select_ipsets[@]} -eq 0 ]]; then
                     echo -e "${RED}No ipsets found.${NC} Create them with option 5."
                 else
-                    echo "* ${select_ipsets[@]}"
+                    echo -e  "${YLW} Select with [space] the ipsets to clear, press ↵ to continue.${NC}"
+                    echo
 
                     ipsets_selector "${select_ipsets[@]}"
                     
@@ -621,16 +624,20 @@ function handle_firewalls() {
                         echo -e "${YLW}No ipsets selected.${NC}"
                     else
                         for ipset_name in "${selected_ipsets[@]}"; do
-                            echo -ne "Clearing ipset ${BLU}$ipset_name${NC}... "
-                            if [[ "$FIREWALL" == "firewalld" ]]; then
-                                echo "2do"
-                                #firewall-cmd --permanent --delete-ipset="$ipset_name"
-                                #firewall-cmd --reload
-                            elif [[ "$FIREWALL" == "iptables" ]]; then
-                                ipset flush "$ipset_name"
+                            if [[ "$ipset_name" != vipb-* ]]; then
+                                echo -e "${RED}Skipping ipset ${BLU}$ipset_name${NC} as it is not a VIPB ipset (read-only).${NC}"
+                            else
+                                echo -ne "Clearing ipset ${BLU}$ipset_name${NC}... "
+                                if [[ "$FIREWALL" == "firewalld" ]]; then
+                                    echo "2do"
+                                    firewall-cmd --permanent --delete-ipset="$ipset_name"
+                                    setup_ipset "$ipset_name"
+                                    #reload_firewall
+                                elif [[ "$FIREWALL" == "iptables" ]]; then
+                                    ipset flush "$ipset_name"
+                                fi
+                                echo -e "${GRN}cleared${NC}"
                             fi
-                            echo -e "${GRN}cleared${NC}"
-                            next
                         done
                     fi
                 fi
@@ -655,9 +662,8 @@ function handle_firewalls() {
                     case $select_yesno in
                         0)  echo "Nothing to do."
                             ;;
-                        1)  echo -e "${VLT}☷ Recreating selected ipsets...${NC}"
-                            for ipset_name in "${selected_ipsets[@]}"; do  
-                                echo "-"
+                        1)  for ipset_name in "${selected_ipsets[@]}"; do  
+                                echo -e "${VLT}☷ Re/creating ipset '$ipset_name'...${NC}"
                                 remove_ipset "$ipset_name"
                                 setup_ipset "$ipset_name"
                             done
@@ -686,19 +692,22 @@ function handle_firewalls() {
                     case $select_yesno in
                         0)  echo "Nothing to do."
                             ;;
-                        1)  echo -e "${VLT}☷ Deleting selected ipsets...${NC}"
+                        1)  
                             for ipset_name in "${selected_ipsets[@]}"; do  
-                                remove_ipset "$ipset_name"
-                            done
-                            echo -e "${VLT}All ipsets destroyed.${NC}"
-                            echo
-                            echo -e "${ORG}▤ Deleting related '${BG}$FIREWALL${NC}' rules...${NC}"
-                            for ipset_name in "${selected_ipsets[@]}"; do  
-                                echo -ne "'${BG}$ipset_name${NC}' " 
+                                echo -e "${ORG}▤ Deleting '$ipset_name' rules...${NC}"
                                 remove_firewall_rules "$ipset_name"
                             done
-                            echo -e "${ORG}$FIREWALL rules removed${NC}"
-                            #reload_firewall  2do
+                            echo
+
+                            for ipset_name in "${selected_ipsets[@]}"; do  
+                                echo -e "${VLT}☷ Deleting '$ipset_name' ipset...${NC}"
+                                remove_ipset "$ipset_name"
+                                if [[ "$FIREWALL" == "firewalld" ]]; then
+                                    destroy_ipset "$ipset_name" 
+                                fi
+                            done
+                            echo
+                            echo -e "${VLT}Done.${NC} Be careful now."
                             ;;
                     esac
                 fi
