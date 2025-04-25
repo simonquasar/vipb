@@ -342,7 +342,6 @@ function setup_ipset() {
         fi
 
         if ! check_ipset "$ipset_name" &>/dev/null; then
-            
             echo -ne "Creating '${BG}$ipset_name${NC}' in system ipset... "
             if ipset create "$ipset_name" hash:net maxelem "$maxelem"; then
                 echo -e "${GRN}created${NC}"
@@ -353,13 +352,21 @@ function setup_ipset() {
             fi
 
         else
-            echo -e "${ORG}already exists${NC}"
             log "$ipset_name exists"
         fi
 
         if [[ "$FIREWALL" == "firewalld" ]]; then
-            echo -ne "Creating ipset '${BG}$ipset_name${NC}' reference in $FIREWALL... "
-            firewall-cmd --permanent --new-ipset="$ipset_name" --type=hash:net --option=maxelem="$maxelem"
+
+            echo -ne "ipset '${BG}$ipset_name${NC}' reference in $FIREWALL... "                       
+            if firewall-cmd --permanent --new-ipset="$ipset_name" --type=hash:net --option=maxelem="$maxelem" ; then
+                echo -e "${GRN}created${NC}"
+                log "$ipset_name created"
+            else
+                echo "$?"
+                err=1
+            fi
+            
+            
             log "$ipset_name linked"
         fi
     else
@@ -664,12 +671,30 @@ function count_ipset() {
     local total_ipset=0
     
     if [[ "$FIREWALL" == "firewalld" ]]; then
-        if check_ipset "$ipset_name" &>/dev/null; then
-            if total_ipset=$(firewall-cmd --permanent --ipset="$ipset_name" --get-entries 2>/dev/null); then
-                echo -n "$(echo "$total_ipset" | wc -l)"
-            else
-                echo -n "0"
-            fi
+        if check_ipset "$ipset_name" &>/dev/null; then       
+            list_ipset_entries() {
+                local ipset_name="$1"
+                # For permanent configuration
+                #firewall-cmd --permanent --ipset="$ipset_name" --get-entries
+                local perm_entries=$(firewall-cmd --permanent --ipset="$ipset_name" --get-entries)
+                local perm_count=0
+                if [[ -n "$perm_entries" ]]; then
+                    perm_count=$(echo "$perm_entries" | wc -l)
+                fi
+
+                # For runtime configuration
+                #firewall-cmd --ipset="$ipset_name" --get-entries
+                local run_entries=$(firewall-cmd --ipset="$ipset_name" --get-entries)
+                local run_count=0
+                if [[ -n "$run_entries" ]]; then
+                    run_count=$(echo "$run_entries" | wc -l)
+                fi
+
+
+                echo  "$perm_count | $run_count"
+            }
+
+            list_ipset_entries "$ipset_name"
             return 0
         else
             echo -n "n/a"

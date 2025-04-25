@@ -502,8 +502,10 @@ function handle_firewalls() {
                     iptables -L INPUT -n --line-numbers | awk 'NR>2 {print $1, $2, $3, $7, $8, $9, $10, $11, $12}' | column -t
                     iptables -L INPUT -n --line-numbers | grep -q "match-set vipb-" && echo -e "${GRN}VIPB ipsets found in iptables rules.${NC}" || echo -e "${RED}No VIPB ipsets found in iptables rules.${NC}"
                 elif [[ "$FIREWALL" == "firewalld" ]]; then
-                    firewall-cmd --list-all --zone=drop
-                    firewall-cmd --list-all --zone=drop | grep -q "vipb-" && echo -e "${GRN}VIPB rules found in firewalld.${NC}" || echo -e "${RED}No VIPB rules found in firewalld.${NC}"
+                    firewall-cmd --direct --get-all-rules
+                    firewall-cmd --direct --get-all-rules | grep -q "vipb-" && echo -e "${GRN}VIPB rules found in firewalld.${NC}" || echo -e "${RED}No VIPB rules found in firewalld.${NC}"
+                    #firewall-cmd --permanent --direct --get-all-rules
+                    #firewall-cmd --direct --get-all-rules | grep -q "vipb-" && echo -e "${GRN}VIPB rules found in firewalld.${NC}" || echo -e "${RED}No VIPB rules found in firewalld.${NC}"
                 elif [[ "$FIREWALL" == "ufw" ]]; then
                     ufw status verbose
                     if ufw status | grep -q "vipb-"; then
@@ -517,51 +519,40 @@ function handle_firewalls() {
             2)  debug_log " $ipsets_choice. Re-/Create rules"
                 subtitle "Re-/Create rules"
 
-                echo -e "This process won't remove any bans. ${YLW}Proceed?"
-                select_opt "No" "Yes"
-                select_yesno=$?
-                echo -ne "${NC}"
-                case $select_yesno in
-                    0)  echo "Nothing to do."
-                        ;;
-                    1)  echo -e "${VLT}☷ ipset '${IPSET_NAME}'${NC}"
-                            echo -ne "  Removing rule... ${NC}"
-                            if remove_firewall_rules "$IPSET_NAME" ; then
-                                echo -e "${GRN}OK${NC}"
-                            else
-                                echo -e "${RED}Failed${NC}"
-                            fi
+                select_ipsets=("$IPSET_NAME" "$MANUAL_IPSET_NAME")
+                ipsets_selector "${select_ipsets[@]}"
 
-                            echo -ne "  Adding new rule... ${NC}"
-                            if add_firewall_rules "$IPSET_NAME" ; then
-                                echo -e "${GRN}OK${NC}"
-                            else
-                                echo -e "${RED}Failed${NC}"
-                            fi
-                        echo
+                if [[ ${#selected_ipsets[@]} -eq 0 ]]; then
+                    echo -e "${RED}No ipsets selected.${NC}"
+                else
+                    echo -e "This process won't remove any bans. ${YLW}Proceed?"
+                    select_opt "No" "Yes"
+                    select_yesno=$?
+                    case $select_yesno in
+                        0)  echo "Nothing to do."
+                            ;;
+                        1)  for ipset_name in "${selected_ipsets[@]}"; do  
+                                echo -e "${VLT}☷ ipset '${ipset_name}'${NC}"
+                                echo -ne "  Removing rule... ${NC}"
+                                if remove_firewall_rules "$ipset_name" ; then
+                                    echo -e "${GRN}OK${NC}"
+                                else
+                                    echo -e "${RED}Failed${NC}"
+                                fi
 
-                        echo -e "${YLW}☷ ipset '${MANUAL_IPSET_NAME}'${NC}"
-                            echo -ne "  Removing rule... ${NC}"
-                            if remove_firewall_rules "$MANUAL_IPSET_NAME"; then
-                                echo -e "${GRN}OK${NC}"
-                            else
-                                echo -e "${RED}Failed${NC}"
-                            fi
-
-                            echo -ne "  Adding new rule... ${NC}"
-                            if add_firewall_rules "$MANUAL_IPSET_NAME" ; then
-                                echo -e "${GRN}OK${NC}"
-                            else
-                                echo -e "${RED}Failed${NC}"
-                            fi
-                        echo
-
-                        if [[ "$FIREWALL" == "firewalld" ]]; then
-                            echo -ne "Reloading ${ORG}$FIREWALL${NC}... "
-                            firewall-cmd --reload
-                        fi
-                        ;;
-                esac                
+                                echo -ne "  Adding new rule... ${NC}"
+                                if add_firewall_rules "$ipset_name" ; then
+                                    echo -e "${GRN}OK${NC}"
+                                else
+                                    echo -e "${RED}Failed${NC}"
+                                fi
+                                echo
+                            done
+                            echo
+                            echo -e "${VLT}All ipsets resetted.${NC}"
+                            ;;
+                    esac
+                fi
                 next
                 ;;
             3)  debug_log " $ipsets_choice. Change firewall"
@@ -1078,7 +1069,7 @@ function header () {
     if [[ "$FIREWALL" == "iptables" ]]; then
         iptables -L INPUT -n --line-numbers | grep -q "match-set vipb-" && FW_RULES="true" || FW_RULES="false"
     elif [[ "$FIREWALL" == "firewalld" ]]; then
-        firewall-cmd --list-all --zone=drop | grep -q "vipb-" && FW_RULES="true" || FW_RULES="false"
+        firewall-cmd --direct --get-all-rules | grep -q "vipb-" && FW_RULES="true" || FW_RULES="false"
     elif [[ "$FIREWALL" == "ufw" ]]; then
         ufw status | grep -q "vipb-" && FW_RULES="true" || FW_RULES="false"
     fi
