@@ -345,7 +345,12 @@ function handle_manual_ban() {
     echo -e "You can use the ${YLW}ban${NC} command to add IPs to the manual ipset via CLI."
     echo
     echo -e "${YLW}Last 10 banned IPs:${NC}"
-    last_banned_ips=$(ipset list "$MANUAL_IPSET_NAME" | grep -E '^[0-9]+\.' | tail -n 10)
+    if [[ "$FIREWALL" == "firewalld" ]]; then
+        last_banned_ips=$(firewall-cmd --list-all --zone=drop | grep -E '^[0-9]+\.' | tail -n 10)
+    elif [[ "$FIREWALL" == "iptables" ]]; then
+        last_banned_ips=$(ipset list "$MANUAL_IPSET_NAME" | grep -E '^[0-9]+\.' | tail -n 10)
+    fi
+    
     if [[ -n "$last_banned_ips" ]]; then
         echo -e "$last_banned_ips"
     else
@@ -467,13 +472,7 @@ function handle_firewalls() {
     if $FIREWALLD || $PERSISTENT; then
         echo -e "in use with ${S16}permanent rules${NC}"
     fi
-    #if [[ $IPSET == "true" ]]; then
-    #    INFOS="true"
-    #    check_ipset $IPSET_NAME
-    #    check_ipset $MANUAL_IPSET_NAME
-    #else
-    #    echo -e "${RED}ipset not found."
-    #fi
+ 
     echo
     echo -e "\t1. View current ${ORG}rules${NC}"
     echo -e "\t2. Re-/Create ${ORG}VIPB-rules${NC}"
@@ -500,8 +499,8 @@ function handle_firewalls() {
                     iptables -L INPUT -n --line-numbers | awk 'NR>2 {print $1, $2, $3, $7, $8, $9, $10, $11, $12}' | column -t
                     iptables -L INPUT -n --line-numbers | grep -q "match-set vipb-" && echo -e "${GRN}VIPB ipsets found in iptables rules.${NC}" || echo -e "${RED}No VIPB ipsets found in iptables rules.${NC}"
                 elif [[ "$FIREWALL" == "firewalld" ]]; then
-                    firewall-cmd --list-all
-                    firewall-cmd --list-all | grep -q "vipb-" && echo -e "${GRN}VIPB rules found in firewalld.${NC}" || echo -e "${RED}No VIPB rules found in firewalld.${NC}"
+                    firewall-cmd --list-all --zone=drop
+                    firewall-cmd --list-all --zone=drop | grep -q "vipb-" && echo -e "${GRN}VIPB rules found in firewalld.${NC}" || echo -e "${RED}No VIPB rules found in firewalld.${NC}"
                 elif [[ "$FIREWALL" == "ufw" ]]; then
                     ufw status verbose
                     if ufw status | grep -q "vipb-"; then
@@ -522,21 +521,42 @@ function handle_firewalls() {
                 case $select_yesno in
                     0)  echo "Nothing to do."
                         ;;
-                    1)  echo -e "${ORG}Removing $FIREWALL rule for ipset '${IPSET_NAME}'...${NC}"
-                        remove_firewall_rules "$IPSET_NAME"
-                        echo -e "${YLW}Adding new $FIREWALL rule for ipset '${IPSET_NAME}'...${NC}"
-                        add_firewall_rules "$IPSET_NAME"
-                        echo -e "${S24}Done."
-                        
-                        #echo -e "ipset ${BG}$MANUAL_IPSET_NAME${NC}"
-                        echo -e "${ORG}Removing $FIREWALL rule for ipset '${MANUAL_IPSET_NAME}'...${NC}"
-                        remove_firewall_rules "$MANUAL_IPSET_NAME"
-                        echo -e "${YLW}Adding new $FIREWALL rule for ipset '${MANUAL_IPSET_NAME}'...${NC}"
-                        add_firewall_rules "$MANUAL_IPSET_NAME"
-                        echo -e "${S24}Done."
-                        
+                    1)  echo -e "${VLT}☷ ipset '${IPSET_NAME}'${NC}"
+                            echo -ne "  Removing rule... ${NC}"
+                            if remove_firewall_rules "$IPSET_NAME" ; then
+                                echo -e "${GRN}OK${NC}"
+                            else
+                                echo -e "${RED}Failed${NC}"
+                            fi
+
+                            echo -ne "  Adding new rule... ${NC}"
+                            if add_firewall_rules "$IPSET_NAME" ; then
+                                echo -e "${GRN}OK${NC}"
+                            else
+                                echo -e "${RED}Failed${NC}"
+                            fi
                         echo
-                        echo "Firewall rules refreshed."
+
+                        echo -e "${YLW}☷ ipset '${MANUAL_IPSET_NAME}'${NC}"
+                            echo -ne "  Removing rule... ${NC}"
+                            if remove_firewall_rules "$MANUAL_IPSET_NAME"; then
+                                echo -e "${GRN}OK${NC}"
+                            else
+                                echo -e "${RED}Failed${NC}"
+                            fi
+
+                            echo -ne "  Adding new rule... ${NC}"
+                            if add_firewall_rules "$MANUAL_IPSET_NAME" ; then
+                                echo -e "${GRN}OK${NC}"
+                            else
+                                echo -e "${RED}Failed${NC}"
+                            fi
+                        echo
+
+                        if [[ "$FIREWALL" == "firewalld" ]]; then
+                            echo -ne "Reloading ${ORG}$FIREWALL${NC}... "
+                            firewall-cmd --reload
+                        fi
                         ;;
                 esac                
                 next
@@ -579,86 +599,52 @@ function handle_firewalls() {
                 echo -e "Firewall changed to ${ORG}$FIREWALL${NC}"
                 next
                 ;;
-            4)  debug_log " $ipsets_choice. View/Clear ipsets" 
+            4)  debug_log " $ipsets_choice. View/Clear ipsets" #2do
                 subtitle "${BLU}View/Clear ipsets"
                 echo -e  "${YLW} Select with [space] the ipsets to clear, press ↵ to continue.${NC}"
                 echo
 
                 if [[ "$FIREWALL" == "firewalld" ]]; then
                     select_ipsets=($(firewall-cmd --permanent --get-ipsets))
-                elif [[ "$FIREWALL" == "iptables" ]]; then
+                elif [[ "$IPSET" == "true" ]]; then
                     select_ipsets=($(ipset list -n))
                 fi
-                
-                ipset_counts=()
-                ipset_display=()
-
-                for ipset in "${select_ipsets[@]}"; do
-                    count=$(count_ipset "$ipset")
-                    ipset_counts+=("$count")
-                    ipset_display+=("$ipset  \t[ $count ]")
-                done
-
-                multiselect result ipset_display false
-
-                selected_ipsets=()
-                selected_counts=()
-                idx=0
-                for selected in "${select_ipsets[@]}"; do
-                    if [[ "${result[idx]}" == "true" ]]; then
-                        selected_ipsets+=("$selected")
-                        selected_counts+=("${ipset_counts[idx]}")
-                    fi
-                    ((idx++))
-                done
 
                 if [[ ${#selected_ipsets[@]} -eq 0 ]]; then
-                    echo -e "${YLW}No ipsets selected.${NC}"
+                    echo -e "${RED}No ipsets found.${NC} Create them with option 5."
                 else
-                    echo -e "Clearing selected ipsets..."
-                    for ipset_name in "${selected_ipsets[@]}"; do
-                        echo -ne "Clearing ipset ${BLU}$ipset_name${NC}... "
-                        if [[ "$FIREWALL" == "firewalld" ]]; then
-                            echo "2do"
-                            #firewall-cmd --permanent --delete-ipset="$ipset_name"
-                            #firewall-cmd --reload
-                        else
-                            ipset flush "$ipset_name"
+                    echo "* ${select_ipsets[@]}"
 
-                        fi
-                        echo -e "${GRN}cleared${NC}"
-                    done
+                    ipsets_selector "${select_ipsets[@]}"
+                    
+                    if [[ ${#selected_ipsets[@]} -eq 0 ]]; then
+                        echo -e "${YLW}No ipsets selected.${NC}"
+                    else
+                        for ipset_name in "${selected_ipsets[@]}"; do
+                            echo -ne "Clearing ipset ${BLU}$ipset_name${NC}... "
+                            if [[ "$FIREWALL" == "firewalld" ]]; then
+                                echo "2do"
+                                #firewall-cmd --permanent --delete-ipset="$ipset_name"
+                                #firewall-cmd --reload
+                            elif [[ "$FIREWALL" == "iptables" ]]; then
+                                ipset flush "$ipset_name"
+                            fi
+                            echo -e "${GRN}cleared${NC}"
+                            next
+                        done
+                    fi
                 fi
+                
                 next
                 ;;
             5)  debug_log " $ipsets_choice. Re-Create VIPB-ipsets"
                 subtitle "${VLT}Re-Create VIPB-ipsets"
-                echo -e "${YLW}Select with [space] the VIPB-ipsets to recreate${NC}, press ↵ to continue."
+                echo -e "${YLW}Select with [space] the VIPB-ipsets to (re)create${NC}, press ↵ to continue."
                 echo -e "This will NOT remove related firewall rules! ${DM}(use option 6 instead)${NC}"
                 echo
 
                 select_ipsets=("$IPSET_NAME" "$MANUAL_IPSET_NAME")
-                ipset_counts=()
-                ipset_display=()
-
-                for ipset in "${select_ipsets[@]}"; do
-                    count=$(ipset save $ipset | grep -c "add $ipset") # 2do 
-                    ipset_counts+=("$count")
-                    ipset_display+=("$ipset     ($count)")
-                done
-
-                multiselect result ipset_display false
-
-                selected_ipsets=()
-                selected_counts=()
-                idx=0
-                for selected in "${select_ipsets[@]}"; do
-                    if [[ "${result[idx]}" == "true" ]]; then
-                        selected_ipsets+=("$selected")
-                        selected_counts+=("${ipset_counts[idx]}")
-                    fi
-                    ((idx++))
-                done
+                ipsets_selector "${select_ipsets[@]}"
 
                 if [[ ${#selected_ipsets[@]} -eq 0 ]]; then
                     echo -e "${RED}No ipsets selected.${NC}"
@@ -669,13 +655,14 @@ function handle_firewalls() {
                     case $select_yesno in
                         0)  echo "Nothing to do."
                             ;;
-                        1)  echo "Refreshing selected ipsets..."
-                            for ipset_name in "${selected_ipsets[@]}"; do
-                                ipset flush $ipset_name
-                                ipset destroy $ipset_name #2do check if works properly
-                                setup_ipset $ipset_name
+                        1)  echo -e "${VLT}☷ Recreating selected ipsets...${NC}"
+                            for ipset_name in "${selected_ipsets[@]}"; do  
+                                echo "-"
+                                remove_ipset "$ipset_name"
+                                setup_ipset "$ipset_name"
                             done
-                            echo "Done."
+                            echo
+                            echo -e "${VLT}All ipsets resetted.${NC}"
                             ;;
                     esac
                 fi
@@ -687,64 +674,31 @@ function handle_firewalls() {
                 echo -e "This action will also try to remove related ${ORG}$FIREWALL${NC} rules! ${DM}${BG}use option 5 instead${NC}"
                 echo
 
-                select_ipsets=($(ipset list -n | grep vipb))
-                ipset_counts=()
-                ipset_display=()
-
-                for ipset in "${select_ipsets[@]}"; do
-                    count=$(ipset save $ipset | grep -c "add $ipset")
-                    ipset_counts+=("$count")
-                    ipset_display+=("$ipset     ($count)")
-                done
-
-                multiselect result ipset_display false
-
-                selected_ipsets=()
-                selected_counts=()
-                idx=0
-                for selected in "${select_ipsets[@]}"; do
-                    if [[ "${result[idx]}" == "true" ]]; then
-                        selected_ipsets+=("$selected")
-                        selected_counts+=("${ipset_counts[idx]}")
-                    fi
-                    ((idx++))
-                done
+                select_ipsets=("$IPSET_NAME" "$MANUAL_IPSET_NAME")
+                ipsets_selector "${select_ipsets[@]}"
 
                 if [[ ${#selected_ipsets[@]} -eq 0 ]]; then
                     echo -e "${RED}No ipsets selected.${NC}"
                 else
-                    echo    "Are you sure?"
+                    echo -e "${YLW}Are you sure?"
                     select_opt "No" "Yes"
                     select_yesno=$?
                     case $select_yesno in
                         0)  echo "Nothing to do."
                             ;;
-                        1)  echo "Deleting selected ipsets..."
-                            for selected_ipset in "${selected_ipsets[@]}"; do
-                                echo -ne " Deleting ipset ${BLU}$selected_ipset${NC}... "
-                                ipset destroy "$ipset_name"
-                                echo -e " ipset ${ORG}deleted${NC}"
-                                
-                                echo " Deleting iptables rule.."
-                                iptables -D INPUT -m set --match-set "$selected_ipset" src -j DROP
-                                echo -e " iptables rule ${ORG}deleted${NC}"
-
-                                echo " Deleting firewalld rules.."
-                                if [[ "$FIREWALL" == "iptables" ]]; then
-                                    iptables -D INPUT -m set --match-set "$selected_ipset" src -j DROP
-                                elif [[ "$FIREWALL" == "ufw" ]]; then
-                                   echo "2do"
-                                    #ufw delete deny from any to any 2do
-                                elif [[ "$FIREWALL" == "firewalld" ]]; then
-                                    firewall-cmd --permanent --delete-ipset="$selected_ipset"
-                                    firewall-cmd --permanent --direct --remove-rule ipv4 filter INPUT 0 -m set --match-set "$selected_ipset" src -j DROP
-                                    #firewall-cmd --permanent --zone=public --remove-source=ipset:"$ipset_name" 2do check fw rules in zones ????????
-                                fi
-                                echo -e " $FIREWALL remove rules commands ${ORG}parsed${NC}"
-                                echo "${ORG}$FIREWALL${NC} rules for ${BG}$selected_ipset${NC} deleted."
+                        1)  echo -e "${VLT}☷ Deleting selected ipsets...${NC}"
+                            for ipset_name in "${selected_ipsets[@]}"; do  
+                                remove_ipset "$ipset_name"
                             done
-                            reload_firewall 
-                            echo "Done."
+                            echo -e "${VLT}All ipsets destroyed.${NC}"
+                            echo
+                            echo -e "${ORG}▤ Deleting related '${BG}$FIREWALL${NC}' rules...${NC}"
+                            for ipset_name in "${selected_ipsets[@]}"; do  
+                                echo -ne "'${BG}$ipset_name${NC}' " 
+                                remove_firewall_rules "$ipset_name"
+                            done
+                            echo -e "${ORG}$FIREWALL rules removed${NC}"
+                            #reload_firewall  2do
                             ;;
                     esac
                 fi
@@ -997,103 +951,105 @@ function handle_logs_info() {
 function services_row() {  
     echo -ne "${DM}"
     center "-----------------------------------------------------------------"
-    echo -ne "${NC}       "
+    rowtext="${NC}"
     #iptables
     if [ "$FIREWALL" == "iptables" ]; then
-        echo -ne "${GRN}[ ${NC}"
+        rowtext+="${GRN}[ ${NC}"
         else
-        echo -ne "${DM}"
+        rowtext+="${DM}"
     fi 
 
         if [ "$IPTABLES" == "true" ]; then
-            echo -ne "${GRN}"
+            rowtext+="${GRN}"
         else
-            echo -ne "${DM}"
+            rowtext+="${DM}"
         fi
-        echo -ne "iptables"
+        rowtext+="iptables"
 
         if [ "$PERSISTENT" == "true" ]; then
-            echo -ne "-persistent" # we have to check the save function
+            rowtext+="-persistent" # we have to check the save function
         fi
 
     #ipset        
         if [ "$IPSET" == "true" ]; then
-            echo -ne "${GRN} +"
+            rowtext+="${GRN} +"
         else
-            echo -ne "${DM}"
+            rowtext+="${DM}"
         fi
-        echo -ne " ipset${NC}"
+        rowtext+=" ipset${NC}"
 
     if [ "$FIREWALL" == "iptables" ]; then
-        echo -ne "${GRN} ]${NC}"
+        rowtext+="${GRN} ]${NC}"
     fi 
     
     #ufw
     if [ "$FIREWALL" == "ufw" ]; then
-        echo -ne "${GRN} [ ${NC}"
+        rowtext+="${GRN} [ ${NC}"
         else
-        echo -ne "${DM} "
+        rowtext+="${DM} "
     fi 
 
         if [ "$UFW" == "true" ]; then
-            echo -ne "${GRN}"
+            rowtext+="${GRN}"
         else
-            echo -ne "${GRY}"
+            rowtext+="${GRY}"
         fi 
-        echo -ne "ufw${NC}"
+        rowtext+="ufw${NC}"
 
     if [ "$FIREWALL" == "ufw" ]; then
-        echo -ne "${GRN} ]${NC}"
+        rowtext+="${GRN} ]${NC}"
     fi
 
     #firewalld
     if [ "$FIREWALL" == "firewalld" ]; then
-        echo -ne "${GRN} [ "
+        rowtext+="${GRN} [ "
     else
-        echo -ne "${DM} "
+        rowtext+="${DM} "
     fi 
         if [ "$FIREWALLD" == "true" ]; then 
-            echo -ne "${GRN}"
+            rowtext+="${GRN}"
         else
-            echo -ne "${DM}"
+            rowtext+="${DM}"
         fi
-        echo -ne "firewalld${NC}"
+        rowtext+="firewalld${NC}"
 
     if [ "$FIREWALL" == "firewalld" ]; then
-        echo -ne "${GRN} ] ${NC}"
+        rowtext+="${GRN} ]${NC}"
     fi
 
-    echo -ne " ${DM}•${NC} "
+    rowtext+=" ${DM}•${NC} "
     
     #fail2ban
     if [ "$FAIL2BAN" == "true" ]; then
-        echo -ne "${GRN}"
+        rowtext+="${GRN}"
     else
-        echo -ne "${NC}${DM}"
+        rowtext+="${NC}${DM}"
     fi
-    echo -ne "${BG}fail2ban ${NC}"
+    rowtext+="${BG}fail2ban ${NC}"
     
-    echo -ne "${DM}•${NC} "
+    rowtext+="${DM}•${NC} "
 
     #cron
     if [ "$CRON" == "true" ]; then
-        echo -ne "${GRN}"
+        rowtext+="${GRN}"
     else
-        echo -ne "${DM}"
+        rowtext+="${DM}"
     fi
-    echo -ne "${BG}cron ${NC}"
+    rowtext+="${BG}cron ${NC}"
 
     if [ "$CRON" == "true" ]; then
         if crontab -l | grep -q "vipb\.sh"; then
-            echo -ne "${GRN}↺ "
+            rowtext+="${GRN}↺ "
             DAILYCRON=true
         else
-            echo -ne "${RED}✗ "
+            rowtext+="${RED}✗ "
             DAILYCRON=false
         fi
-        echo -ne "$BLACKLIST_LV"
+        rowtext+="$BLACKLIST_LV"
     fi
-    echo -e "${NC}"
+    rowtext+="${NC}"
+
+    center "${rowtext}"
 
 }
 
@@ -1113,7 +1069,7 @@ function header () {
     if [[ "$FIREWALL" == "iptables" ]]; then
         iptables -L INPUT -n --line-numbers | grep -q "match-set vipb-" && FW_RULES="true" || FW_RULES="false"
     elif [[ "$FIREWALL" == "firewalld" ]]; then
-        firewall-cmd --list-all | grep -q "vipb-" && FW_RULES="true" || FW_RULES="false"
+        firewall-cmd --list-all --zone=drop | grep -q "vipb-" && FW_RULES="true" || FW_RULES="false"
     elif [[ "$FIREWALL" == "ufw" ]]; then
         ufw status | grep -q "vipb-" && FW_RULES="true" || FW_RULES="false"
     fi
@@ -1200,7 +1156,39 @@ function menu_main() {
     done
 }
 
-# Menu selector functions (at the end 'cause messing up formatting)
+# Menu selector functions (at the end 'cause so exotic that messes up formatting)
+
+function ipsets_selector () { 
+    #local select_ipsets=("$@":-"$IPSET_NAME" "$MANUAL_IPSET_NAME")
+    #local test_select_ipsets=${@:-$IPSET_NAME $MANUAL_IPSET_NAME}
+    #local ipset=${1:-"$IPSET_NAME"}
+    #standard_ipsets=("$IPSET_NAME" "$MANUAL_IPSET_NAME")
+    local select_ipsets=("$@")
+
+    ipset_counts=()
+    ipset_display=()
+
+    for ipset in "${select_ipsets[@]}"; do
+        count=$(count_ipset "$ipset")
+        ipset_counts+=("$count")
+        ipset_display+=("$ipset  \t[ $count ]")
+    done
+
+    multiselect result ipset_display false
+
+    selected_ipsets=()
+    selected_counts=()
+    idx=0
+    for selected in "${select_ipsets[@]}"; do
+        if [[ "${result[idx]}" == "true" ]]; then
+            selected_ipsets+=("$selected")
+            selected_counts+=("${ipset_counts[idx]}")
+        fi
+        ((idx++))
+    done
+    #echo "${selected_ipsets[@]}"
+}
+
 function multiselect() {
 
     local return_value=$1

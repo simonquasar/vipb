@@ -15,7 +15,7 @@ MANUAL_IPSET_NAME='vipb-manualbans'
 # environment variables, DO NOT CHANGE
 BASECRJ='https://raw.githubusercontent.com/stamparm/ipsum/master/levels/'
 BLACKLIST_URL="$BASECRJ${BLACKLIST_LV}.txt" 
-FIREWALL='firewalld'
+FIREWALL='iptables'
 #NOF2B=false
 INFOS=false
 ADDED_IPS=0
@@ -199,37 +199,38 @@ function add_firewall_rules() {
     lg "*" "add_firewall_rules FIREWALL = $FIREWALL : $*"
     
     local ipset=${1:-"$IPSET_NAME"}
-    
+    err=0
+
     if [[ "$FIREWALL" == "iptables" ]]; then
         if ! iptables -C INPUT -m set --match-set "${ipset}" src -j DROP &>/dev/null; then
             iptables -I INPUT -m set --match-set "${ipset}" src -j DROP
-            # Salva le regole per salvarle, per renderle  persistenti vs netfilter-persistent
-            # iptables-save > /etc/iptables/rules.v4 #2do
-            echo -e "${GRN}iptables rule for ipset '${ipset}' added.${NC}"
+            # 2do
+            # Salva le regole per renderle  persistenti  al boot? vs netfilter-persistent
+            # iptables-save > /etc/iptables/rules.v4 
             return 0
         else
-            echo -e "${GRN}iptables rule for ipset '${ipset}' already exists.${NC}"
-            return 0
+            echo -e "$?"
+            err=1
+            #2do 
+            # WARNING THE RULES CAN BE CREATED ONLY IF THE IPSETS ARE ALAREADY THER!!!
+            #2do
         fi
     elif [[ "$FIREWALL" == "firewalld" ]]; then        
-        if ! firewall-cmd --permanent --direct --query-rule ipv4 filter INPUT 0 -m set --match-set "$ipset" src -j DROP &>/dev/null; then
-            echo -e "${YLW}Adding firewalld rich-rule (permanent)...${NC}"
-            #firewall-cmd --permanent --add-rich-rule="rule family='ipv4' source ipset='${ipset}' drop"
-            # check which is better! 2do
-            firewall-cmd --permanent --direct --add-rule ipv4 filter INPUT 0 -m set --match-set "$ipset" src -j DROP
+        if firewall-cmd --permanent --zone=drop --add-source=ipset:"$ipset" &>/dev/null; then
+            return 0
         else
-            echo -e "Firewalld${GRN} permanent rich-rule for ${ipset} already exists.${NC}"
+            echo -e "$?"
+            err=1
         fi
-        echo -e "Reloading firewalld..."
-        firewall-cmd --reload
-
     elif [[ "$FIREWALL" == "ufw" ]]; then
         echo "2do"
+        err=1
     fi
 
+    return $err
 }
 
-function remove_firewall_rules() {
+function remove_firewall_rules() { 
     lg "*" "remove_firewall_rules FIREWALL = $FIREWALL : $*"
     
     local ipset=${1:-"$IPSET_NAME"}
@@ -238,12 +239,20 @@ function remove_firewall_rules() {
     if [[ "$FIREWALL" = "iptables" ]]; then
         if iptables -C INPUT -m set --match-set "$ipset" src -j DROP 2>/dev/null; then
             iptables -D INPUT -m set --match-set "$ipset" src -j DROP
+            return 0
+        else
+            err=1
         fi
     elif [[ "$FIREWALL" == "firewalld" ]]; then
-            firewall-cmd --permanent --delete-ipset="$ipset"
-            firewall-cmd --permanent --direct --remove-rule ipv4 filter INPUT 0 -m set --match-set "$ipset" src -j DROP
+        if firewall-cmd --permanent --zone=drop --remove-source=ipset:"$ipset" 2>/dev/null; then
+            return 0
+        else
+            echo -e "$?"
+            err=1
+        fi
     elif [[ "$FIREWALL" == "ufw" ]]; then
         echo "2do"
+        err=1
     fi
 
     return $err
@@ -261,21 +270,23 @@ function setup_ipset() {
     
     local ipsetname="$1"
    
+    
     if [[ "$FIREWALL" == "firewalld" ]]; then
 
         if ! check_ipset "$ipsetname" &>/dev/null; then
-            echo -e "ipset ${BG}$ipsetname${NC} ${ORG}does not exist!${NC}"
-            echo -ne "${YLW}Creating ipset '${BG}$ipsetname${NC}' using firewall-cmd... "
+            echo -ne "Creating ipset '${BG}$ipsetname${NC}' using $FIREWALL... "
+        #echo -e "ipset ${BG}$ipsetname${NC} ${ORG}does not exist!${NC}"
             if [[ "$ipsetname" == "$MANUAL_IPSET_NAME" ]]; then
                 firewall-cmd --permanent --new-ipset="$ipsetname" --type=hash:net --option=maxelem=254
             else
                 firewall-cmd --permanent --new-ipset="$ipsetname" --type=hash:net --option=maxelem=99999
             fi
-            echo -e " ${GRN}OK${NC}"
+            echo
             echo -e "ipset ${BG}$ipsetname ${GRN}created${NC}"
             log "$ipsetname created"
             return 0
         else
+            echo
             echo -e "ipset ${BG}$ipsetname${NC} ${GRN}OK${NC}"
             log "$ipsetname exists"
             return 0
@@ -284,14 +295,13 @@ function setup_ipset() {
     elif [[ "$FIREWALL" == "iptables" ]]; then
         if [[ "$IPSET" == "true" ]]; then
             if ! check_ipset "$ipsetname" &>/dev/null; then
-                echo -e "ipset ${BG}$ipsetname${NC} ${ORG}does not exist!${NC}"
-                echo -e "${YLW}Creating ipset '${BG}$ipsetname${NC}'..."
+                #echo -e "ipset ${BG}$ipsetname${NC} ${ORG}does not exist!${NC}"
                 if [[ "$ipsetname" == "$MANUAL_IPSET_NAME" ]]; then
                     ipset create "$ipsetname" hash:net maxelem 254
-                    echo -e "${BG}ipset create $ipsetname hash:net maxelem 254${NC} > ${GRN}OK"
+                    #echo -e "${BG}ipset create $ipsetname hash:net maxelem 254${NC} > ${GRN}OK"
                 else
                     ipset create "$ipsetname" hash:net maxelem 99999
-                    echo -e "${BG}ipset create $ipsetname hash:net maxelem 99999${NC} > ${GRN}OK"
+                    #echo -e "${BG}ipset create $ipsetname hash:net maxelem 99999${NC} > ${GRN}OK"
                 fi
                 echo -e "ipset ${BG}$ipsetname ${GRN}created${NC}"
                 log "$ipsetname created"
@@ -312,7 +322,6 @@ function setup_ipset() {
             debug_log "#2do!" #2do
             return 1
     fi
-
 }
 
 function remove_ipset() {
@@ -323,30 +332,27 @@ function remove_ipset() {
     
     local ipsetname="$1"
     
+    echo -ne "Removing ipset '${BG}$ipsetname${NC}'... "
     if [[ "$FIREWALL" == "firewalld" ]]; then
         if check_ipset "$ipsetname" &>/dev/null; then
-            echo -e "ipset ${BG}$ipsetname${NC} ${ORG}exists!${NC}"
-            echo -ne "${YLW}Removing ipset '${BG}$ipsetname${NC}'... "
+            #echo -e "ipset ${BG}$ipsetname${NC} ${ORG}exists!${NC}"
             firewall-cmd --permanent --delete-ipset="$ipsetname"
-            echo -e "${GRN}OK${NC}"
             log "$ipsetname removed"
             return 0
-        else
-            echo -e "ipset ${BG}$ipsetname${NC} ${RED}does not exist!${NC}"
+        elses
+            echo -e "${ORG}does not exist!${NC}"
             return 1
         fi
-
     elif [[ "$FIREWALL" == "iptables" ]]; then
         if [[ "$IPSET" == "true" ]]; then
             if check_ipset "$ipsetname" &>/dev/null; then
-                echo -e "ipset ${BG}$ipsetname${NC} ${ORG}exists!${NC}"
-                echo -ne "${YLW}Removing ipset '${BG}$ipsetname${NC}'... "
+                #echo -e "ipset ${BG}$ipsetname${NC} ${ORG}exists!${NC}"
                 ipset destroy "$ipsetname"
                 echo -e "${GRN}OK${NC}"
                 log "$ipsetname removed"
                 return 0
             else
-                echo -e "ipset ${BG}$ipsetname${NC} ${RED}does not exist!${NC}"
+                echo -e "${ORG}does not exist!${NC}"
                 return 1
             fi
         else
@@ -354,7 +360,6 @@ function remove_ipset() {
             debug_log "#2do!" #2do
             return 1
         fi
-
     elif [[ "$FIREWALL" == "ufw" ]]; then
         echo "2do!"
         debug_log "#2do!" #2do
@@ -425,8 +430,13 @@ function ban_ip() {
                     0)
                         ban_ip_result=0
                         ;;
+                    135)
+                        # 136 = INVALID IPSET 
+                        log "@$LINENO Error: INVALID IPSET. err# $? ip:$ip"
+                        ban_ip_result=1
+                        ;;
                     136)
-                        # 136 = INVALID_ENTRY
+                        # 136 = INVALID_ENTRY 
                         log "@$LINENO Error: INVALID_ENTRY. err# $? ip:$ip"
                         ban_ip_result=1
                         ;;
@@ -509,11 +519,6 @@ function ban_ip() {
 function add_ips() { 
     lg "*" "add_ips $1 $2 $3 ..." 
     #add_ips ipset_name [ip.ad.re.ss]
-
-    if [ $# -lt 2 ]; then
-        echo "You must provide one name for the ipset and AT LEAST one IP address. ERR@$LINENO add_ips(): $*"
-        return 1
-    fi
     
     local ipset="$1"
 
@@ -609,7 +614,7 @@ function count_ipset() {
             echo -n "$total_ipset"
             return 0
         else
-            echo -n "err"
+            echo -n "n/a"
             return 1
         fi
     elif [[ "$FIREWALL" == "iptables" ]]; then
@@ -619,7 +624,7 @@ function count_ipset() {
                 echo -n "$total_ipset"
                 return 0
             else
-                echo -n "err"
+                echo -n "n/a"
                 return 1
             fi
         else
