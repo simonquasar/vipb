@@ -97,6 +97,9 @@ if [ "$CLI" == "false" ]; then
     log "$SCRIPT_DIR/vipb-ui.sh $( echo -e "${GRN}LOADED${NC}")"
     log "UI interface LOADED"
     # Start UI execution
+    check_firewall_rules
+    VIPB_BANS=$(count_ipset "$IPSET_NAME")
+    USER_BANS=$(count_ipset "$MANUAL_IPSET_NAME")
     header
     menu_main
 
