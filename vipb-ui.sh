@@ -96,7 +96,7 @@ function back {
 function next() {
     echo -e "${NC}"
     echo -ne "${YLW}${DM}↵ to continue "
-    read -p "_ " p
+    read -p "_ " choice
     echo -e "${NC}"
 }
 
@@ -273,7 +273,7 @@ function handle_blacklist_ban() {
                         ((idx++))
                     done
 
-                    debug_log "selected_ipbf: ${selected_ipbf[@]}"
+                    debug_log "selected_ipbf: ${selected_ipbf[*]}"
                     if [[ ${#selected_ipbf[@]} -eq 0 ]]; then
                         echo -e "${RED}No files selected.${NC}"
                     else
@@ -309,7 +309,7 @@ function handle_blacklist_ban() {
                         ((idx++))
                     done
 
-                    debug_log "selected_ipbf: ${selected_ipbf[@]}"
+                    debug_log "selected_ipbf: ${selected_ipbf[*]}"
                     if [[ ${#selected_ipbf[@]} -eq 0 ]]; then
                         echo -e "${RED}No files selected.${NC}"
                     else
@@ -334,7 +334,7 @@ function handle_blacklist_ban() {
                             selected="$((selected - 1))"
                             selected_ips=("${select_ips[$selected]}")
                         fi
-                        debug_log "selected_ips: ${selected_ips[@]}"
+                        debug_log "selected_ips: ${selected_ips[*]}"
 
                         if [[ ${#selected_ips[@]} -eq 0 ]] || [[ ${#selected_ips[0]} == "0" ]] ; then
                             echo -e "${RED}No IP entered.${NC}"
@@ -499,7 +499,7 @@ function handle_manual_ban() {
                 done
             fi
 
-            debug_log "selected_ips: ${selected_ips[@]}"
+            debug_log "selected_ips: ${selected_ips[*]}"
 
             if [[ ${#selected_ips[@]} -eq 0 ]] || [[ ${#selected_ips[0]} == "0" ]] ; then
                 echo -e "${RED}No IP entered.${NC}"
