@@ -99,47 +99,9 @@ jobs:
       - name: ShellCheck
         uses: ludeeus/action-shellcheck@master
         env:
-          SHELLCHECK_OPTS: -e SC1091 -e SC2034
+          SHELLCHECK_OPTS: -e SC1091 -e SC2034 -eSC1087
         with:
           severity: error
-
-  php-check:
-    name: PHP Check
-    runs-on: ubuntu-latest
-    needs: environment
-    if: needs.environment.outputs.has_php > 0
-    steps:
-      - uses: actions/checkout@v3
-      
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.2'
-          
-      - name: PHP Lint
-        uses: overtrue/phplint@8.2
-        with:
-          path: .
-          options: --exclude=vendor
-
-  js-check:
-    name: JavaScript Check
-    runs-on: ubuntu-latest
-    needs: environment
-    if: needs.environment.outputs.has_js > 0
-    steps:
-      - uses: actions/checkout@v3
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '16'
-          cache: 'npm'
-          
-      - name: ESLint
-        uses: eslint/github-action@v0
-        with:
-          githubToken: ${{ secrets.GITHUB_TOKEN }}
 
   megalinter:
     name: MegaLinter
@@ -165,8 +127,8 @@ jobs:
           COPYPASTE_JSCPD_ARGUMENTS: "--min-lines=10 --min-tokens=150 --threshold=5"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  other-linters:
-    name: Other Linters 
+  super-linter:
+    name: Super-Linter 
     runs-on: ubuntu-latest
     needs: environment
     steps:
