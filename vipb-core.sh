@@ -374,7 +374,11 @@ function count_ipset() {
                         run_count=$(echo "$run_entries" | wc -l)
                     fi
 
-                    echo  "$perm_count ($run_count)"
+                    if [[ "$perm_count" -eq 0 ]]; then
+                        echo "$run_count"
+                    else
+                        echo "$run_count + $perm_count"
+                    fi
                 }
 
                 list_ipset_entries "$ipset_name"
@@ -417,12 +421,17 @@ function setup_ipset() {
 
         if ! check_ipset "$ipset_name" &>/dev/null; then
             echo -ne "Creating '${BG}$ipset_name${NC}' in system ipset... "
-            if ipset create "$ipset_name" hash:net maxelem "$maxelem" &>/dev/null; then
-                echo -e "${GRN}created${NC}"
-                log "$ipset_name created ($?)"
+            if ipset list "$ipset_name" &>/dev/null; then
+                echo -e "${ORG}already exists${NC}"
+                log "$ipset_name already exists"
             else
-                echo "@$LINENO:$?"
-                err=1
+                if ipset create "$ipset_name" hash:net maxelem "$maxelem"; then
+                    echo -e "${GRN}created${NC}"
+                    log "$ipset_name created ($?)"
+                else
+                    echo "$?"
+                    err=1
+                fi
             fi
         else
             log "$ipset_name exists"
@@ -659,7 +668,7 @@ function ban_ip() {
 
 function add_ips() { 
     lg "*" "add_ips $1 $2 $3 ..." 
-    #add_ips ipset_name [ip.ad.re.ss]
+    #add_ips ipset_name [ip.ad.re.s16]
     
     local ipset="$1"
 
@@ -737,6 +746,67 @@ function remove_ips() {
     done
     echo -n $REMOVED_IPS
     return $REMOVED_IPS
+}
+
+function log2ips() {
+    # New! Extract IPs from the last tail of log
+    local log_file="$1"
+    local grep="$2"
+    #lg "*" "log2IPs $*"
+    if [[ -z "$log_file" || -z "$grep" ]] || [[ $IPSET == "false" ]]; then
+        [[ -z "$log_file" ]] && echo -e "${RED}Error: Log file parameter 1 is missing${NC}"
+        [[ -z "$grep" ]] && echo -e "${RED}Error: Grep pattern parameter 2 is missing${NC}"
+        [[ $IPSET == "false" ]] && echo -e "${RED}Critical Error: IPSET is not enabled${NC}"
+        return 1
+    fi
+
+    local extracted_ips=()
+    if [[ -f "$log_file" ]]; then 
+        extracted_ips=($(tail -n $more_loglen "$log_file" | grep "$grep" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' | sort -u))    
+        if [[ ${#extracted_ips[@]} -eq 0 ]]; then
+            echo -e "${SLM}No IPs found in log $log_file matching: '${BG}$grep${NC}'."
+        else
+            echo -e "${SLM}${#extracted_ips[@]} IPs extracted ${NC}from the last $more_loglen loglines matching ${BG}'$grep'${NC}"
+            if $DEBUG; then
+                for ip in "${extracted_ips[@]}"; do
+                    echo -e "$ip "
+                done
+                echo
+            fi
+            echo -e "${YLW}Should we export them in a file?"
+            select_opt "No" "Yes"
+            select_yesno=$?
+            echo -ne "${NC}"
+            case $select_yesno in
+                0)  echo "Nothing to do."
+                    ;;
+                1)  echo "Sure!"
+                    local base_log_file=$(basename "$log_file")
+                    local output_file="${base_log_file}-$(date +%Y%m%d_%H%M%S).ipb"
+                    if ! printf '%s\n' "${extracted_ips[@]}" > "$SCRIPT_DIR/$output_file"; then
+                        echo -e "${RED}: Failed to write to file ${BG}'$SCRIPT_DIR/$output_file'${NC}"
+                        return 1
+                    fi
+                    echo -e "Saved to ${BG}${BLU}$SCRIPT_DIR/$output_file${NC}"
+                    echo -e "${DM}You can proceed to 3. Ban >> 5. Ban from *.ipb files${NC}"
+                    #echo "Sure!"
+                    #log_file=$(basename "$log_file")
+                    #local extraction_file="${log_file}-$(date +%Y%m%d_%H%M%S).ipb"
+                    #"${extracted_ips[@]}" > "$SCRIPT_DIR/$extraction_file"      #2do 
+                    #echo -e "Saved to ${BG}${BLU}$SCRIPT_DIR/$extraction_file${NC}"
+                    #INFOS="true"
+                    #add_ips "$MANUAL_IPSET_NAME" "${extracted_ips[@]}"
+                    #USER_BANS=$(count_ipset "$MANUAL_IPSET_NAME")
+                    next
+                    ;;
+            esac                
+        fi
+    else
+        echo -e "${RED}Log file not found at ${BG}$log_file.${NC}"
+        return 1
+    fi
+    return 0
+
 }
 
 # ============================
@@ -950,7 +1020,7 @@ function compressor() {
             barnets=$(printf "%0.s■" $(seq 1 $filnets))
             spaces=$(printf "%0.s□" $(seq 1 $empty))     
 
-            echo -e "${GRN}Done. ${BLU}($total_ips sources)${NC}"
+            echo -e "${GRN}Done. ${BLU}($optimized_count sources)${NC}"
 
             log "====================="
             log "Compression finished!"
@@ -965,13 +1035,13 @@ function compressor() {
             
             echo
             echo -e "${GRN}Blacklist aggregation finished!${NC}"
-            echo -e "${CYN}[${barips}${S16}${barnets} ${progress}% ${CYN}${spaces}]${NC}"
+            echo -e "${CYN}[${barips}${S16}${barnets} ${progress}% ${VLT}${spaces}${CYN}]${NC}"
             echo
             echo -e "    Total processed\t100% ◕  ${VLT}$total_ips IPs ${NC}"
             echo -e "         ${CYN}reduced to${NC}\t $progress% ◔  ${CYN}$optimized_count sources${NC}"
             echo -e "   "
             echo -e "               from\t ${BG}$((100-(single_count * 100 / total_ips)))%${NC}  ╔ ${VLT}$cut_count IPs${NC}"
-            echo -e "                 to\t ${BG} $((progress - (single_count * 100 / total_ips)))%${NC}  ╙ ${CYN}$((subnet24_count + subnet16_count)) subnets +${NC}"
+            echo -e "                 to\t ${BG} $((progress - (single_count * 100 / total_ips)))%${NC}  ╙ ${S16}$((subnet24_count + subnet16_count)) subnets +${NC}"
             echo -e "       uncompressed\t ${BG}$((single_count * 100 / total_ips))%${NC}    ${CYN}$single_count IPs${NC}"
             echo            
             list_ips(){
