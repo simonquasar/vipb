@@ -3,14 +3,14 @@ set -o pipefail
 
 # Variables & Logging
 # set the blacklisted IPsum level (2-8, default 3)
-BLACKLIST_LV=4
+BLACKLIST_LV=3
 # set the default files names and path
 BLACKLIST_FILE="$SCRIPT_DIR/vipb-blacklist.ipb"
 OPTIMIZED_FILE="$SCRIPT_DIR/vipb-optimised.ipb"
 SUBNETS24_FILE="$SCRIPT_DIR/vipb-subnets24.ipb"
 SUBNETS16_FILE="$SCRIPT_DIR/vipb-subnets16.ipb"
 # set the name of the ipsets used by VIPB
-IPSET_NAME='vipb-blacklist'
+VIPB_IPSET_NAME='vipb-blacklist'
 MANUAL_IPSET_NAME='vipb-manualbans'
 # environment variables, DO NOT CHANGE
 BASECRJ='https://raw.githubusercontent.com/stamparm/ipsum/master/levels/'
@@ -199,6 +199,12 @@ function reload_firewall() {
         log "$FIREWALL reloaded"
     fi
 
+    if [[ "$FIREWALL" == "iptables" ]]; then
+        echo -ne "Reloading ${ORG}$FIREWALL${NC}... "
+        echo "#2do"
+        log "$FIREWALL reloaded"
+    fi
+
     if [[ "$FAIL2BAN" == "true" ]]; then
         echo -e "${YLW}Fail2Ban... (disabled #2do)${NC}"
         #systemctl reload fail2ban
@@ -265,7 +271,7 @@ function save_iptables_rules() {
 function add_firewall_rules() {
     lg "*" "add_firewall_rules FIREWALL = $FIREWALL : $*"
     
-    local ipset=${1:-"$IPSET_NAME"}
+    local ipset=${1:-"$VIPB_IPSET_NAME"}
     err=0
 
     if check_ipset "$ipset"; then
@@ -310,7 +316,7 @@ function add_firewall_rules() {
 function remove_firewall_rules() { 
     lg "*" "remove_firewall_rules FIREWALL = $FIREWALL : $*"
     
-    local ipset=${1:-"$IPSET_NAME"}
+    local ipset=${1:-"$VIPB_IPSET_NAME"}
     err=0
 
     if [[ "$FIREWALL" == "iptables" ]]; then
@@ -387,7 +393,7 @@ function count_ipset() {
                 echo -n "n/a"
                 return 1
             fi
-        elif [[ "$FIREWALL" == "iptables" ]]; then
+        elif [[ "$IPSET" == "true" ]]; then
                 if check_ipset "$ipset_name" &>/dev/null; then
                     total_ipset=$(/usr/sbin/ipset list "$ipset_name" | grep -c '^[0-9]')  
                     echo -n "$total_ipset"
@@ -762,11 +768,12 @@ function log2ips() {
 
     local extracted_ips=()
     if [[ -f "$log_file" ]]; then 
-        extracted_ips=($(tail -n $more_loglen "$log_file" | grep "$grep" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' | sort -u))    
+        loglen=$(wc -l < "$log_file")
+        extracted_ips=($(tail -n $loglen "$log_file" | grep "$grep" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' | sort -u))    
         if [[ ${#extracted_ips[@]} -eq 0 ]]; then
-            echo -e "${SLM}No IPs found in log $log_file matching: '${BG}$grep${NC}'."
+            echo -e "${SLM}No IPs found in log $log_file matching ${BG}'$grep'${NC}"
         else
-            echo -e "${SLM}${#extracted_ips[@]} IPs extracted ${NC}from the last $more_loglen loglines matching ${BG}'$grep'${NC}"
+            echo -e "${SLM}${#extracted_ips[@]} IPs extracted ${NC}from the last $loglen loglines matching ${BG}'$grep'${NC}"
             if $DEBUG; then
                 for ip in "${extracted_ips[@]}"; do
                     echo -e "$ip "
@@ -789,15 +796,6 @@ function log2ips() {
                     fi
                     echo -e "Saved to ${BG}${BLU}$SCRIPT_DIR/$output_file${NC}"
                     echo -e "${DM}You can proceed to 3. Ban >> 5. Ban from *.ipb files${NC}"
-                    #echo "Sure!"
-                    #log_file=$(basename "$log_file")
-                    #local extraction_file="${log_file}-$(date +%Y%m%d_%H%M%S).ipb"
-                    #"${extracted_ips[@]}" > "$SCRIPT_DIR/$extraction_file"      #2do 
-                    #echo -e "Saved to ${BG}${BLU}$SCRIPT_DIR/$extraction_file${NC}"
-                    #INFOS="true"
-                    #add_ips "$MANUAL_IPSET_NAME" "${extracted_ips[@]}"
-                    #USER_BANS=$(count_ipset "$MANUAL_IPSET_NAME")
-                    next
                     ;;
             esac                
         fi
@@ -1081,7 +1079,7 @@ function ban_core() {
     
     local modified=""
     blacklist="$1"
-    ipset=${2:-"$IPSET_NAME"}
+    ipset=${2:-"$VIPB_IPSET_NAME"}
     ERRORS=0
     if [ -f "$blacklist" ]; then
         modified=$(stat -c "%y" "$blacklist" | cut -d. -f1)
