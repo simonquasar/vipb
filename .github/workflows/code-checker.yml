@@ -25,6 +25,7 @@ jobs:
     outputs:
       has_php: ${{ steps.check-files.outputs.has_php }}
       has_js: ${{ steps.check-files.outputs.has_js }}
+      has_sh: ${{ steps.check-files.outputs.has_sh }}
     steps: 
       - name: Checkout code
         uses: actions/checkout@v3
@@ -42,6 +43,7 @@ jobs:
         run: |
           echo "has_php=$(find . -type f -name '*.php' | wc -l)" >> $GITHUB_OUTPUT
           echo "has_js=$(find . -type f -name '*.js' | wc -l)" >> $GITHUB_OUTPUT
+          echo "has_sh=$(find . -type f -name '*.sh' | wc -l)" >> $GITHUB_OUTPUT
 
       - name: Display Environment Info
         run: |
