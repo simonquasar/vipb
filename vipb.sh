@@ -98,7 +98,7 @@ if [ "$CLI" == "false" ]; then
     log "UI interface LOADED"
     # Start UI execution
     check_firewall_rules
-    VIPB_BANS=$(count_ipset "$IPSET_NAME")
+    VIPB_BANS=$(count_ipset "$VIPB_IPSET_NAME")
     USER_BANS=$(count_ipset "$MANUAL_IPSET_NAME")
     header
     menu_main
@@ -122,7 +122,7 @@ elif [ "$CLI" == "true" ]; then
             "banlist")  echo "banlist ${ARGS[1]}"; ban_core "${ARGS[1]}"; exit 0;;
             "ban")      echo "ban IP ${ARGS[1]}"; INFOS=true; ban_ip "$MANUAL_IPSET_NAME" "${ARGS[1]}"; exit 0;;
             "unban")    echo "unban IP ${ARGS[1]}"; INFOS=true; unban_ip "$MANUAL_IPSET_NAME" "${ARGS[1]}"; exit 0;;
-            "stats")    echo "Banned in $IPSET_NAME set: $(count_ipset "$IPSET_NAME")" 
+            "stats")    echo "Banned in $VIPB_IPSET_NAME set: $(count_ipset "$VIPB_IPSET_NAME")" 
                         echo "Banned in $MANUAL_IPSET_NAME set: $(count_ipset "$MANUAL_IPSET_NAME")"
                         exit 0;;
             "true"|"autoban"|"debug"|"")  echo "Starting CLI/cron core autoban...";

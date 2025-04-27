@@ -7,7 +7,7 @@
 
 # VIPB - Versatile IP Blacklister
 
-**VIPB (Versatile IP Blacklister)** is a Bash tool for downloading, processing, and maintaining [*IPsum*](https://github.com/stamparm/ipsum/) blacklists, and provides functionalities for managing firewalls and IP blacklists through automated and manual processes. It seamlessly integrates with Linux firewalls: it uses `ipset` along with `iptables` or `firewalld` (`ufw` support coming soon..). 
+**VIPB (Versatile IP Blacklister)** is a robust Bash tool for downloading, processing, and maintaining [*IPsum*](https://github.com/stamparm/ipsum/) blacklists, and provides functionalities for managing firewalls and IP blacklists through automated and manual processes. It seamlessly integrates with Linux firewalls: it uses `ipset` along with `iptables` or `firewalld` (`ufw` support coming soon..). 
 It includes daily automation via `cron` job and integration with `fail2ban`.
 
 ## Features
@@ -17,6 +17,8 @@ It includes daily automation via `cron` job and integration with `fail2ban`.
 - **Daily Download & Ban**: Automatically download and process [*IPsum*](https://github.com/stamparm/ipsum/) blacklists every day via `cron` job.
 - **Bulk Ban IP Lists**: Process entire lists of IPs and subnets from a list file.
 - **Manual IP ban**: Ban/unban individual IP addresses on a separate user list.
+- **Simplified Firewall Management**: Safer handling of FirewallD and ipset operations
+- **New Log Extractor**: Advanced security event analysis and pattern recognition
 
 ### Aggregator: Suspicious IPs to Subnets
 
@@ -26,7 +28,7 @@ This function analyzes a list of potentially suspicious IP addresses, identifies
 
 ### Firewall Integration
 
-- **Manage ipsets**: Creates and manages `ipset` rules for swift IP blocking.
+- **Manage ipsets**: Creates and manages `ipset` rules for swift and reliable IP blocking.
 - **Linux Firewall Support**:
 `iptables`
 `firewalld`
@@ -37,24 +39,18 @@ This function analyzes a list of potentially suspicious IP addresses, identifies
 
 Ensure required dependencies are installed and active:
 
-- `ipset`
+- `ipset` 7.0+
 - `firewalld` or `iptables`
 - `cron`
 - `curl`
 - `bash` 4.0+
 - *optional* `fail2ban`
-- *optional* `figlet`
 
 Clone the repository:
 
 ```bash
 git clone https://github.com/simonquasar/vipb
 cd vipb
-```
-
-Make the scripts executable:
-
-```bash
 chmod +x vipb.sh vipb-core.sh
 ```
 
