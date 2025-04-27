@@ -1,0 +1,185 @@
+name: Code Checker
+
+on:
+  push:
+    branches: [main]
+    #paths:
+      #- '**/*.{php,js,sh,ps1}'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  BASEDOMAIN: ${{ vars.BASEDOMAIN }}
+  SUBDOMAIN: ${{ vars.SUBDOMAIN }}
+  EMAIL: ${{ secrets.EMAIL }} 
+  APIKEY_CLOUDFLARE: ${{ secrets.APIKEY_CLOUDFLARE }}
+  DOMAIN_IP: ${{ vars.DOMAIN_IP }}
+
+jobs:
+  environment:
+    name: Environment
+    runs-on: ubuntu-latest
+    outputs:
+      has_php: ${{ steps.check-files.outputs.has_php }}
+      has_js: ${{ steps.check-files.outputs.has_js }}
+    steps: 
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.npm
+            ~/.composer
+          key: ${{ runner.os }}-deps-${{ hashFiles('**/package-lock.json', '**/composer.lock') }}
+
+      - name: Check for file types
+        id: check-files
+        run: |
+          echo "has_php=$(find . -type f -name '*.php' | wc -l)" >> $GITHUB_OUTPUT
+          echo "has_js=$(find . -type f -name '*.js' | wc -l)" >> $GITHUB_OUTPUT
+
+      - name: Display Environment Info
+        run: |
+          echo "Domain: $BASEDOMAIN / $DOMAIN_IP"
+          echo "Subdomain: $SUBDOMAIN.$BASEDOMAIN"
+          echo "Email: $EMAIL"
+          echo "=================================================="
+          echo "Repository files:"
+          find . -type f
+
+  powershell-check:
+    name: Powershell Check
+    runs-on: ubuntu-latest
+    needs: environment
+    steps:
+      - uses: actions/checkout@v3
+      - name: PowerShell Validation
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $files = Get-ChildItem -Recurse -Filter *.ps1
+          $hasErrors = $false
+          foreach ($file in $files) {
+            Write-Output "Validating $($file.FullName)"
+            try {
+              pwsh -NoLogo -NoProfile -NonInteractive -Command "Set-StrictMode -Version Latest; . $($file.FullName)"
+              Write-Output "✅ $($file.FullName) is valid"
+            } catch {
+              Write-Error "❌ Error in $($file.FullName): $_"
+              $hasErrors = $true
+            }
+          }
+          if ($hasErrors) { exit 1 }
+
+  bash-check:
+    name: Bash Check
+    runs-on: ubuntu-latest
+    needs: environment
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Bash Validation
+        run: |
+          set -e
+          find . -type f -name "*.sh" | while read file; do
+            echo "Validating $file"
+            if bash -n "$file"; then
+              echo "✅ $file is valid"
+            else
+              echo "❌ Syntax error in $file"
+              exit 1
+            fi
+          done
+
+      - name: ShellCheck
+        uses: ludeeus/action-shellcheck@master
+        env:
+          SHELLCHECK_OPTS: -e SC1091 -e SC2034
+        with:
+          severity: error
+
+  php-check:
+    name: PHP Check
+    runs-on: ubuntu-latest
+    needs: environment
+    if: needs.environment.outputs.has_php > 0
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          
+      - name: PHP Lint
+        uses: overtrue/phplint@8.2
+        with:
+          path: .
+          options: --exclude=vendor
+
+  js-check:
+    name: JavaScript Check
+    runs-on: ubuntu-latest
+    needs: environment
+    if: needs.environment.outputs.has_js > 0
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+          cache: 'npm'
+          
+      - name: ESLint
+        uses: eslint/github-action@v0
+        with:
+          githubToken: ${{ secrets.GITHUB_TOKEN }}
+
+  megalinter:
+    name: MegaLinter
+    runs-on: ubuntu-latest
+    needs: [environment, powershell-check, bash-check]
+    if: needs.powershell-check.result == 'success' || needs.bash-check.result == 'success' || needs.php-check.result == 'success' || needs.js-check.result == 'success'
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          
+      - name: MegaLinter 8.5.0
+        uses: oxsecurity/megalinter@v8.5.0
+        continue-on-error: true
+        env:
+          VALIDATE_ALL_CODEBASE: ${{ github.event_name == 'workflow_dispatch' }}
+          ENABLE_LINTERS: ${{ 
+            needs.environment.outputs.has_php > 0 && needs.php-check.result == 'success' && 'PHP_PHPSTAN,PHP_PHPCS' || 
+            needs.environment.outputs.has_js > 0 && needs.js-check.result == 'success' && 'JAVASCRIPT_ESLINT' || 
+            needs.powershell-check.result == 'success' && 'POWERSHELL_PSSCRIPTANALYZER' || 
+            needs.bash-check.result == 'success' && 'BASH_SHELLCHECK' 
+            }}
+          COPYPASTE_JSCPD_ARGUMENTS: "--min-lines=10 --min-tokens=150 --threshold=5"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  other-linters:
+    name: Other Linters 
+    runs-on: ubuntu-latest
+    needs: environment
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          
+      - name: Super-Linter 5.0
+        uses: github/super-linter@v5
+        env:
+          DEFAULT_BRANCH: main
+          VALIDATE_ALL_CODEBASE: ${{ github.event_name == 'workflow_dispatch' }}
+          VALIDATE_BASH: true
+          VALIDATE_PHP: true
+          VALIDATE_JAVASCRIPT_ES: true
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
