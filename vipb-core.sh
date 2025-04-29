@@ -15,11 +15,13 @@ MANUAL_IPSET_NAME='vipb-manualbans'
 # environment variables, DO NOT CHANGE
 BASECRJ='https://raw.githubusercontent.com/stamparm/ipsum/master/levels/'
 BLACKLIST_URL="$BASECRJ${BLACKLIST_LV}.txt" 
-FIREWALL='firewalld'
+FIREWALL='iptables'
+PERMANENT=''
 INFOS=false
 ADDED_IPS=0
 ALREADYBAN_IPS=0
 REMOVED_IPS=0
+METAERRORS=0
 IPS=()
 # some basic colors
 RED='\033[31m'
@@ -69,10 +71,9 @@ function check_dependencies() {
         IPTABLES=$(check_service "iptables")
         FIREWALLD=$(check_service "firewall-cmd")
             
-        #if [[ -n "$FIREWALL" ]]; then # use variable
-        #    FIREWALL="$FIREWALL"
-        #el
-        if [[ "$IPTABLES" == "true" ]]; then
+        if [[ -n "$FIREWALL" ]]; then # use variable
+            FIREWALL="$FIREWALL"
+        elif [[ "$IPTABLES" == "true" ]]; then
             FIREWALL="iptables"
         elif [[ "$FIREWALLD" == "true" ]]; then
             FIREWALL="firewalld"
@@ -113,7 +114,8 @@ function check_dependencies() {
     IPSET=$(check_service "ipset")
     debug_log "▤ IPSET: $IPSET"
 
-    PERSISTENT=$(check_service "netfilter-persistent")
+    #PERSISTENT=$(check_service "netfilter-persistent")
+    PERSISTENT="false" #2do
     debug_log "▤ netfilter-persistent: $PERSISTENT"
 
     FAIL2BAN=$(check_service "fail2ban")
@@ -151,48 +153,229 @@ function validate_ip() {
 }
 
 function check_ipset() { 
-
     local ipset_name="$1"
-    #2do not checking proper ipset
-    if [[ "$FIREWALL" == "firewalld" ]]; then
-        if ! firewall-cmd --permanent --get-ipsets | grep -q "$ipset_name"; then
-            echo -e "ipset ${BG}$ipset_name${NC} ${RED}does not exist${NC}"
-            return 1
-        else
-            echo -e "ipset ${BG}$ipset_name${NC} ${GRN}OK${NC}"
-            return 0
+    err=0
+    [[ "$ipset_name" == "$VIPB_IPSET_NAME" ]] && VIPB_IPSET="true"
+    [[ "$ipset_name" == "$MANUAL_IPSET_NAME" ]] && MANUAL_IPSET="true"
+
+    if [[ "$IPSET" == "true" ]] && [[ -n "$ipset_name" ]]; then
+        echo -ne "ipset ${BG}'$ipset_name'${NC} "
+        if [[ "$FIREWALLD" == "true" ]]; then
+            if firewall-cmd --permanent --get-ipsets &>/dev/null | grep -q "$ipset_name"; then
+                echo -ne "${BLU}found --permanent${NC} "
+                PERMANENT="--permanent"
+                [[ "$FIREWALL" != "firewalld" ]] && ((METAERRORS++));
+            elif firewall-cmd --get-ipsets &>/dev/null | grep -q "$ipset_name"; then
+                echo -ne "${GRN}found link${NC} "
+                [[ "$PERMANENT" == "--permanent" ]] && ((METAERRORS++));
+                [[ "$FIREWALL" != "firewalld" ]] && ((METAERRORS++));
+            else
+                if [[ "$FIREWALL" == "firewalld" ]]; then
+                    echo -ne "${YLW}no link found,${NC} "
+                    err=2
+                fi
+            fi
         fi
-    elif [[ "$FIREWALL" == "iptables" && "$IPSET" == "true" ]]; then
-        if ! ipset list "$ipset_name" >/dev/null; then
-            echo -e "ipset ${BG}$ipset_name${NC} ${RED}does not exist${NC}"
-            return 1
+
+        if ! ipset list "$ipset_name" &>/dev/null; then
+            [[ "$ipset_name" == "$VIPB_IPSET_NAME" ]] && VIPB_IPSET="false"
+            [[ "$ipset_name" == "$MANUAL_IPSET_NAME" ]] && MANUAL_IPSET="false"
+            echo -e "${RED}not in system${NC}"
+            err=1
         else
-            echo -e "ipset ${BG}$ipset_name${NC} ${GRN}OK${NC}"
-            return 0
+            if [[ "$FIREWALL" == "firewalld" ]] && [[ "$err" == 2 ]] ; then #firewalld ipset is unlinked
+                [[ "$ipset_name" == "$VIPB_IPSET_NAME" ]] && VIPB_IPSET="false"
+                [[ "$ipset_name" == "$MANUAL_IPSET_NAME" ]] && MANUAL_IPSET="false"
+                ((METAERRORS++))
+                echo -ne "${ORG} but found "
+            else
+                echo -ne "${GRN}"
+                err=0
+           fi
+            echo -e "in system${NC}"
         fi
     else
-        echo "2do!"
-        return 1
+        [[ "$ipset_name" == "$VIPB_IPSET_NAME" ]] && VIPB_IPSET="false"
+        [[ "$ipset_name" == "$MANUAL_IPSET_NAME" ]] && MANUAL_IPSET="false"
+        err=1
     fi
+    debug_log "@$LINENO: check $ipset_name > $err (V:$VIPB_IPSET|U:$MANUAL_IPSET)"
+    return $err
 }
 
 # ============================
 # Section: Firewall
 # ============================
 
-function check_firewall_rules() {
-    FW_RULES="false"
+function get_fw_rules {
+    local err=0
+    
+    function get_iptables_rules() {
+        if [[ "$FIREWALL" == "iptables" ]]; then
+            FW_RULES_LIST=()
+            #iptables -L INPUT -n --line-numbers | awk 'NR>2 {print $1, $2, $3, $7, $8, $9, $10, $11, $12}' | column -t
+            #iptables -L INPUT -n --line-numbers | grep -q "match-set vipb-" && echo -e "${GRN}VIPB ipsets found in iptables rules.${NC}" || echo -e "${RED}No VIPB ipsets found in iptables rules.${NC}"
+            while IFS= read -r line; do
+                FW_RULES_LIST+=("$line")
+            done < <(iptables -L INPUT -n --line-numbers | tail -n +3) # Skip first two lines (table header and column names)
+        fi
+        echo "Found ${#FW_RULES_LIST[@]} rules in iptables"
+    }
+
+    function get_firewalld_rules() {
+        FW_RULES_LIST=()
+        if [[ "$FIREWALL" == "firewalld" ]]; then
+            #firewall-cmd --list-all
+            firewall-cmd --list-all | grep -q "vipb-" && echo -e "${GRN}VIPB --runtime rules found in firewalld.${NC}" || echo -e "${ORG}No VIPB --runtime rules found in firewalld.${NC}"
+            #firewall-cmd --permanent --list-all
+            firewall-cmd --permanent --list-all | grep -q "vipb-" && echo -e "${GRN}VIPB --permanent rules found in firewalld.${NC}" || echo -e "${ORG}No VIPB --permanent rules found in firewalld.${NC}"
+            
+            echo -ne "Looking in firewalld zones "
+            for zone in $(firewall-cmd --get-zones); do
+                echo -ne "."
+                while IFS= read -r source; do
+                    [[ -z "$source" ]] && continue            
+                    FW_RULES_LIST+=("$((${#FW_RULES_LIST[@]}+1)) DROP all -- $source 0.0.0.0/0")
+                done < <(firewall-cmd --zone="$zone" --list-sources)
+                firewall-cmd --zone="$zone" --list-sources | grep -q "vipb-" && echo -e "${GRN}VIPB rules found in firewalld zone $zone.${NC}" 
+            done
+            if [[ "${#FW_RULES_LIST[@]}" == 0 ]] ; then
+                echo -e " ${ORG}no rule found${NC}"
+            fi
+            log "Found ${#FW_RULES_LIST[@]} firewalld drop sources"
+ 
+            #check for other fw rules
+            if firewall-cmd --direct --get-all-rules | grep -q "vipb-" ; then
+                echo -e "${S16}VIPB --direct rules (iptables) found.${NC} " 
+                ((METAERRORS++))
+                echo -e "${YLW}WARNING: Possible firewall conflict!${NC}${BG}"
+                firewall-cmd --direct --get-all-rules
+                echo -e "${NC}"
+            else
+                echo -e "${S16}No VIPB --direct rules found.${NC}"
+            fi
+        fi
+    }
+
     if [[ "$FIREWALL" == "iptables" ]]; then
-        iptables -L INPUT -n --line-numbers | grep -q "match-set vipb-" && FW_RULES="true" || FW_RULES="false"
+        if ! get_iptables_rules; then
+            echo "Error: Failed to get iptables rules" >&2
+            return 1
+        fi
     elif [[ "$FIREWALL" == "firewalld" ]]; then
-        firewall-cmd --zone=drop --list-sources | grep -q "vipb-" && FW_RULES="true" || FW_RULES="false"
+        if ! get_firewalld_rules; then
+            echo "Error: Failed to get firewalld rules" >&2
+            return 1
+        fi
     elif [[ "$FIREWALL" == "ufw" ]]; then
-        ufw status | grep -q "vipb-" && FW_RULES="true" || FW_RULES="false"
+        ufw status verbose
+        if ufw status | grep -q "vipb-"; then
+            echo -e "${GRN}VIPB rules found in UFW.${NC}"
+        else
+            echo -e "${RED}No VIPB rules found in UFW.${NC}"
+        fi
+    fi
+
+    return $err
+}
+
+function get_fw_ruleNUM() {
+    #Access specific rule
+    local rule_num=$1
+    if [[ $rule_num -gt 0 && $rule_num -le ${#FW_RULES_LIST[@]} ]]; then
+        echo "${FW_RULES_LIST[$((rule_num-1))]}"
+    else
+        echo "Invalid rule #" >&2
+        return 1
     fi
 }
 
-function reload_firewall() {
+function check_firewall_rules() {
+    lg "*" "check_firewall_rules $*"
+    ipset_name=""
+    local ipset_name="$1"
+    
+    if [[ -n "$ipset_name" ]]; then
+        if [[ "$FIREWALL" == "iptables" ]]; then
+            iptables -L INPUT -n --line-numbers | grep -q "match-set $ipset_name" && return 0 || return 1
+        elif [[ "$FIREWALL" == "firewalld" ]]; then
+            firewall-cmd --zone=drop --list-sources | grep -q "$ipset_name" && return 0 || return 1
+        elif [[ "$FIREWALL" == "ufw" ]]; then
+            ufw status | grep -q "$ipset_name" && return 0 || return 1
+        fi
+    else
+        FW_RULES="false"
+        if [[ "$FIREWALL" == "iptables" ]]; then
+            iptables -L INPUT -n --line-numbers | grep -q "match-set vipb-" && FW_RULES="true" || FW_RULES="false"
+        elif [[ "$FIREWALL" == "firewalld" ]]; then
+            firewall-cmd --zone=drop --list-sources | grep -q "vipb-" && FW_RULES="true" || FW_RULES="false"
+            if [[ "$FW_RULES" == "true" ]]; then
+                firewall-cmd --direct --get-all-rules | grep -q "vipb-" && ((METAERRORS++))
+            fi
+        elif [[ "$FIREWALL" == "ufw" ]]; then
+            ufw status | grep -q "vipb-" && FW_RULES="true" || FW_RULES="false"
+        fi
+    fi
+    
+
+    if [[ "$FW_RULES" == "true" ]]; then
+        return 0
+    else
+        return 1
+    fi  
+}
+
+function find_vipb_rules {
+    local vipb_indexes=()
+    
+    # Check if array exists and is not empty
+    if [[ ${#FW_RULES_LIST[@]} -eq 0 ]]; then
+        debug_log "No firewall rules to look into."
+        return 1
+    fi
+
+    # Iterate through array and find VIPB rules
+    for i in "${!FW_RULES_LIST[@]}"; do
+        if [[ "${FW_RULES_LIST[$i]}" =~ "vipb-" ]]; then
+            vipb_indexes+=("$i")
+            debug_log "Found VIPB rule at index $i: ${FW_RULES_LIST[$i]}"
+        fi
+    done
+
+    # Return results
+    if [[ ${#vipb_indexes[@]} -gt 0 ]]; then
+        echo "${vipb_indexes[@]}"
+        return 0
+    else
+        debug_log "No VIPB rules found"
+        return 1
+    fi
+}
+
+function check_vipb_rules {
+    FOUND_FW_RULES=($(find_vipb_rules))
+    local ret=$?
+
+    case $ret in
+        0)  echo -e "${GRN}Found ${#FOUND_FW_RULES[@]} VIPB rules:${NC}"
+            for idx in "${FOUND_FW_RULES[@]}"; do
+                rule_num=$((idx + 1))
+                echo -e "${BLU} #${rule_num}:${NC} ${FW_RULES_LIST[$idx]}"
+            done
+            ;;
+        1)  echo -e "${RED}No VIPB rules found in $FIREWALL ruleset${NC}"
+            ;;
+        *)  echo -e "${RED}Error checking VIPB rules${NC}" >&2
+            echo "Check logs."
+            ;;
+    esac
+
+    return $ret
+}
+
+function reload_firewall {
     lg "*" "reload_firewall"
+
     if [[ "$FIREWALL" == "firewalld" ]]; then
         echo -ne "Reloading ${ORG}$FIREWALL${NC}... "
         firewall-cmd --reload
@@ -200,25 +383,24 @@ function reload_firewall() {
     fi
 
     if [[ "$FIREWALL" == "iptables" ]]; then
-        echo -ne "Reloading ${ORG}$FIREWALL${NC}... "
-        echo "#2do"
-        log "$FIREWALL reloaded"
+        echo -e "No reload needed. "
     fi
 
-    if [[ "$FAIL2BAN" == "true" ]]; then
-        echo -e "${YLW}Fail2Ban... (disabled #2do)${NC}"
-        #systemctl reload fail2ban
-        #echo -e "Fail2Ban ${GRN}reloaded.${NC}"
+    #if [[ "$FAIL2BAN" == "true" ]]; then
+    #    echo -ne "${YLW}Fail2Ban... ${NC}"
+    #    systemctl reload fail2ban
+    #    echo -e "${GRN}reloaded.${NC}"
         #log "Fail2Ban reloaded"a
-    fi
+    #fi
+    METAERRORS=0
 }
 
-function save_iptables_rules() {
+function save_iptables_rules {
     if command -v netfilter-persistent >/dev/null 2>&1; then
         netfilter-persistent save
         return $?
     else
-        echo "netfilter-persistent not found, falling back to manual save" >&2
+        log "netfilter-persistent not found, falling back to manual save" >&2
         if ! iptables-save | grep -q "^-A INPUT.*match-set.*${ipset}"; then
             echo "Error: Expected rule not found before save" >&2
             return 1
@@ -266,6 +448,10 @@ function save_iptables_rules() {
         return 0
         
     fi
+    if ! iptables -S > "$SCRIPT_DIR/vipb-iptables.v4" 2>/dev/null; then
+        log "Error: Failed to backup iptables -S rules" >&2
+    fi
+
 }
 
 function add_firewall_rules() {
@@ -273,47 +459,51 @@ function add_firewall_rules() {
     
     local ipset=${1:-"$VIPB_IPSET_NAME"}
     err=0
-
-    if check_ipset "$ipset"; then
-        if [[ "$FIREWALL" == "firewalld" ]]; then        
-            if firewall-cmd --zone=drop --add-source=ipset:"$ipset" ; then
-                log "added --runtime to --zone=drop"
+    echo -ne "Adding $FIREWALL rule... " 
+    if check_ipset "$ipset" &>/dev/null; then
+        if [[ "$FIREWALL" == "firewalld" ]]; then 
+            if firewall-cmd "$PERMANENT" --zone=drop --add-source=ipset:"$ipset"  &>/dev/null; then
+                case "$?" in
+                    0) echo "added";;
+                    11) echo "already enabled";;
+                    *);;
+                esac
+                log "added $ipset to --zone=drop"
                 #
                 # future usage/direct interaction with iptables would be the
                 # --permanent --direct combination:
                 # firewall-cmd --permanent --direct --add-rule ipv4 filter INPUT 0 -m set --match-set vipb-blacklist src -j DROP
-
                 # firewall-cmd --reload
             else
-                echo -e "$?"
+                log "$?"
                 err=1
             fi
         elif [[ "$FIREWALL" == "iptables" ]]; then
             if ! iptables -C INPUT -m set --match-set "${ipset}" src -j DROP &>/dev/null; then
-                iptables -I INPUT -m set --match-set "${ipset}" src -j DROP  
-                if save_iptables_rules; then
-                    echo "Info: Rules added and saved to /etc/iptables/rules.v4"
-                else
-                    echo "Warning: Rules added but permanent save failed" >&2
-                fi
+                iptables -I INPUT 1 -m set --match-set "${ipset}" src -j DROP
+                echo "added"
+                #if save_iptables_rules; then NOT HERE
+                #    log "Rules added and saved to /etc/iptables/rules.v4"
+                #else
+                #    log "Warning: Rules added but permanent save failed" >&2
+                #fi
             else
                 echo -e "$?"
                 err=1
             fi
-
         elif [[ "$FIREWALL" == "ufw" ]]; then
             echo "ufw 2do"
             err=1
         fi
     else
-        echo -e "${RED}Error: ipset $ipset not found!${NC} Create it first."
+        echo -e "${RED}Error: ipset '$ipset' not found!${NC}"
         err=1
     fi
 
     return $err
 }
 
-function remove_firewall_rules() { 
+function remove_firewall_rules() { # BY IPSETNAME
     lg "*" "remove_firewall_rules FIREWALL = $FIREWALL : $*"
     
     local ipset=${1:-"$VIPB_IPSET_NAME"}
@@ -333,7 +523,8 @@ function remove_firewall_rules() {
             if firewall-cmd --permanent --zone="$zone" --query-source=ipset:"$ipset" >/dev/null 2>&1; then
                 firewall-cmd --permanent --zone="$zone" --remove-source=ipset:"$ipset"
                 echo "  removed --permanent"
-                reload_firewall
+                PERMANENT='--permanent'
+                #reload_firewall
             elif firewall-cmd --zone="$zone" --query-source=ipset:"$ipset" >/dev/null 2>&1; then
                 firewall-cmd --zone="$zone" --remove-source=ipset:"$ipset"
                 echo "  removed --runtime"
@@ -350,8 +541,28 @@ function remove_firewall_rules() {
     return $err
 }
 
+function remove_firewall_rule() { #SINGLE RULE BY NUMBER
+    lg "*" "remove_firewall_rule FIREWALL = $FIREWALL # $*"
+    err=0
+    if [[ "$FIREWALL" == "iptables" ]]; then
+        if ! iptables -D INPUT $1; then
+            err=1
+        fi
+    fi
+    return $err
+}
+
+function fw_rule_move_to_top() { 
+    lg "*" "fw_rule_move_to_top FIREWALL = $FIREWALL # $*"
+    err=0
+    if [[ "$FIREWALL" == "iptables" ]]; then
+        echo "hello"
+    fi
+    return $err
+}
+
 # ============================
-# Section: IPs & ipsets
+# Section: ipsets
 # ============================
 
 function count_ipset() {
@@ -360,48 +571,45 @@ function count_ipset() {
     local ipset_name="$1"
     local total_ipset=0
 
-    if [[ "$IPSET" == "true" ]]; then
+    if [[ "$IPSET" == "true" ]] && [[ -n "$ipset_name" ]]; then
         if [[ "$FIREWALL" == "firewalld" ]]; then
-            if check_ipset "$ipset_name" &>/dev/null; then       
-                list_ipset_entries() {
-                    local ipset_name="$1"
-                    # For permanent configuration
-                    #firewall-cmd --permanent --ipset="$ipset_name" --get-entries
-                    local perm_entries=$(firewall-cmd --permanent --ipset="$ipset_name" --get-entries)
-                    local perm_count=0
-                    if [[ -n "$perm_entries" ]]; then
-                        perm_count=$(echo "$perm_entries" | wc -l)
-                    fi
-                    # For runtime configuration
-                    #firewall-cmd --ipset="$ipset_name" --get-entries
-                    local run_entries=$(firewall-cmd --ipset="$ipset_name" --get-entries)
-                    local run_count=0
-                    if [[ -n "$run_entries" ]]; then
-                        run_count=$(echo "$run_entries" | wc -l)
-                    fi
+            if check_ipset "$ipset_name" &>/dev/null || [[ $? -eq 2 ]]; then
+                # For runtime configuration
+                #firewall-cmd --ipset="$ipset_name" --get-entries
+                run_entries=$(firewall-cmd --ipset="$ipset_name" --get-entries)
+                run_count=0
+                if [[ -n "$run_entries" ]]; then
+                    run_count=$(echo "$run_entries" | wc -l)
+                fi
 
-                    if [[ "$perm_count" -eq 0 ]]; then
-                        echo "$run_count"
-                    else
-                        echo "$run_count + $perm_count"
-                    fi
-                }
-
-                list_ipset_entries "$ipset_name"
+                # For permanent configuration
+                #firewall-cmd --permanent --ipset="$ipset_name" --get-entries
+                perm_entries=$(firewall-cmd --permanent --ipset="$ipset_name" --get-entries)
+                perm_count=0
+                if [[ -n "$perm_entries" ]]; then
+                    perm_count=$(echo "$perm_entries" | wc -l)
+                fi
+                
+                if [[ "$perm_count" -eq 0 ]]; then
+                    echo "$run_count"
+                else
+                    echo "$run_count + $perm_count"
+                fi
+                log "@$LINENO: $ipset_name count: $run_count + $perm_count"
                 return 0
             else
                 echo -n "n/a"
                 return 1
             fi
-        elif [[ "$IPSET" == "true" ]]; then
-                if check_ipset "$ipset_name" &>/dev/null; then
-                    total_ipset=$(/usr/sbin/ipset list "$ipset_name" | grep -c '^[0-9]')  
-                    echo -n "$total_ipset"
-                    return 0
-                else
-                    echo -n "n/a"
-                    return 1
-                fi
+        elif [[ "$FIREWALL" == "iptables" ]]; then
+            if ! ipset list "$ipset_name" &>/dev/null; then
+                echo -n "n/a"
+                return 1
+            fi
+            total_ipset=$(ipset list "$ipset_name" | grep -c '^[0-9]')
+            echo -n "$total_ipset"
+            log "@LINENO: $ipset_name count: $total_ipset"
+            return 0
         elif [[ "$FIREWALL" == "ufw" ]]; then
                 echo -n "2do"
                 return 1
@@ -418,7 +626,7 @@ function setup_ipset() {
     local ipset_name="$1"
     err=0
 
-    if [[ "$IPSET" == "true" ]]; then
+    if [[ "$IPSET" == "true" ]] && [[ -n "$ipset_name" ]]; then
         if [[ "$ipset_name" == "$MANUAL_IPSET_NAME" ]]; then
             maxelem=254
         else
@@ -430,31 +638,45 @@ function setup_ipset() {
             if ipset list "$ipset_name" &>/dev/null; then
                 echo -e "${ORG}already exists${NC}"
                 log "$ipset_name already exists"
+                err=2
             else
                 if ipset create "$ipset_name" hash:net maxelem "$maxelem"; then
                     echo -e "${GRN}created${NC}"
                     log "$ipset_name created ($?)"
                 else
-                    echo "$?"
+                    echo "${RED}$?${NC}"
                     err=1
                 fi
             fi
         else
             log "$ipset_name exists"
+            echo -e "ipset '${BG}$ipset_name${NC}' ${ORG}already exists${NC}"
+            err=2
         fi
 
         if [[ "$FIREWALL" == "firewalld" ]]; then
-            echo -ne "Adding ipset '${BG}$ipset_name${NC}' reference in $FIREWALL... "                       
-            if firewall-cmd --permanent --new-ipset="$ipset_name" --type=hash:net --option=maxelem="$maxelem" ; then
+            if [ $err -ne 0 ]; then
+                ((METAERRORS++))
+                echo -e "${YLW}WARNING: Possible firewall conflict!${NC}"
+            fi
+            echo -ne "Adding '${BG}$ipset_name${NC}' reference in $FIREWALL... "                       
+            if firewall-cmd --permanent --new-ipset="$ipset_name" --type=hash:net --option=maxelem="$maxelem" &>/dev/null; then
+                echo -e "${GRN}success${NC}"
                 log "$ipset_name created"
             else
-                echo "@$LINENO:$?"
+                case "$?" in
+                    26) echo -e "${RED}already exists${NC} [NAME_CONFLICT]"
+                        echo -e "${DM}Destroy the orphaned chain with option 4.${NC}"
+                        ;;
+                    *)  echo "@$LINENO:$?"
+                        ;;
+                esac
                 err=1
             fi
             log "$ipset_name linked"
         fi
     else
-        echo "ipset not true"
+        echo "ipset error"
         debug_log "@$LINENO #2do!" #2do
         return 1
     fi    
@@ -463,17 +685,23 @@ function setup_ipset() {
 }
 
 function destroy_ipset() {
-    lg "*" "remove_ipset $*"
+    lg "*" "destroy_ipset $*"
     
     local ipset_name="$1"
     err=0
 
     if [[ "$IPSET" == "true" ]]; then
-        echo -ne "Destroying ipset '${BG}$ipset_name${NC}' in system... "
-        if check_ipset "$ipset_name" &>/dev/null; then
-            ipset destroy "$ipset_name"
-            echo -e "${RED}destroyed${NC}"
-            log "$ipset_name destroyed"
+        echo -ne "Removing ipset '${BG}$ipset_name${NC}' from system... "
+        if ipset list "$ipset_name" &>/dev/null; then
+            if ipset destroy "$ipset_name" &>/dev/null; then
+                echo -e "${GRN}destroyed${NC}"
+                log "$ipset_name destroyed"
+            else
+                log "@$LINENO: Error: destroy_ipset failed $?"
+                echo -e "${RED}error!${NC}"
+                ((METAERRORS++))
+                err=1
+            fi
         else
             echo -e "${ORG}not found!${NC}"
             err=1
@@ -487,8 +715,8 @@ function destroy_ipset() {
     return $err
 }
 
-function remove_ipset() {
-    lg "*" "remove_ipset $*"
+function clear_ipset() {
+    lg "*" "clear_ipset $*"
     
     local ipset_name="$1"
     err=0
@@ -497,8 +725,7 @@ function remove_ipset() {
         echo -ne "Removing ipset '${BG}$ipset_name${NC}' reference from $FIREWALL... "
         if check_ipset "$ipset_name" &>/dev/null; then
             firewall-cmd --permanent --delete-ipset="$ipset_name"
-            firewall-cmd --delete-ipset="$ipset_name"
-            echo -e "${GRN}OK${NC}"
+            #echo -e "${GRN}unlinked${NC}"
             log "$ipset_name unlinked"
             #reload_firewall
         else
@@ -507,16 +734,27 @@ function remove_ipset() {
         fi
     fi
 
-    if [[ "$FIREWALL" == "iptables" ]]; then
-        destroy_ipset "$ipset_name"
-    elif [[ "$FIREWALL" == "ufw" ]]; then
+    if [[ "$IPSET" == "true" ]]; then
+        if ipset flush "$ipset_name" &>/dev/null; then
+            echo -e "ipset content ${GRN}flushed${NC}"
+        else
+            echo -e "${ORG}not found!${NC}"
+            err=1
+        fi
+    fi
+
+    if [[ "$FIREWALL" == "ufw" ]]; then
         echo "2do!"
         debug_log "#2do!" #2do
-        return 1
+        err=1
     fi
 
     return $err
 }
+
+# ============================
+# Section: IPs
+# ============================
 
 function ask_IPS() {
     IPS=()
@@ -573,22 +811,25 @@ function ban_ip() {
     if validate_ip "$ip"; then
         if [[ "$FIREWALL" == "firewalld" ]]; then
             PERSISTENT="false" #2do
-            if firewall-cmd --ipset="${ipset_name}" --query-entry="$ip" &>/dev/null; then
+            if firewall-cmd "$PERMANENT" --ipset="${ipset_name}" --query-entry="$ip" &>/dev/null; then
                 ban_ip_result=2
             else
-                firewall-cmd --ipset="${ipset_name}" --add-entry="$ip" &>/dev/null
+                outcome=$(firewall-cmd "$PERMANENT" --ipset="${ipset_name}" --add-entry="$ip" 2>&1)
                 case "$?" in 
                     0)
                         ban_ip_result=0
                         ;;
                     13) 
                         # 13 = COMMAND_FAILED 
-                        log "@$LINENO Error: COMMAND_FAILED. err# $? ip:$ip"
-                        ban_ip_result=1
+                        # it's already in the ipset, so possible conflict in cross use
+                        log "@$LINENO Warning [$?] > $outcome"
+                        ban_ip_result=2 
+                        ((ERRORS++))
+                        ((METAERRORS++))
                         ;;
                     135)
                         # 136 = INVALID IPSET 
-                        log "@$LINENO Error: INVALID IPSET. err# $? ip:$ip"
+                        log "@$LINENO Error: $? INVALID IPSET. ipset_name:$ipset_name ip:$ip"
                         ban_ip_result=1
                         ;;
                     136)
@@ -597,7 +838,7 @@ function ban_ip() {
                         ban_ip_result=1
                         ;;
                     *)
-                        log "@$LINENO Error: Unexpected result from firewalld command. err# $? ip:$ip"
+                        log "@$LINENO Error: $? Unexpected result from firewalld. ipset_name:$ipset_name ip:$ip > $outcome"
                         ban_ip_result=1
                         ;;
                 esac
@@ -605,11 +846,13 @@ function ban_ip() {
                 
         elif [[ "$FIREWALL" == "iptables" ]]; then
             if [[ "$IPSET" == "true" ]]; then
-                if ! ipset test "$ipset_name" "$ip" &>/dev/null; then
+                if ipset test "$ipset_name" "$ip" &>/dev/null; then
+                    ban_ip_result=2
+                elif [[ $? -ne 1 ]]; then
+                    ban_ip_result=1
+                else
                     ipset add "$ipset_name" "$ip"
                     ban_ip_result=0
-                else
-                    ban_ip_result=2
                 fi
             else
                 # use iptables only, ban on single ip (not optimized) 2do
@@ -704,7 +947,7 @@ function add_ips() {
             fi
         done
 
-        if [ $ERRORS -gt 0 ]; then
+        if [ "$ERRORS" -gt 0 ]; then
             return 1
         else
             return 0
@@ -1111,21 +1354,37 @@ function ban_core() {
         err=1
     else
         echo -ne "  "
-        if check_ipset "$ipset"; then
-            echo
-            add_ips "$ipset" "${IPS[@]}"
-            err=$? 
+        if ! check_ipset "$ipset"; then
+            if ! setup_ipset "$ipset"; then
+                outcome="$?"
+                echo -e "${RED}ipset error!${NC} $outcome"
+                log "@$LINENO: Error: Failed to set up ipset. $outcome"
+                ((ERRORS++))
+                err=1
+            fi
+        fi
+
+        echo -ne "  $FIREWALL ⇄ ipset rule "
+        if check_firewall_rules "$ipset" ; then
+            echo -e "${GRN}OK${NC}"
         else
-            echo -e "${RED}Error: Failed to set up ipset.${NC}"
-            log "@$LINENO: Error: Failed to set up ipset."
-            ((ERRORS++))
-            err=1
+            echo -e "${ORG}not found${NC}"
+            echo -ne "  "
+            add_firewall_rules "$ipset"
         fi
         echo
+        if [ "$FIREWALL" == "firewalld" ] && [ -f "$blacklist" ] ; then
+            echo -ne "  Adding entries to $FIREWALL from file... "
+            if ! firewall-cmd --permanent --ipset="$ipset" --add-entries-from-file="$blacklist"; then
+                err=$?
+            fi
+        else
+            add_ips "$ipset" "${IPS[@]}"
+            err=$? 
+        fi
     fi
-
     count=$(count_ipset "$ipset")
-    
+    echo
     echo -e "${VLT}■■■■■■■■■■■■■■■■■■■■■■■■■■"
     echo -e "    VIPB-Ban finished "
     echo -e "=========================="
@@ -1143,7 +1402,7 @@ function ban_core() {
     log " VIPB-Ban finished!"
     if [ $err -ne 0 ]; then
         log "WITH $ERRORS ERRORS!"
-        log "Function add_ipset() failed: $err"
+        log "a function failed: $err"
     fi
     log "         Source:   $blacklist ($modified)"
     log "         Loaded:   $total_blacklist_read"

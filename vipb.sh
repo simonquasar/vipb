@@ -9,7 +9,7 @@
 # |  |  | |   __| __ -|  
 #  \___/|_|__|  |_____| v0.9  
 #
-VER="v0.9.2"
+VER="v0.9.3"
 ARGS=("$@")
 
 if [ "$EUID" -ne 0 ]; then
@@ -96,10 +96,15 @@ if [ "$CLI" == "false" ]; then
     source "$SCRIPT_DIR/vipb-ui.sh"
     log "$SCRIPT_DIR/vipb-ui.sh $( echo -e "${GRN}LOADED${NC}")"
     log "UI interface LOADED"
-    # Start UI execution
+    # Start
+    echo "Checking firewall rules..."
     check_firewall_rules
-    VIPB_BANS=$(count_ipset "$VIPB_IPSET_NAME")
-    USER_BANS=$(count_ipset "$MANUAL_IPSET_NAME")
+    echo "Checking ipsets..."
+    VIPB_IPSET="false"
+    MANUAL_IPSET="false"
+    check_ipset "$VIPB_IPSET_NAME" &>/dev/null && VIPB_BANS=$(count_ipset "$VIPB_IPSET_NAME");
+    check_ipset "$MANUAL_IPSET_NAME" &>/dev/null && USER_BANS=$(count_ipset "$MANUAL_IPSET_NAME");
+    # Start UI execution
     header
     menu_main
 
@@ -157,6 +162,6 @@ elif [ "$CLI" == "true" ]; then
 fi
 
 # we should never reach this point
-echo "No console? Exit."
-log "No console? Exit."
+echo "Console error? Exit."
+log "Console error? Exit."
 exit 1
