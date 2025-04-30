@@ -183,10 +183,7 @@ function handle_aggregator() {
 
 # (Menu 3) blacklist banning  
 function handle_blacklist_ban() {
-    debug_log "3. Ban Blacklists"
-    check_ipset "$VIPB_IPSET_NAME" &>/dev/null && VIPB_BANS=$(count_ipset "$VIPB_IPSET_NAME");
-    check_ipset "$MANUAL_IPSET_NAME" &>/dev/null && USER_BANS=$(count_ipset "$MANUAL_IPSET_NAME");
-    
+    debug_log "3. Ban Blacklists"    
     header
     echo -ne "${BLU}"
     subtitle "Blacklists ban"
@@ -215,11 +212,11 @@ function handle_blacklist_ban() {
         echo -e "${YLW}All ready. What do you want to do?${NC}" 
         echo
         echo -e "\t${BD}${CYN}1. Ban aggregated list ✓${NC}  \t${CYN}$(wc -l < "$OPTIMIZED_FILE") sources${NC}"
-        echo -e "\t${VLT}2. Ban source IPsum list${NC} \t${VLT}$(wc -l < "$BLACKLIST_FILE") IPs${NC}"
+        echo -e "\t${VLT}2. Ban source ${BG}IPsum${NC}${VLT} list${NC} \t${VLT}$(wc -l < "$BLACKLIST_FILE") IPs${NC}"
         echo -e "\t3. Only ${S24}/24 subnets${NC} #.#.#.${BD}0${NC} \t${S24}$(wc -l < "$SUBNETS24_FILE") networks${NC}"
         echo -e "\t4. Only ${S16}/16 subnets${NC} #.#.${BD}0.0${NC} \t${S16}$(wc -l < "$SUBNETS16_FILE") networks${NC}"
         echo -e "\t5. Ban ${BLU}from ${BG}*.ipb${NC} files \t${DM}>>${NC}"
-        echo -e "\t6. View ${BLU}${BG}*.ipb${NC} files \t\t${DM}>>${NC}"
+        echo -e "\t6. View ${BLU}${BG}*.ipb${NC} list & ban \t${DM}>>${NC}"
         echo -e "\t7. ${ORG}Delete ${BLU}blacklists${NC} files \t${DM}>>${NC}"
         echo
         echo -e "\t${DM}0. <<" 
@@ -233,42 +230,38 @@ function handle_blacklist_ban() {
                 1)  debug_log " $blacklist_choice. OPTIMIZED_FILE"
                     subtitle "${CYN}Ban aggregated list"
                     ban_core "$OPTIMIZED_FILE"
-                    check_ipset "$VIPB_IPSET_NAME" &>/dev/null && VIPB_BANS=$(count_ipset "$VIPB_IPSET_NAME");
+                    check_vipb_ipsets
                     next
-                    break
+                    handle_blacklist_ban
                     ;;
                 2)  debug_log " $blacklist_choice. BLACKLIST_FILE"
                     subtitle "${VLT}Ban original blacklist" 
                     ban_core "$BLACKLIST_FILE"
-                    check_ipset "$VIPB_IPSET_NAME" &>/dev/null && VIPB_BANS=$(count_ipset "$VIPB_IPSET_NAME");    
+                    check_vipb_ipsets
                     next
-                    break
+                    handle_blacklist_ban
                     ;;    
                 3)  debug_log " $blacklist_choice. SUBNETS24_FILE"
                     subtitle "${S24}Ban /24 subnets (#.#.#.0)"
                     ban_core "$SUBNETS24_FILE"
-                    check_ipset "$VIPB_IPSET_NAME" &>/dev/null && VIPB_BANS=$(count_ipset "$VIPB_IPSET_NAME");
+                    check_vipb_ipsets
                     next
-                    break
+                    handle_blacklist_ban
                     ;;
                 4)  debug_log " $blacklist_choice. SUBNETS16_FILE"
                     subtitle "${S16}Ban /16 subnets (#.#.0.0)"
                     INFOS="true"
                     ban_core "$SUBNETS16_FILE"
-                    check_ipset "$VIPB_IPSET_NAME" &>/dev/null && VIPB_BANS=$(count_ipset "$VIPB_IPSET_NAME");
+                    check_vipb_ipsets
                     next
-                    break
+                    handle_blacklist_ban
                     ;;
                 5)  debug_log " $blacklist_choice. BAN IPB_FILE"
-                    subtitle "${BLU}Import *.ipb list"
-                    ipset_name="$MANUAL_IPSET_NAME"
-                
+                    subtitle "${BLU}Import *.ipb list"                
                     echo
-                    echo -e "${YLW}Select with [space] the lists to import and ban into ${BG}$ipset_name${NC}, press ↵ to continue."
+                    echo -e "${YLW}Select with [space] the lists to import and ban into ${BG}$MANUAL_IPSET_NAME${NC}, press ↵ to continue."
                     echo
-                    
                     multiselect result ipb_files false
-
                     idx=0
                     selected_ipbf=()
                     for selected in "${ipb_files[@]}"; do
@@ -277,28 +270,26 @@ function handle_blacklist_ban() {
                         fi
                         ((idx++))
                     done
-
                     debug_log "selected_ipbf: ${selected_ipbf[*]}"
                     if [[ ${#selected_ipbf[@]} -eq 0 ]]; then
                         echo -e "${RED}No files selected.${NC}"
                     else
-                        echo -e "The selected files will be loaded into ${YLW}${BG}$ipset_name${NC}."
+                        echo -e "The selected files will be loaded into ${YLW}${BG}$MANUAL_IPSET_NAME${NC}."
+                        echo
                         for ipb_file in "${selected_ipbf[@]}"; do
-                            echo -e "Banning from file ${BLU}$ipb_file${NC} ... "
                             INFOS="true"
-                            ban_core "$ipb_file" "$ipset_name"
-                            echo -e "${BLU}${BG}$ipb_file${NC} parsed."
+                            ban_core "$ipb_file" "$MANUAL_IPSET_NAME"
+                            #echo -e "${BLU}${BG}$ipb_file${NC} parsed."
                             echo
                         done
-                        check_ipset "$MANUAL_IPSET_NAME" &>/dev/null && USER_BANS=$(count_ipset "$MANUAL_IPSET_NAME");
+                        check_vipb_ipsets
                         echo -e "${GRN}All files parsed."
                     fi
                     next
-                    break
+                    handle_blacklist_ban
                     ;;
-                6)  debug_log " $blacklist_choice. READ IPB FILE"
+                6)  debug_log " $blacklist_choice. READ IPB FILE  & BAN "
                     subtitle "${BLU}Read *.ipb list"
-                    ipset_name="$MANUAL_IPSET_NAME"
                     echo
                     echo -e "${YLW}Select with [space] the lists to view into, press ↵ to continue."
                     echo
@@ -318,38 +309,38 @@ function handle_blacklist_ban() {
                     if [[ ${#selected_ipbf[@]} -eq 0 ]]; then
                         echo -e "${RED}No files selected.${NC}"
                     else
-                        select_ips=()
+                        ips=()
                         for ipb_file in "${selected_ipbf[@]}"; do
                             echo -e "Reading file ${BLU}$ipb_file${NC} ... "
                             while IFS= read -r ip; do
                                 if validate_ip "$ip"; then
-                                    select_ips+=("$ip")
+                                    ips+=("$ip")
                                 fi
                             done < "$ipb_file"
 
                             echo -e "${BLU}${BG}$ipb_file${NC} parsed."
                             echo
                         done
-                        echo -e "${YLW}Select the number of an IP to ban in ${BG}$ipset_name${NC}, 0 to exit."
+                        echo -e "${YLW}Select the number of an IP to ban in ${BG}$MANUAL_IPSET_NAME${NC}, 0 to exit."
                         echo
 
-                        number_menu "${NC}${DM}« Back${NC}\t" "${select_ips[@]}"
+                        number_menu "${NC}${DM}« Back${NC}\t" "${ips[@]}"
                         selected="$?"
+                        selected_ips=()
                         if [ "$selected" != "0" ]; then
                             selected="$((selected - 1))"
-                            selected_ips=("${select_ips[$selected]}")
+                            selected_ips=("${ips[$selected]}")
+                            log "selected_ips: ${selected_ips[*]}"
                         fi
-                        debug_log "selected_ips: ${selected_ips[*]}"
 
                         if [[ ${#selected_ips[@]} -eq 0 ]] || [[ ${#selected_ips[0]} == "0" ]] ; then
-                            echo -e "${RED}No IP entered.${NC}"
+                            echo "Nothing to do."
                         else
                             echo "Adding selected IPs..."
                             INFOS="true"
-                            add_ips $ipset_name "${selected_ips[@]}"
-                            count_ipset "$ipset_name"
-                            check_ipset "$MANUAL_IPSET_NAME" &>/dev/null && USER_BANS=$(count_ipset "$MANUAL_IPSET_NAME");
-                            echo -e " IPs banned${NC} in ${BG}$ipset_name${NC}."
+                            add_ips "$MANUAL_IPSET_NAME" "${selected_ips[@]}"
+                            check_vipb_ipsets
+                            echo -e "$USER_BANS IPs banned${NC} in ${BG}$MANUAL_IPSET_NAME${NC}."
                         fi
                     fi
                     next
@@ -407,12 +398,14 @@ function handle_blacklist_ban() {
             esac
         done
     fi
-    back
+    handle_blacklist_ban
 }
 
 # (Menu 4) manual banning 
 function handle_manual_ban() {
     debug_log "5. Manual ban IPs"
+    USER_STATUS=$(check_ipset "$MANUAL_IPSET_NAME" &>/dev/null)
+    USER_BANS=$(count_ipset "$MANUAL_IPSET_NAME")   
     header
     echo -ne "${YLW}"
     subtitle "Manual ban IPs"
@@ -422,7 +415,7 @@ function handle_manual_ban() {
     echo
     echo -e "${YLW}Last banned IPs:${NC}"
     if [[ "$FIREWALL" == "firewalld" ]]; then
-        mapfile -t user_ips < <(firewall-cmd "$PERMANENT" --ipset="$MANUAL_IPSET_NAME" --get-entries)
+        mapfile -t user_ips < <(firewall-cmd ${PERMANENT:+$PERMANENT} --ipset="$MANUAL_IPSET_NAME" --get-entries)
     elif [[ "$FIREWALL" == "iptables" ]]; then
         mapfile -t user_ips < <(ipset list "$MANUAL_IPSET_NAME" | grep -E '^[0-9]+\.')
     fi
@@ -464,14 +457,16 @@ function handle_manual_ban() {
                 geo_ip
                 INFOS="true"
                 add_ips "$MANUAL_IPSET_NAME" "${IPS[@]}"
-                echo -e "${GRN}$ADDED_IPS IPs added ${NC}($ALREADYBAN_IPS already banned).${GRN}"
+                echo -e "------------"
+                echo -e "${GRN}✓ $ADDED_IPS IPs added ${NC}($ALREADYBAN_IPS already banned)"
                 check_ipset "$MANUAL_IPSET_NAME" &>/dev/null && USER_BANS=$(count_ipset "$MANUAL_IPSET_NAME");
-                echo -e "$USER_BANS total IPs banned${NC} in set ${YLW}${BG}${MANUAL_IPSET_NAME}${NC}."
+                echo -e "${YLW}≡ $USER_BANS total IPs banned${NC} in set ${YLW}${BG}${MANUAL_IPSET_NAME}${NC}."
             fi
             next
             handle_manual_ban
             ;;
         2)  debug_log " $manual_choice. Unban / View"
+            select_ips=()
             if [[ "$FIREWALL" == "firewalld" ]]; then
                 select_ips=($(firewall-cmd --ipset="$MANUAL_IPSET_NAME" --get-entries))
             elif [[ "$IPSET" == "true" ]]; then
@@ -560,8 +555,7 @@ function handle_download_and_ban() {
                 subtitle "3. ${BLU} Ban!"
                 INFOS="false"
                 ban_core $OPTIMIZED_FILE
-                check_ipset "$VIPB_IPSET_NAME" &>/dev/null && VIPB_BANS=$(count_ipset "$VIPB_IPSET_NAME");
-                check_ipset "$MANUAL_IPSET_NAME" &>/dev/null && USER_BANS=$(count_ipset "$MANUAL_IPSET_NAME");
+                check_vipb_ipsets
                 ;;
         esac
        
@@ -577,10 +571,9 @@ function handle_ipsets() {
     echo -ne "${BLU}"
     subtitle "ipsets"
     echo
-    echo
     if [[ $IPSET == "true" ]]; then
         echo -e "\t1. List ${BLU}all ipsets${NC}"
-        echo -e "\t2. ${S16}Create ${VLT}VIPB-ipsets${NC}\t\t   ${DM}>>${NC}"
+        echo -e "\t2. ${S16}Create ${VLT}VIPB-ipsets${NC}\t${DM}>>${NC}"
     fi
     echo
     echo -e "\t${DM}0. <<${NC}" 
@@ -597,7 +590,7 @@ function handle_ipsets() {
                 subtitle "${BLU}Manage ipsets"
  
                 if [[ "$FIREWALL" == "firewalld" ]]; then
-                    select_ipsets=($(firewall-cmd --permanent --get-ipsets))
+                    select_ipsets=($(firewall-cmd --permanent --get-ipsets)) #2check --permanent
                 elif [[ "$IPSET" == "true" ]]; then
                     select_ipsets=($(ipset list -n))
                 fi
@@ -625,11 +618,9 @@ function handle_ipsets() {
                         *)  debug_log " $ipsets_select. ipset"
                             idx=$((ipsets_select - 1))
                             current_ipset="${select_ipsets[$idx]}"
-                            
-                            echo -e "$current_ipset"
-                            options=("Details")
+                            options=("${BD}Details ${NC}")
                             if [[ "$current_ipset" == vipb-* ]]; then
-                                options+=("Clear" "Destroy")
+                                options+=("${YLW}Clear ${NC}" "${RED}${DM}Destroy ${NC}")
                             fi
                             echo
                             select_opt "${NC}${DM}« Back${NC}" "${options[@]}"
@@ -639,12 +630,23 @@ function handle_ipsets() {
                                     handle_ipsets
                                     ;;
                                 1)  debug_log " $ipset_opt. Details"
+                                    subtitle "$current_ipset"
                                     check_ipset "$current_ipset"
+                                    check_status="$?"
+                                    echo
                                     count=$(count_ipset "$current_ipset")
-                                    echo -e "with ${BLU}$count entries${NC}"
+                                    echo -e "${VLT}$count entries${NC} in set"
+                                    case $check_status in
+                                        0 | 2 | 3)    desc=$(ipset list "$current_ipset" | grep "Name:" | awk '{print $2}')
+                                                        type=$(ipset list "$current_ipset" | grep "Type:" | awk '{print $2}')
+                                                        maxelem=$(ipset list "$current_ipset" | grep -o "maxelem [0-9]*" | awk '{print $2}')
+                                                        echo -e "description: ${BD}$desc${NC}"
+                                                        echo "ipset type: $type"
+                                                        echo "maxelements: $maxelem";;
+                                    esac
                                     ;;
                                 2)  debug_log " $ipset_opt. Clear"
-                                    subtitle "${VLT}Clear VIPB-ipset"
+                                    subtitle "${VLT}Clear $current_ipset"
                                     if [[ "$current_ipset" != vipb-* ]]; then
                                         echo -e "${RED}Skipping ipset ${BLU}$current_ipset${NC} as it is not a VIPB ipset (read-only).${NC}"
                                     else
@@ -654,13 +656,12 @@ function handle_ipsets() {
                                         case $select_yesno in
                                             0)  echo "Nothing to do."
                                                 ;;
-                                            1)  
-                                                echo -e "${VLT}☷ Clearing '$current_ipset' ipset...${NC} "
+                                            1)  echo -e "${VLT}☷ Clearing '$current_ipset' ipset...${NC} "
                                                 clear_ipset "$current_ipset"
                                                 #reload_firewall
                                                 echo
-                                                check_ipset "$VIPB_IPSET_NAME" &>/dev/null && VIPB_BANS=$(count_ipset "$VIPB_IPSET_NAME");
-                                                check_ipset "$MANUAL_IPSET_NAME" &>/dev/null && USER_BANS=$(count_ipset "$MANUAL_IPSET_NAME");
+                                                VIPB_BANS=$(count_ipset "$VIPB_IPSET_NAME")
+                                                USER_BANS=$(count_ipset "$MANUAL_IPSET_NAME")
                                                 echo -e "${VLT}Done.${NC} Be careful now."
                                                 ;;
                                         esac
@@ -668,11 +669,12 @@ function handle_ipsets() {
                                     #reload_firewall
                                     ;;
                                 3)  debug_log " $ipset_opt. Destroy"
-                                    subtitle "${VLT}Destroy VIPB-ipsets ${ORG}and rules"
+                                    echo -ne "${RED}"
+                                    subtitle "X destroy $current_ipset X"
                                     if [[ "$current_ipset" != vipb-* ]]; then
                                         echo -e "${RED}Skipping ipset ${BLU}$current_ipset${NC} as it is not a VIPB ipset (read-only).${NC}"
                                     else
-                                        echo -e "This action will *also* remove related ${ORG}$FIREWALL${NC} rules!${NC}"
+                                        echo -e "This action will ${ORG}*also* remove related $FIREWALL${NC} rules!${NC}"
                                         echo -e "${YLW}Are you sure?"
                                         select_opt "No" "Yes"
                                         select_yesno=$?
@@ -695,10 +697,7 @@ function handle_ipsets() {
                                                 echo
                                                 #reload_firewall
                                                 check_firewall_rules
-                                                VIPB_IPSET="false"
-                                                MANUAL_IPSET="false"    
-                                                check_ipset "$VIPB_IPSET_NAME" &>/dev/null && VIPB_BANS=$(count_ipset "$VIPB_IPSET_NAME");
-                                                check_ipset "$MANUAL_IPSET_NAME" &>/dev/null && USER_BANS=$(count_ipset "$MANUAL_IPSET_NAME");
+                                                check_vipb_ipsets
                                                 echo -e "${VLT}Done.${NC} Be careful now."
                                                 ;;
                                             esac
@@ -714,10 +713,8 @@ function handle_ipsets() {
                 subtitle "${VLT}Create VIPB-ipsets"
                 echo -e "This will NOT remove related firewall rules!${NC}"
                 echo
-
                 select_ipsets=("$VIPB_IPSET_NAME" "$MANUAL_IPSET_NAME")
                 ipsets_selector "${select_ipsets[@]}"
-
                 if [[ ${#selected_ipsets[@]} -eq 0 ]]; then
                     echo -e "${RED}No ipsets selected.${NC}"
                 else
@@ -729,18 +726,13 @@ function handle_ipsets() {
                             ;;
                         1)  for ipset_name in "${selected_ipsets[@]}"; do  
                                 echo -e "${VLT}☷ Re/creating ipset '$ipset_name'...${NC}"
-
                                 echo -e "Setting up new ipset... "
                                 if setup_ipset "$ipset_name"; then
                                     echo -e "${GRN}OK${NC}"
                                 fi
                             done
                             echo
-                            VIPB_IPSET="false"
-                            MANUAL_IPSET="false"
-                            check_ipset "$VIPB_IPSET_NAME" &>/dev/null && VIPB_BANS=$(count_ipset "$VIPB_IPSET_NAME") || VIPB_BANS="n/a";
-                            check_ipset "$MANUAL_IPSET_NAME" &>/dev/null && USER_BANS=$(count_ipset "$MANUAL_IPSET_NAME") || USER_BANS="n/a";
-    
+                            check_vipb_ipsets
                             echo -e "${VLT}Done.${NC}"
                             ;;
                     esac
@@ -762,17 +754,16 @@ function handle_firewalls() {
     echo -ne "${ORG}"
     subtitle "Firewall"
     echo -ne "Firewall ${ORG}${BG}${FIREWALL}${NC} in use "
-    if $PERSISTENT; then
-        echo -ne "with ${S16}permanent rules${NC}"
-    fi
+    $PERSISTENT && echo -ne "with ${S16}permanent rules${NC}";
     echo
     echo
-    echo -e "\t1. View all ${ORG}rules${NC}"
+    echo -e "\t1. View ${ORG}all rules${NC}"
     echo -e "\t2. ${S16}Create ${ORG}VIPB-rules${NC}"
-    echo -e "\t3. Remove ${ORG}VIPB-rules${NC}"
-    echo -e "${DM}\tX. Backup firewall rules${NC}"
-    echo -e "\t4. Reload firewall"
-    echo -e "\t5. Change firewall \t\t ${RED}!${NC}${DM}>>${NC}"
+    echo -e "\t3. Remove ${ORG}all VIPB-rules${NC}"
+    echo -ne "\t4. "
+    if [[ "$FIREWALL" == "firewalld" ]] && echo "Edit Mode" || echo "Save/Persistent "; #persistent & --permanent editing
+    echo -e "\t5. Reload, Check & Repair"                                  #2do with deeper analysis
+    echo -e "\t6. Change firewall \t${RED}!${NC}${DM}>>${NC}"
     echo
     echo -e "\t${DM}0. <<${NC}" 
     echo -e "\e[0m"
@@ -792,8 +783,9 @@ function handle_firewalls() {
                         echo "${FW_RULES_LIST[$i]}"
                     done
                 else
-                    echo -e "${RED}No rules found.${NC}"
+                    echo -e "${RED}No rules found.${NC} System unprotected."
                 fi
+                echo
                 check_vipb_rules
                 echo
                 rules_options=()
@@ -839,7 +831,7 @@ function handle_firewalls() {
                 handle_firewalls
                 ;;
             2)  debug_log " $fw_choice. Create VIPB-rules"
-                subtitle "Re-/Create rules"
+                subtitle "Re-/Create VIPB rules"
 
                 select_ipsets=("$VIPB_IPSET_NAME" "$MANUAL_IPSET_NAME")
                 ipsets_selector "${select_ipsets[@]}"
@@ -847,7 +839,7 @@ function handle_firewalls() {
                 if [[ ${#selected_ipsets[@]} -eq 0 ]]; then
                     echo -e "${RED}No ipsets selected.${NC}"
                 else
-                    echo -e "This process won't remove any bans. ${YLW}Proceed?"
+                    echo -e "This process won't remove any bans. \n${YLW}Proceed?"
                     select_opt "No" "Yes"
                     select_yesno=$?
                     case $select_yesno in
@@ -855,21 +847,19 @@ function handle_firewalls() {
                             ;;
                         1)  for ipset_name in "${selected_ipsets[@]}"; do  
                                 echo -e "${ORG}☷ ipset '${ipset_name}'${NC}"
-                                echo -ne "  Removing rule... ${NC}"
                                 if remove_firewall_rules "$ipset_name" ; then
                                     echo -e "${GRN}OK${NC}"
                                 else
-                                    echo -e "${RED}Failed${NC}"
+                                    echo -e "${RED}failed${NC}" "$?"
                                 fi
-
                                 if add_firewall_rules "$ipset_name" ; then
-                                    reload_firewall
+                                    echo -e "${GRN}OK${NC}"
+                                    #reload_firewall
                                 else
-                                    echo -e "${RED}Failed${NC}"
+                                    echo -e "${RED}failed${NC}" "$?"
                                 fi
-                                echo
-                                check_firewall_rules
                             done
+                            check_firewall_rules
                             ;;
                     esac
                 fi
@@ -884,7 +874,7 @@ function handle_firewalls() {
                 if [[ ${#selected_ipsets[@]} -eq 0 ]]; then
                     echo -e "${RED}No ipsets selected.${NC}"
                 else
-                    echo -e "This process will remove any ban. ${YLW}Proceed?"
+                    echo -e "${YLW}This process will remove all bans. Proceed?"
                     select_opt "No" "Yes"
                     select_yesno=$?
                     case $select_yesno in
@@ -892,21 +882,33 @@ function handle_firewalls() {
                             ;;
                         1)  for ipset_name in "${selected_ipsets[@]}"; do  
                                 echo -e "${VLT}☷ ipset '${ipset_name}'${NC}"
-                                echo -ne "  Removing rule... ${NC}"
                                 if remove_firewall_rules "$ipset_name" ; then
-                                    check_firewall_rules
-                                    echo -e "${GRN}Removed.${NC}"
+                                    echo -e "${GRN}OK${NC}"
                                 else
-                                    echo -e "${RED}Failed${NC}"
+                                    echo -e "${RED}Failed${NC}" "$?"
                                 fi
                             done
+                            check_firewall_rules
                             ;;
                     esac
                 fi
                 next
                 ;;
-            4)  debug_log " $fw_choice. Reload firewall"
-                subtitle "Reload firewall"
+            4)  if [[ "$FIREWALL" == "iptables" ]]; then
+                    debug_log " $opt. Save"
+                    echo "persistent vs permanent ?" #2do
+
+                elif [[ "$FIREWALL" == "firewalld" ]]; then
+                    debug_log " $opt. Edit Mode"
+                    [[ "$PERMANENT" == "--permanent" ]] && PERMANENT="" || PERMANENT="--permanent" ;
+                    echo -ne "Edit mode set to " 
+                    [[ "$PERMANENT" == "--permanent" ]] && echo -e "${BLU}--permanent${NC}" || echo -e "${S24}--runtime${NC}" ;
+                    echo "Remember to sync!" #2do
+                fi
+                next
+                ;;
+            5)  debug_log " $fw_choice. Reload firewall"
+                subtitle "Reload & check"
 
                 echo -e "We'll reload the firewall. ${YLW}Proceed?"
                 select_opt "No" "Yes"
@@ -917,7 +919,7 @@ function handle_firewalls() {
                 esac
                 next
                 ;;
-            5)  debug_log " $fw_choice. Change firewall"
+            6)  debug_log " $fw_choice. Change firewall"
                 subtitle "${ORG}Change firewall"
                 echo -e "${ORG}Change firewall at your risk.${NC}"
                 echo -e "This section is in still in development and not optimized for cross-use between firewalls yet."
@@ -956,16 +958,13 @@ function handle_firewalls() {
                 esac
                 # Update vipb-core.sh with the new fw 
                 sed -i "0,/^FIREWALL='.*'/s//FIREWALL='$FIREWALL'/" "$SCRIPT_DIR/vipb-core.sh"
-                METAERRORS=0
-                echo "Checking firewall rules..."
-                check_firewall_rules
-                echo "Checking ipsets..."
-                VIPB_IPSET="false"
-                MANUAL_IPSET="false"        
-                check_ipset "$VIPB_IPSET_NAME" &>/dev/null && VIPB_BANS=$(count_ipset "$VIPB_IPSET_NAME");
-                check_ipset "$MANUAL_IPSET_NAME" &>/dev/null && USER_BANS=$(count_ipset "$MANUAL_IPSET_NAME");
-                log "Firewall changed to: $FIREWALL"
                 echo -e "Firewall changed to ${ORG}$FIREWALL${NC}"
+                log "Firewall changed to: $FIREWALL"
+                METAERRORS=0
+                echo -n "Checking firewall rules... "
+                check_firewall_rules
+                echo "OK"
+                check_vipb_ipsets
                 next
                 ;;
             0)  debug_log " $fw_choice. << Back to Menu"
@@ -1122,8 +1121,8 @@ function handle_logs_info() {
                     "            DEBUG:$DEBUG"
                     "${BLU}       SCRIPT_DIR:$SCRIPT_DIR"
                     "         LOG_FILE:$LOG_FILE"
-                    "${CYN}  VIPB_IPSET_NAME:$VIPB_IPSET_NAME [$VIPB_IPSET]"
-                    "MANUAL_IPSET_NAME:$MANUAL_IPSET_NAME [$MANUAL_IPSET]"
+                    "${CYN}  VIPB_IPSET_NAME:$VIPB_IPSET_NAME [$VIPB_STATUS]"
+                    "MANUAL_IPSET_NAME:$MANUAL_IPSET_NAME [$USER_STATUS]"
                     "${ORG}         FIREWALL:$FIREWALL"
                     "            IPSET:$IPSET"
                     "         IPTABLES:$IPTABLES"
@@ -1201,7 +1200,7 @@ function handle_logs_info() {
     log_selector
     echo -e "\e[0m"
     next
-    back
+    handle_logs_info
 }
 
 ### Main UI
@@ -1325,33 +1324,40 @@ function header() {
     echo -e "\t  ██╗   ██╗██╗██████╗ ██████╗      ${DM}   ┏┓┏┳┓┏┓┏┓┏┓┓┏┏┓┏┏┓┏┓${NC}"
     echo -e "\t  ██║   ██║██║██╔══██╗██╔══██╗     ${DM}by ┛┗┛┗┗┗┛┛┗┗┫┗┻┗┻┛┗┻┛ ${NC}"
     echo -e "\t  ██║   ██║██║██████╔╝██████╔╝     ${DM}             ┗         ${NC}"
-    echo -ne "\t  ╚██╗ ██╔╝██║██╔═══╝ ██╔══██╗    ✦ "
-    if [ "$VIPB_IPSET" == "true" ] ; then   
-        echo -ne "${VLT}VIPB bans ${BD}[$VIPB_BANS]${NC} "   
-    else
-        echo -ne "${DM}no VIPB bans ${NC}"
-    fi
+    echo -ne "\t  ╚██╗ ██╔╝██║██╔═══╝ ██╔══██╗    "
+    case $VIPB_STATUS in
+        0) echo -ne "${GRN}";;      #OK
+        1) echo -ne "${DM}${RED}";; #not found
+        2) echo -ne "${ORG}";;      #firewalld: no reference
+        3) echo -ne "${S24}";;      #firewalld: OK sync --permanent
+        4) echo -ne "${RED}";;      #firewalld: no ipset to link
+        *) log "$VIPB_STATUS";;
+    esac
+    echo -ne "✦ VIPB ${VLT}$VIPB_BANS ${NC}"   
     echo
-    echo -ne "\t   ╚████╔╝ ██║██║     ██████╔╝    ✦ "
-    if [ "$MANUAL_IPSET" == "true" ] ; then   
-        echo -ne "${YLW}USER bans ${BD}[$USER_BANS]${NC} "   
-    else
-        echo -ne "${DM}no USER bans ${NC}"
-    fi
+    echo -ne "\t   ╚████╔╝ ██║██║     ██████╔╝    "
+    case $USER_STATUS in
+        0) echo -ne "${GRN}";;
+        1) echo -ne "${DM}${RED}";;
+        2) echo -ne "${ORG}";;
+        3) echo -ne "${S24}";;
+        4) echo -ne "${RED}";;   
+        *) log "$USER_STATUS";;
+    esac
+    echo -ne "✦ USER ${YLW}$USER_BANS ${NC}"   
     echo
     echo -ne "\t    ╚═══╝  ╚═╝╚═╝     ╚═════╝     "
-    echo -ne "✦ ${ORG}$FIREWALL rules "
-    if [ "$FW_RULES" == "true" ] ; then
-        echo -ne "${GRN}found${NC}"
-    else
-        echo -ne "${RED}not found${NC}"
-    fi
+    [ "$FW_RULES" == "true" ] && echo -ne "${GRN}" || echo -ne "${RED}";
+    echo -ne "✦ rules${NC} in ${ORG}$FIREWALL${NC}"
     echo
     echo -ne "${DM}"
     if [ "$METAERRORS" -gt 0 ]; then
         center "${RED}------------------${NC}${RED}-- possible conflict detected --${DM}------------------${NC}"
-    elif [ "$PERMANENT" == "--permanent" ]; then
-        center "${BLU}-------------------${NC}${BLU}-- permanent mode detected --${DM}-------------------${NC}"
+    fi
+    if [ "$FIREWALL" == "firewalld" ] && [ "$PERMANENT" == "--permanent" ]; then
+        center "${BLU}----------------------${NC}${BLU}-- permanent editing --${DM}----------------------${NC}"
+    elif [ "$FIREWALL" == "firewalld" ] ; then
+        center "${S24}----------------------${NC}${S24}--- runtime editing ---${DM}----------------------${NC}"
     else
         center "--------------------------------------------------------------------"
     fi
@@ -1378,7 +1384,7 @@ function menu_main() {
     if [[ $CRON == "false" ]]; then
         echo -ne "${DM}"
     fi
-    echo -e "\t8${SLM}.${NC} Daily ${SLM}Cron${NC} Jobs"
+    echo -e "\t8${SLM}.${NC} Daily ${SLM}Cron${NC} Job & DL LV"
     echo -e "\t9${S24}. Geo IP${NC} lookup"
     echo -e "\t10${ORG}. Log Extractor ${NC}& Vars"
     echo
@@ -1420,7 +1426,7 @@ function menu_main() {
 
 # Menu and selector functions (at the end 'cause so exotic that messes up formatting)
 
-function ipset_selector() { #SINGLE IPSET SELECTOR #2do
+function ipset_selector() { #SINGLE IPSET SELECTOR #2do not used yet
     
     local select_ipsets=("$@")
 
