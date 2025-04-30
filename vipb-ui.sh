@@ -761,8 +761,8 @@ function handle_firewalls() {
     echo -e "\t2. ${S16}Create ${ORG}VIPB-rules${NC}"
     echo -e "\t3. Remove ${ORG}all VIPB-rules${NC}"
     echo -ne "\t4. "
-    if [[ "$FIREWALL" == "firewalld" ]] && echo "Edit Mode" || echo "Save/Persistent "; #persistent & --permanent editing
-    echo -e "\t5. Reload, Check & Repair"                                  #2do with deeper analysis
+    [[ "$FIREWALL" == "firewalld" ]] && echo "Change Edit Mode" || echo "Save / Persistent "; #persistent & --permanent editing
+    echo -e "\t5. Reload, ${SLM}Check & Repair${NC}"      #2do with deeper analysis
     echo -e "\t6. Change firewall \t${RED}!${NC}${DM}>>${NC}"
     echo
     echo -e "\t${DM}0. <<${NC}" 
@@ -895,7 +895,7 @@ function handle_firewalls() {
                 next
                 ;;
             4)  if [[ "$FIREWALL" == "iptables" ]]; then
-                    debug_log " $opt. Save"
+                    debug_log " $opt. Save rules"
                     echo "persistent vs permanent ?" #2do
 
                 elif [[ "$FIREWALL" == "firewalld" ]]; then
