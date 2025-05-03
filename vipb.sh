@@ -92,15 +92,15 @@ echo "Firewall: $FIREWALL"
 
 # if UI terminal > load vipb-ui.sh
 if [ "$CLI" == "false" ]; then
-    # load UI
-    source "$SCRIPT_DIR/vipb-ui.sh"
-    log "$SCRIPT_DIR/vipb-ui.sh $( echo -e "${GRN}LOADED${NC}")"
-    log "UI interface LOADED"
     # Start
     echo -n "Checking firewall rules... "
     check_firewall_rules
     echo "OK"
     check_vipb_ipsets
+    # load UI
+    source "$SCRIPT_DIR/vipb-ui.sh"
+    log "$SCRIPT_DIR/vipb-ui.sh $( echo -e "${GRN}LOADED${NC}")"
+    log "UI interface LOADED"
     # Start UI execution
     header
     menu_main

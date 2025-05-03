@@ -413,8 +413,8 @@ function handle_manual_ban() {
     echo -e "User bans are stored in ipset ${YLW}${BG}$MANUAL_IPSET_NAME${NC}. Max 254 sources allowed."
     echo -e "${DM}You can use the ${YLW}ban${NC}${DM} command to add IPs to the manual ipset via CLI.${NC}"
     echo
-    echo -e "${YLW}Last banned IPs:${NC}"
-    if [[ "$FIREWALL" == "firewalld" ]]; then
+    echo -e "${YLW}Banned IPs:${NC}"
+    if [[ "$FIREWALL" == "firewalld" ]]; then 
         mapfile -t user_ips < <(firewall-cmd ${PERMANENT:+$PERMANENT} --ipset="$MANUAL_IPSET_NAME" --get-entries)
     elif [[ "$FIREWALL" == "iptables" ]]; then
         mapfile -t user_ips < <(ipset list "$MANUAL_IPSET_NAME" | grep -E '^[0-9]+\.')
@@ -572,7 +572,15 @@ function handle_ipsets() {
     subtitle "ipsets"
     echo
     if [[ $IPSET == "true" ]]; then
-        echo -e "\t1. List ${BLU}all ipsets${NC}"
+        if [[ "$FIREWALL" == "firewalld" ]]; then
+            select_ipsets=($((sudo firewall-cmd --permanent --get-ipsets; firewall-cmd --get-ipsets | tr ' ' '\n') | sort -u))
+            select_ipsets=($(printf "%s\n" "${select_ipsets[@]}" | awk '!seen[$0]++'))
+            #select_ipsets=($(sudo firewall-cmd ${PERMANENT:+$PERMANENT} --get-ipsets)
+        elif [[ "$IPSET" == "true" ]]; then
+            select_ipsets=($(ipset list -n))
+        fi
+        echo
+        echo -e "\t1. Manage ${BLU}ipsets${NC}"
         echo -e "\t2. ${S16}Create ${VLT}VIPB-ipsets${NC}\t${DM}>>${NC}"
     fi
     echo
@@ -585,16 +593,8 @@ function handle_ipsets() {
         read -p "_ " ipsets_choice
         echo -e "${NC}"
         case $ipsets_choice in
-            1)  debug_log " $ipsets_choice. List ipsets"
-                header
+            1)  debug_log " $ipsets_choice. Manage ipsets"
                 subtitle "${BLU}Manage ipsets"
- 
-                if [[ "$FIREWALL" == "firewalld" ]]; then
-                    select_ipsets=($(firewall-cmd --permanent --get-ipsets)) #2check --permanent
-                elif [[ "$IPSET" == "true" ]]; then
-                    select_ipsets=($(ipset list -n))
-                fi
-
                 if [[ ${#select_ipsets[@]} -eq 0 ]]; then
                     echo -e "${RED}No ipsets found.${NC} Create them with option 2."
                 else
@@ -637,7 +637,7 @@ function handle_ipsets() {
                                     count=$(count_ipset "$current_ipset")
                                     echo -e "${VLT}$count entries${NC} in set"
                                     case $check_status in
-                                        0 | 2 | 3)    desc=$(ipset list "$current_ipset" | grep "Name:" | awk '{print $2}')
+                                        0 | 2 | 3 | 4 | 5)    desc=$(ipset list "$current_ipset" | grep "Name:" | awk '{print $2}')
                                                         type=$(ipset list "$current_ipset" | grep "Type:" | awk '{print $2}')
                                                         maxelem=$(ipset list "$current_ipset" | grep -o "maxelem [0-9]*" | awk '{print $2}')
                                                         echo -e "description: ${BD}$desc${NC}"
@@ -658,15 +658,14 @@ function handle_ipsets() {
                                                 ;;
                                             1)  echo -e "${VLT}☷ Clearing '$current_ipset' ipset...${NC} "
                                                 clear_ipset "$current_ipset"
-                                                #reload_firewall
+                                                check_vipb_ipsets
                                                 echo
                                                 VIPB_BANS=$(count_ipset "$VIPB_IPSET_NAME")
                                                 USER_BANS=$(count_ipset "$MANUAL_IPSET_NAME")
-                                                echo -e "${VLT}Done.${NC} Be careful now."
+                                                echo -e "${VLT}Done.${NC}"
                                                 ;;
                                         esac
                                     fi
-                                    #reload_firewall
                                     ;;
                                 3)  debug_log " $ipset_opt. Destroy"
                                     echo -ne "${RED}"
@@ -695,10 +694,9 @@ function handle_ipsets() {
                                                 echo -e "${BLU}☷ Destroying '$current_ipset' ipset...${NC} "
                                                 destroy_ipset "$current_ipset"
                                                 echo
-                                                #reload_firewall
                                                 check_firewall_rules
                                                 check_vipb_ipsets
-                                                echo -e "${VLT}Done.${NC} Be careful now."
+                                                echo -e "${VLT}Done.${NC}"
                                                 ;;
                                             esac
                                     fi
@@ -758,12 +756,29 @@ function handle_firewalls() {
     echo
     echo
     echo -e "\t1. View ${ORG}all rules${NC}"
-    echo -e "\t2. ${S16}Create ${ORG}VIPB-rules${NC}"
-    echo -e "\t3. Remove ${ORG}all VIPB-rules${NC}"
+    echo -e "\t2. ${S16}Create ${ORG}VIPB-rules${NC}\t ${DM}>>${NC}"
+    echo -e "\t3. Remove ${ORG}all VIPB-rules${NC} ${DM}>>${NC}"
     echo -ne "\t4. "
-    [[ "$FIREWALL" == "firewalld" ]] && echo "Change Edit Mode" || echo "Save / Persistent "; #persistent & --permanent editing
-    echo -e "\t5. Reload, ${SLM}Check & Repair${NC}"      #2do with deeper analysis
-    echo -e "\t6. Change firewall \t${RED}!${NC}${DM}>>${NC}"
+    if [[ "$FIREWALL" == "iptables" ]]; then
+        echo -e "Save rules"
+    elif [[ "$FIREWALL" == "firewalld" ]]; then
+        if [[ "$PERMANENT" == "--permanent" ]]; then
+            echo -e "${BLU}Apply changes${NC} (reload)"
+        else
+            echo -e "Save as ${BLU}--permanent${NC}"
+        fi
+    fi
+    echo -e "\t5. ${SLM}Check & Repair${NC}"                    #2do with deeper analysis
+    echo -e "\t6. Change firewall \t ${RED}!${NC}${DM}>>${NC}"
+    if [[ "$FIREWALL" == "firewalld" ]]; then
+        echo -e "\n\t${DM}✦ $FIREWALL${NC}"
+        echo -ne "\t7. Switch to "
+        if [[ "$PERMANENT" == "--permanent" ]]; then
+           echo -e "${S24}runtime${NC} edit"
+        else
+           echo -e "${BLU}--permanent${NC} edit"
+        fi
+    fi
     echo
     echo -e "\t${DM}0. <<${NC}" 
     echo -e "\e[0m"
@@ -782,14 +797,14 @@ function handle_firewalls() {
                     for i in "${!FW_RULES_LIST[@]}"; do
                         echo "${FW_RULES_LIST[$i]}"
                     done
+                    echo
+                    check_vipb_rules
                 else
                     echo -e "${RED}No rules found.${NC} System unprotected."
                 fi
                 echo
-                check_vipb_rules
-                echo
                 rules_options=()
-                for idx in "${FOUND_FW_RULES[@]}"; do
+                for idx in "${FOUND_VIPB_RULES[@]}"; do
                     rule_num=$((idx + 1))
                     rules_options+=("${SLM}#$rule_num ${NC}")
                 done
@@ -801,7 +816,7 @@ function handle_firewalls() {
                         ;;
                     *)  debug_log " $rules_select. rule"
                         rules_select=$((rules_select - 1))
-                        selected_rule_number="${FOUND_FW_RULES[$rules_select]}"
+                        selected_rule_number="${FOUND_VIPB_RULES[$rules_select]}"
                         selected_rule_number=$((selected_rule_number + 1))
                         echo -e "${SLM}${selected_rule_number}${NC}"
                         #selected_rule_txt=$(get_fw_ruleNUM $selected_rule_number)
@@ -846,15 +861,20 @@ function handle_firewalls() {
                         0)  echo "Nothing to do."
                             ;;
                         1)  for ipset_name in "${selected_ipsets[@]}"; do  
-                                echo -e "${ORG}☷ ipset '${ipset_name}'${NC}"
-                                if remove_firewall_rules "$ipset_name" ; then
-                                    echo -e "${GRN}OK${NC}"
+                                echo -e "${ORG}☷ ipset '${ipset_name}' ⇄ ${BG}$FIREWALL ${NC}"
+                                echo -e "Checking firewall rules..."
+                                if [[ $(check_firewall_rules "$ipset_name") == 0 ]] || [[ $(check_firewall_rules "$ipset_name") == 3 ]] || [[ $(check_firewall_rules "$ipset_name") == 4 ]]; then
+                                    echo -e "Rules found."
+                                    if remove_firewall_rules "$ipset_name" ; then
+                                        echo -e "${GRN}Done${NC}"
+                                    else
+                                        echo -e "${RED}Failed${NC}" "$?"
+                                    fi  
                                 else
-                                    echo -e "${RED}failed${NC}" "$?"
+                                    echo "No rule found."
                                 fi
                                 if add_firewall_rules "$ipset_name" ; then
                                     echo -e "${GRN}OK${NC}"
-                                    #reload_firewall
                                 else
                                     echo -e "${RED}failed${NC}" "$?"
                                 fi
@@ -881,9 +901,9 @@ function handle_firewalls() {
                         0)  echo "Nothing to do."
                             ;;
                         1)  for ipset_name in "${selected_ipsets[@]}"; do  
-                                echo -e "${VLT}☷ ipset '${ipset_name}'${NC}"
+                                echo -e "${VLT}☷ ipset '${ipset_name}' ⇄ ${BG}$FIREWALL ${NC}"
                                 if remove_firewall_rules "$ipset_name" ; then
-                                    echo -e "${GRN}OK${NC}"
+                                    echo -e "${VLT}Done.${NC}"
                                 else
                                     echo -e "${RED}Failed${NC}" "$?"
                                 fi
@@ -894,29 +914,24 @@ function handle_firewalls() {
                 fi
                 next
                 ;;
-            4)  if [[ "$FIREWALL" == "iptables" ]]; then
-                    debug_log " $opt. Save rules"
-                    echo "persistent vs permanent ?" #2do
-
+            4)  debug_log " $fw_choice. Save rules"
+                if [[ "$FIREWALL" == "iptables" ]]; then
+                    save_iptables_rules
                 elif [[ "$FIREWALL" == "firewalld" ]]; then
-                    debug_log " $opt. Edit Mode"
-                    [[ "$PERMANENT" == "--permanent" ]] && PERMANENT="" || PERMANENT="--permanent" ;
-                    echo -ne "Edit mode set to " 
+                    if [[ "$PERMANENT" == "--permanent" ]]; then
+                        reload_firewall
+                    else
+                        firewall-cmd --runtime-to-permanent
+                    fi
+                    echo -ne "Edit mode changed to " 
                     [[ "$PERMANENT" == "--permanent" ]] && echo -e "${BLU}--permanent${NC}" || echo -e "${S24}--runtime${NC}" ;
-                    echo "Remember to sync!" #2do
                 fi
                 next
                 ;;
-            5)  debug_log " $fw_choice. Reload firewall"
-                subtitle "Reload & check"
-
-                echo -e "We'll reload the firewall. ${YLW}Proceed?"
-                select_opt "No" "Yes"
-                select_yesno=$?
-                case $select_yesno in
-                    0)  echo "Nothing to do." ;;
-                    1)  reload_firewall ;;
-                esac
+            5)  debug_log " $fw_choice. Check & Repair"
+                header
+                subtitle "${SLM}+ Check & Repair +"
+                check_and_repair
                 next
                 ;;
             6)  debug_log " $fw_choice. Change firewall"
@@ -949,7 +964,7 @@ function handle_firewalls() {
                         ;;
                     2)  debug_log " $fw_options. FirewallD"
                         FIREWALL="firewalld"
-                        PERMANENT='--permanent'
+                        PERMANENT=''
                         ;;
                     3)  debug_log " $fw_options. ufw"
                         FIREWALL="ufw"
@@ -965,6 +980,31 @@ function handle_firewalls() {
                 check_firewall_rules
                 echo "OK"
                 check_vipb_ipsets
+                next
+                ;;
+            7)  debug_log " $fw_choice. Switch Edit Mode"
+                if [[ "$FIREWALL" == "firewalld" ]]; then        
+                    if [[ "$PERMANENT" == "--permanent" ]]; then
+                        #needs reload to be saved
+                        PERMANENT=""
+                    else
+                        PERMANENT="--permanent" ;
+                    fi
+                    echo -ne "Edit mode changed to " 
+                    [[ "$PERMANENT" == "--permanent" ]] && echo -e "${BLU}--permanent${NC}" || echo -e "${S24}--runtime${NC}" ;
+                fi
+                next
+                ;;
+            8)  debug_log " $fw_choice. Reload firewall"
+                subtitle "Reload"
+
+                echo -e "We'll reload the firewall. ${YLW}Proceed?"
+                select_opt "No" "Yes"
+                select_yesno=$?
+                case $select_yesno in
+                    0)  echo "Nothing to do." ;;
+                    1)  reload_firewall ;;
+                esac
                 next
                 ;;
             0)  debug_log " $fw_choice. << Back to Menu"
@@ -1326,22 +1366,24 @@ function header() {
     echo -e "\t  ██║   ██║██║██████╔╝██████╔╝     ${DM}             ┗         ${NC}"
     echo -ne "\t  ╚██╗ ██╔╝██║██╔═══╝ ██╔══██╗    "
     case $VIPB_STATUS in
-        0) echo -ne "${GRN}";;      #OK
-        1) echo -ne "${DM}${RED}";; #not found
-        2) echo -ne "${ORG}";;      #firewalld: no reference
-        3) echo -ne "${S24}";;      #firewalld: OK sync --permanent
-        4) echo -ne "${RED}";;      #firewalld: no ipset to link
+        0 | 5) echo -ne "${GRN}";;      #OK
+        1 | 6) echo -ne "${DM}${RED}";; #not found
+        2) echo -ne "${RED}";;          #firewalld: no sets
+        3) echo -ne "${S24}";;          #firewalld: ok runtime
+        4) echo -ne "${BLU}";;          #firewalld: ok permanent
+        7 | 8 | 9) echo -ne "${DM}${ORG}";;   #firewalld: orph
         *) log "$VIPB_STATUS";;
     esac
     echo -ne "✦ VIPB ${VLT}$VIPB_BANS ${NC}"   
     echo
     echo -ne "\t   ╚████╔╝ ██║██║     ██████╔╝    "
     case $USER_STATUS in
-        0) echo -ne "${GRN}";;
-        1) echo -ne "${DM}${RED}";;
-        2) echo -ne "${ORG}";;
-        3) echo -ne "${S24}";;
-        4) echo -ne "${RED}";;   
+        0 | 5) echo -ne "${GRN}";;      #OK
+        1 | 6) echo -ne "${DM}${RED}";; #not found
+        2) echo -ne "${RED}";;          #firewalld: no sets
+        3) echo -ne "${S24}";;          #firewalld: ok runtime
+        4) echo -ne "${BLU}";;          #firewalld: ok permanent
+        7 | 8 | 9) echo -ne "${DM}${ORG}";;   #firewalld: orph
         *) log "$USER_STATUS";;
     esac
     echo -ne "✦ USER ${YLW}$USER_BANS ${NC}"   
@@ -1352,7 +1394,7 @@ function header() {
     echo
     echo -ne "${DM}"
     if [ "$METAERRORS" -gt 0 ]; then
-        center "${RED}------------------${NC}${RED}-- possible conflict detected --${DM}------------------${NC}"
+        center "${RED}------------------${NC}${RED}-- ${METAERROR:-"possible conflict detected"} --${DM}------------------${NC}"
     fi
     if [ "$FIREWALL" == "firewalld" ] && [ "$PERMANENT" == "--permanent" ]; then
         center "${BLU}----------------------${NC}${BLU}-- permanent editing --${DM}----------------------${NC}"
