@@ -572,10 +572,10 @@ function handle_check_repair() {
     subtitle "+ Check & Repair +"
     check_and_repair && vipb_repair
     next
-    back
+    handle_check_repair
 }
 
-# (Menu 6) manage ipsets  
+# (Menu 7) manage ipsets  
 function handle_ipsets() {
     debug_log "7. ipsets"
     header
@@ -1012,7 +1012,7 @@ function handle_firewalls() {
                 esac
                 next
                 ;;
-            8)  debug_log " $fw_choice. << Back to Menu"
+            0)  debug_log " $fw_choice. << Back to Menu"
                 back
                 ;;
         esac
@@ -1394,8 +1394,8 @@ function header() {
     echo -ne "✦ USER ${YLW}$USER_BANS ${NC}"   
     echo
     echo -ne "\t    ╚═══╝  ╚═╝╚═╝     ╚═════╝     "
-    [ "$FW_RULES" == "true" ] && echo -ne "${GRN}" || echo -ne "${RED}";
-    echo -ne "✦ rules${NC} in ${ORG}$FIREWALL${NC}"
+    [ "$FW_RULES" == "true" ] && echo -ne "${GRN}✦ " || echo -ne "${RED}✦ no ";
+    echo -ne "rules${NC} in ${ORG}$FIREWALL${NC}"
     echo
     echo -ne "${DM}"
     if [ "$METAERRORS" -gt 0 ]; then
@@ -1423,10 +1423,10 @@ function menu_main() {
     echo
     echo -e "\t${VLT}5. Download > ${CYN}Aggregate > ${BLU}Ban!${NC}"
     echo -e "\n\t${DM}✦ TOOLS${NC}"
+    echo -e "\t6. ${SLM}Check ${NC}&${SLM} Repair${NC}"
     if [[ $IPSET == "false" ]]; then
         echo -ne "${DM}"
     fi
-    echo -e "\t6. ${SLM}Check & Repair${NC}"
     echo -e "\t7. Manage ${BLU}ipsets${NC}"
     echo -e "\t8. Manage ${ORG}firewall${NC}"
     if [[ $CRON == "false" ]]; then
