@@ -564,9 +564,20 @@ function handle_download_and_ban() {
     back
 }
 
+# (Menu 6) Check/Repair
+function handle_check_repair() {
+    debug_log "6. Check & Repair"
+    header
+    echo -ne "${SLM}"
+    subtitle "+ Check & Repair +"
+    check_and_repair && vipb_repair
+    next
+    back
+}
+
 # (Menu 6) manage ipsets  
 function handle_ipsets() {
-    debug_log "6. ipsets"
+    debug_log "7. ipsets"
     header
     echo -ne "${BLU}"
     subtitle "ipsets"
@@ -745,9 +756,9 @@ function handle_ipsets() {
     done
 }
 
-# (Menu 7) manage firewalls  
+# (Menu 8) manage firewalls  
 function handle_firewalls() {
-    debug_log "7. Firewall"
+    debug_log "8. Firewall"
     header
     echo -ne "${ORG}"
     subtitle "Firewall"
@@ -768,11 +779,10 @@ function handle_firewalls() {
             echo -e "Save as ${BLU}--permanent${NC}"
         fi
     fi
-    echo -e "\t5. ${SLM}Check & Repair${NC}"                    #2do with deeper analysis
-    echo -e "\t6. Change firewall \t ${RED}!${NC}${DM}>>${NC}"
+    echo -e "\t5. Change firewall \t ${RED}!${NC}${DM}>>${NC}"
     if [[ "$FIREWALL" == "firewalld" ]]; then
         echo -e "\n\t${DM}✦ $FIREWALL${NC}"
-        echo -ne "\t7. Switch to "
+        echo -ne "\t6. Switch to "
         if [[ "$PERMANENT" == "--permanent" ]]; then
            echo -e "${S24}runtime${NC} edit"
         else
@@ -928,13 +938,8 @@ function handle_firewalls() {
                 fi
                 next
                 ;;
-            5)  debug_log " $fw_choice. Check & Repair"
-                header
-                subtitle "${SLM}+ Check & Repair +"
-                check_and_repair
-                next
-                ;;
-            6)  debug_log " $fw_choice. Change firewall"
+            
+            5)  debug_log " $fw_choice. Change firewall"
                 subtitle "${ORG}Change firewall"
                 echo -e "${ORG}Change firewall at your risk.${NC}"
                 echo -e "This section is in still in development and not optimized for cross-use between firewalls yet."
@@ -982,7 +987,7 @@ function handle_firewalls() {
                 check_vipb_ipsets
                 next
                 ;;
-            7)  debug_log " $fw_choice. Switch Edit Mode"
+            6)  debug_log " $fw_choice. Switch Edit Mode"
                 if [[ "$FIREWALL" == "firewalld" ]]; then        
                     if [[ "$PERMANENT" == "--permanent" ]]; then
                         #needs reload to be saved
@@ -995,7 +1000,7 @@ function handle_firewalls() {
                 fi
                 next
                 ;;
-            8)  debug_log " $fw_choice. Reload firewall"
+            7)  debug_log " $fw_choice. Reload firewall" #DELETEME
                 subtitle "Reload"
 
                 echo -e "We'll reload the firewall. ${YLW}Proceed?"
@@ -1007,7 +1012,7 @@ function handle_firewalls() {
                 esac
                 next
                 ;;
-            0)  debug_log " $fw_choice. << Back to Menu"
+            8)  debug_log " $fw_choice. << Back to Menu"
                 back
                 ;;
         esac
@@ -1015,9 +1020,9 @@ function handle_firewalls() {
     done
 }
 
-# (Menu 8) cron job daily autoban
+# (Menu 9) cron job daily autoban
 function handle_cron_jobs() {
-    debug_log "7. Daily Cron Job"
+    debug_log "9. Daily Cron Job"
     header
     echo -ne "${SLM}"
     subtitle "Daily Cron Job"        
@@ -1089,9 +1094,9 @@ function handle_cron_jobs() {
     handle_cron_jobs
 }
 
-# (Menu 9) Geo IP lookup 
+# (Menu 10) Geo IP lookup 
 function handle_geo_ip_info() {
-    debug_log "8. GeoIP lookup"
+    debug_log "10. GeoIP lookup"
     header
     echo -e "${S24}"
     subtitle "GeoIP lookup"
@@ -1109,9 +1114,9 @@ function handle_geo_ip_info() {
     back
 }
 
-# (Menu 10) Logs and info 
+# (Menu 11) Logs and info 
 function handle_logs_info() {
-    debug_log "9. Logs & infos"
+    debug_log "11. Logs & infos"
     header
     echo -ne "${ORG}"
     subtitle "Logs & infos"
@@ -1340,7 +1345,7 @@ function services_row() {
         rowtext+="${DM}"
     fi
     rowtext+="${BG}cron${NC} "
-    rowtext+="${VLT}▼ $BLACKLIST_LV${NC}"
+    rowtext+="${VLT}L▼ $BLACKLIST_LV${NC}"
 
     rowtext+="${NC}"
 
@@ -1421,14 +1426,15 @@ function menu_main() {
     if [[ $IPSET == "false" ]]; then
         echo -ne "${DM}"
     fi
-    echo -e "\t6. Manage ${BLU}ipsets${NC}"
-    echo -e "\t7. Manage ${ORG}firewall${NC}"
+    echo -e "\t6. ${SLM}Check & Repair${NC}"
+    echo -e "\t7. Manage ${BLU}ipsets${NC}"
+    echo -e "\t8. Manage ${ORG}firewall${NC}"
     if [[ $CRON == "false" ]]; then
         echo -ne "${DM}"
     fi
-    echo -e "\t8${SLM}.${NC} Daily ${SLM}Cron${NC} Job & DL LV"
-    echo -e "\t9${S24}. Geo IP${NC} lookup"
-    echo -e "\t10${ORG}. Log Extractor ${NC}& Vars"
+    echo -e "\t9${SLM}.${NC} Daily ${SLM}Cron${NC} Job & ${VLT}L▼${NC}"
+    echo -e "\t10${S24}. Geo IP${NC} lookup"
+    echo -e "\t11${ORG}. Log Extractor ${NC}& Vars"
     echo
     echo -e "\t${DM}0. Exit${NC}"
     echo
@@ -1444,11 +1450,12 @@ function menu_main() {
             3) handle_blacklist_ban ;;
             4) handle_manual_ban ;;
             5) handle_download_and_ban ;;
-            6) handle_ipsets ;;
-            7) handle_firewalls ;;
-            8) handle_cron_jobs ;;
-            9) handle_geo_ip_info ;;
-            10) handle_logs_info ;;
+            6) handle_check_repair ;;
+            7) handle_ipsets ;;
+            8) handle_firewalls ;;
+            9) handle_cron_jobs ;;
+            10) handle_geo_ip_info ;;
+            11) handle_logs_info ;;
             0) debug_log "0. Exit"; vquit ;;
             *) if validate_ip "$choice"; then
                     echo -e "${YLW}Manual Ban IP: $choice${NC}"
