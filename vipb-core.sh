@@ -15,7 +15,7 @@ MANUAL_IPSET_NAME='vipb-manualbans'
 # environment variables, DO NOT CHANGE
 BASECRJ='https://raw.githubusercontent.com/stamparm/ipsum/master/levels/'
 BLACKLIST_URL="$BASECRJ${BLACKLIST_LV}.txt" 
-FIREWALL='iptables'
+FIREWALL=''
 INFOS=false
 ADDED_IPS=0
 ALREADYBAN_IPS=0
@@ -74,12 +74,13 @@ function check_dependencies() {
             
         if [[ -n "$FIREWALL" ]]; then # use variable
             FIREWALL="$FIREWALL"
+        fi
+        if [[ "$UFW" == "true" ]]; then
+            FIREWALL="ufw"
         elif [[ "$IPTABLES" == "true" ]]; then
             FIREWALL="iptables"
         elif [[ "$FIREWALLD" == "true" ]]; then
             FIREWALL="firewalld"
-        elif [[ "$UFW" == "true" ]]; then
-            FIREWALL="ufw"
         else
             FIREWALL="ERROR"
             err=1
@@ -95,11 +96,11 @@ function check_dependencies() {
         fi
         
         if [[ "$FIREWALL" == "ERROR" ]]; then
-            log "@$LINENO: CRITICAL ERROR: No firewall system found."
-            echo -e "${RED}CRITICAL ERROR: No firewall system found?!${NC}"
+            log "@$LINENO: CRITICAL: Firewall $FIREWALL No firewall system found."
+            echo -e "${RED}CRITICAL: Firewall $FIREWALL No firewall system found!${NC}"
             if [ ! "$DEBUG" == "true" ]; then
                 echo "Exit."
-                exit 1
+                #exit 1
             fi
         fi
 
@@ -188,7 +189,7 @@ function check_ipset() {
         else                        # 0 - IPSET found
             echo -ne "${GRN}"
         fi
-        echo -e "found in system ${NC}"
+        echo -ne "found in system${NC}. "
 
         if [[ "$FIREWALLD" == "true" ]]; then
             #echo -ne "in ${ORG}${BG}firewalld${NC}: "
@@ -203,54 +204,53 @@ function check_ipset() {
                 P=1
                 ((f++))
             fi                                  
-            echo                                
-            
-            echo -n "Status " 
+            echo -n "[" 
             
             if [[ "$err" == 0 ]] ; then                 # 0 - IPSET found
                 if [[ "$f" -gt 0 ]]; then         
                     if [[ "$f" -gt 1 ]]; then           ## 5 - OK! firewalld: both --permanent and runtime found
-                        echo -ne "${GRN}BOTH ${NC}"
+                        echo -ne "${S16}BOTH${NC}"
                         err=5
                     else
                         if [[ "$r" -gt 0 ]] ; then      ## 3 - OK firewalld: runtime found
-                            echo -ne "${S24}RUNTIME ${NC}"
+                            echo -ne "${S24}RUNTIME${NC}"
                             err=3
                         elif [[ "$r" -gt 0 ]] ; then    ## 4 - OK firewalld: --permanent found
-                            echo -ne "${BLU}--PERMANENT ${NC}"
+                            echo -ne "${BLU}--PERMANENT${NC}"
                             err=4
                         else                            ## 10 - impossible
-                            echo -ne "${RED}-impossible- ${NC}"
+                            echo -ne "${RED}-impossible-${NC}"
                             err=10                       
                         fi
                     fi                          
                 else                                    ## 2 - firewalld: no sets found
-                    echo -ne "${RED}NO REFERENCES ${NC}" 
+                    echo -ne "${ORG}NO REFERENCES${NC}" 
                     err=2                                   
                 fi
             else                                        # 1 - IPSET not found (orphaned)
                 if [[ "$f" -gt 0 ]]; then
                     if [[ "$f" -gt 1 ]]; then           ## 8 - firewalld: both --permanent and runtime found, but no ipset
-                        echo -ne "${YLW}BOTH "
+                        echo -ne "${YLW}BOTH${NC}"
                         err=9
                     else                                ##  orphaned
                         if [[ "$r" -gt 0 ]] ; then      ## 7 - firewalld: runtime found
-                            echo -ne "${YLW}RUNTIME "
+                            echo -ne "${YLW}RUNTIME${NC}"
                             err=7
                         elif [[ "$r" -gt 0 ]] ; then    ## 8 - firewalld: --permanent found
-                            echo -ne "${YLW}--PERMANENT "
+                            echo -ne "${YLW}--PERMANENT${NC}"
                             err=8
                         else                            ## 10 -
-                            echo -ne "${RED}-impossible- "
+                            echo -ne "${RED}-impossible-${NC}"
                             err=10                       
                         fi
                     fi
-                    echo -ne "${NC}ORPHANED"                
+                    echo -ne " ${ORG}ORPHANED${NC}"                
                 else                                    ## 6 - firewalld: also not found
-                    echo -ne "${YLW}NO REFERENCES ${NC}"
+                    echo -ne "${YLW}NO REFERENCES${NC}"
                     err=6                      
                 fi
-            fi                                  
+            fi 
+            echo "] "                                 
         fi
     else
         err=1
@@ -1343,6 +1343,7 @@ function vipb_repair {
                                 local current_ipset="$1"
                                 local temp_file1=$(mktemp)
                                 local temp_file2=$(mktemp)
+                                local temp_file3=$(mktemp)
                                 
                                 ipset list "$current_ipset" | grep -E '^([0-9]{1,3}\.){3}[0-9]{1,3}(/[0-9]{1,2})?$' > "$temp_file1"
                                 firewall-cmd ${PERMANENT:+$PERMANENT} --ipset="$current_ipset" --get-entries > "$temp_file2"
@@ -1360,24 +1361,23 @@ function vipb_repair {
                                 echo -e "\n჻ ${VLT}${total_read} IPs synced${NC}" 
                                 echo "჻ into firewalld set..."
                                 check_blacklist_file "$temp_file2"
-                                IPS=()
-                                while IFS= read -r ip; do
-                                if ! grep -q "^$ip$" "$temp_file2"; then
-                                    IPS+=("$ip")
-                                    echo -ne "."
-                                fi
-                                done < "$temp_file1"
-                                total_read=${#IPS[@]}
-                                echo -e "\n჻ ${VLT}${total_read} IPs to sync${NC}" 
+                                grep -vxFf "$temp_file2" "$temp_file1" > "$temp_file3"
+                                total_read=$(wc -l < "$temp_file3")
+                                echo -ne "\n჻ ${VLT}${total_read} IPs to sync${NC} " 
                                 fw=$FIREWALL
                                 FIREWALL="firewalld"
-                                add_ips "$current_ipset" "${IPS[@]}"
+                                if ! firewall-cmd ${PERMANENT:+$PERMANENT} --ipset="$current_ipset" --add-entries-from-file="$temp_file3"; then
+                                    ((ERRORS++))
+                                    err=$?
+                                    cat "$temp_file3" > "$SCRIPT_DIR/DUPLICATE-$current_ipset-$(date +%Y%m%d_%H%M%S).ipb"
+                                    echo -e "ERROR: duplicate list file saved."
+                                    log "@$LINENO: firewall-cmd $err"
+                                fi
                                 err=$? 
                                 FIREWALL=$fw
-                                echo " OK"
                                 
                                 #ban_core "$temp_file1" "$current_ipset"
-                                rm -f "$temp_file1" "$temp_file2"
+                                rm -f "$temp_file1" "$temp_file2" "$temp_file3"
                                 echo "Done."
                             }
                             sync_ipsets "$current_ipset"
