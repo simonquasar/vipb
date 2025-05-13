@@ -1,6 +1,9 @@
 vipb.zip
 *.log
+*.*~
+*.ipb
 .DS_Store
 .idea/
 .vscode/
-*.*~
+*.ffs_db
+*.bak

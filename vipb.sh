@@ -15,7 +15,7 @@ ARGS=("$@")
 if [ "$EUID" -ne 0 ]; then
     echo "✦ VIPB $VER ✦"
     echo "Error: This script must be run as root. Please use sudo.${NC}"
-    exit 1
+    #exit 1
 fi
 
 # check if debug mode is enabled

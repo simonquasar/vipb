@@ -15,7 +15,7 @@ MANUAL_IPSET_NAME='vipb-manualbans'
 # environment variables, DO NOT CHANGE
 BASECRJ='https://raw.githubusercontent.com/stamparm/ipsum/master/levels/'
 BLACKLIST_URL="$BASECRJ${BLACKLIST_LV}.txt" 
-FIREWALL=''
+FIREWALL='iptables'
 INFOS=false
 ADDED_IPS=0
 ALREADYBAN_IPS=0
@@ -44,9 +44,7 @@ fi
 echo -e "${VLT}✦ VIPB $VER ✦${NC}"
 
 function check_dependencies() {
-    
     err=0
-    
     function check_service() {
         local service_name=$1
         local is_active=false
@@ -1034,7 +1032,7 @@ function add_ips() {
         log "Adding IPs into ipset $ipset..."
         shift 
         local ips=("$@")  
-        echo -e "Adding ${GRN}${#ips[@]} IPs${NC} into ipset ${BG}'$ipset'${BG}..."
+        echo -e "Adding ${GRN}${#ips[@]} IPs${NC} into ipset ${BG}'$ipset'${NC}..."
         ADDED_IPS=0
         ALREADYBAN_IPS=0
         err=0
@@ -1212,8 +1210,8 @@ function check_blacklist_file() {
             if [ "$line_count" == "0" ]; then
                 echo -ne "${ORG}found empty${NC}"
             else
-                echo -ne "${GRN}found${NC} "
-                echo -ne "$line_count sources"
+                echo -ne "${NC}found "
+                echo -ne "${GRN}$line_count sources${NC}"
             fi
         fi
     fi
@@ -1303,6 +1301,7 @@ function vipb_repair {
                 1)  debug_log " $ipset_opt. Details"
                     subtitle "$current_ipset"
                     count=$(count_ipset "$current_ipset")
+                    check_ipset "$current_ipset"
                     echo -e "${VLT}$count entries${NC} in set"
                     case $current_verdict in
                         0 | 2 | 3)    desc=$(ipset list "$current_ipset" | grep "Name:" | awk '{print $2}')
@@ -1423,11 +1422,10 @@ function check_and_repair { #2do
     echo -e "${BG}\trefer\trun\t--perm${NC}\t${VLT} ✓${NC}" 
     echo -ne "${GRY}${BD}-------\t\t\t---------------------"
     [[ "$FIREWALL" != "firewalld" ]] && echo -ne "${DM}"
-    echo -e " -------------------------${NC} ---"
+    echo -e "   -----------------------${NC} ---"
     
     if [[ ${#select_ipsets[@]} -eq 0 ]]; then
         echo -e "${RED}No ipsets found.${NC}"
-        return 1
     else
         for i in "${!select_ipsets[@]}"; do
             current_ipset="${select_ipsets[$i]}"
@@ -1508,8 +1506,40 @@ function check_and_repair { #2do
                 *) echo -e "\t ${VLT}${ipsets_verdicts[$i]}${NC}" ;;
             esac 
         done
-        echo
     fi
+    echo
+
+    echo -e "${GRY}${BD}FIREWALL\t\t ${VLT}✓${NC}"
+    echo -e "---------\t\t---"
+    
+    if [[ "$FIREWALL" == "ERROR" ]]; then
+        echo -e "${RED}No firewall found.${NC}"
+    else
+        check_firewall_rules
+        for i in "${!select_ipsets[@]}"; do
+            current_ipset="${select_ipsets[$i]}"
+            [[ "$current_ipset" != vipb-* ]] && echo -ne "${BLU}" ||echo -ne "${VLT}";
+            printf "%-*.*s" "20" "20" " $current_ipset"
+            check_firewall_rules "$current_ipset" 
+            check_status="$?"
+            case $check_status in                                    
+                0) echo -e "\t ${GRN}✓${NC}" ;;
+                1) echo -e "\t ${RED}not found${NC}" ;;
+                2) echo -e "\t ${ORG}err?${NC}" ;;
+                3) echo -e "\t ${S24}✓${NC}" ;;
+                4) echo -e "\t ${BLU}✓--${NC}" ;;
+                *) echo -e "\t ${ORG}$check_status too many${NC}" ;;
+            esac 
+        # STATUS CODES:
+        #   0 ok found (all)
+        #   1 not found (all)
+        #   3 ok runtime (firewalld)
+        #   4 ok permanent (firewalld)
+        #   + too many #2do
+        done
+    fi
+    echo
+    
 }
  
 # ============================
@@ -1541,15 +1571,16 @@ function compressor() {
                 done
             }
             trap cleanup EXIT
-
             echo
-
+            echo
+            echo
             # Default occurrence tolerance levels
             c24=3
             c16=4
             
             if [ "$CLI" == "false" ]; then
                 echo -e "${NC}${YLW}Set occurrence tolerance levels [2-9] ${DM}[Exit with 0]${NC}"
+                echo
                 while true; do
                     echo -ne "${NC}  for ${S24}/24 subnets${NC} (#.#.#.${BG}0${NC}): ${YLW}" 
                     read -r ip_occ
