@@ -696,7 +696,7 @@ function handle_ipsets() {
         next
     else
         if [[ "$FIREWALL" == "firewalld" ]]; then
-            select_ipsets=($((sudo firewall-cmd --permanent --get-ipsets; firewall-cmd --get-ipsets | tr ' ' '\n') | sort -u))
+            select_ipsets=($(sudo firewall-cmd --permanent --get-ipsets; firewall-cmd --get-ipsets | tr ' ' '\n' | sort -u))
             select_ipsets=($(printf "%s\n" "${select_ipsets[@]}" | awk '!seen[$0]++'))
             #select_ipsets=($(sudo firewall-cmd ${PERMANENT:+$PERMANENT} --get-ipsets)
         elif [[ "$IPSET" == "true" ]]; then
