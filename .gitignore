@@ -7,3 +7,5 @@ vipb.zip
 .vscode/
 *.ffs_db
 *.bak
+yad.md
+*-dialog*
