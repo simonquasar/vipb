@@ -684,7 +684,12 @@ function setup_ipset() {
     local ipset_name="$1"
     err=0
 
-    if [[ "$IPSET" == "true" ]] && [[ -n "$ipset_name" ]]; then
+    if ! [[ "$IPSET" == "true" ]]; then
+        echo -e "${RED}IPSET is not enabled!${NC}"
+        return 1
+    fi
+
+    if [[ -n "$ipset_name" ]]; then
         if [[ "$ipset_name" == "$MANUAL_IPSET_NAME" ]]; then
             maxelem=254
         else
@@ -748,8 +753,8 @@ function setup_ipset() {
             log "$ipset_name linked"
         fi
     else
-        echo "ipset error"
-        debug_log "@$LINENO #2do!" #2do
+        echo "ipset name error"
+        debug_log "@$LINENO ipset name error!" #2do
         return 1
     fi
 
@@ -1392,7 +1397,7 @@ function vipb_repair() {
 }
 
 function check_and_repair() { #2do
-    echo -e "${BD}CHECKLIST${NC}"
+    #echo -e "${BD}CHECKLIST${NC}"
 
         # check_and_repair STATUS CODES: verdict (stored in $ipsets_verdicts[i])
         #
@@ -1402,7 +1407,6 @@ function check_and_repair() { #2do
         #   3 entries diff              > bkp entries + destroy_ipset + setup_ipset + add_IPs
         #
         #   9                           ???
-
     echo
     if [[ "$FIREWALL" == "firewalld" ]]; then
         #select_ipsets=($(sudo firewall-cmd ${PERMANENT:+$PERMANENT} --get-ipsets)
@@ -1419,10 +1423,10 @@ function check_and_repair() { #2do
     echo -e "\t\t\t\t\t\t${BG}------ firewalld ------${NC}"
     echo -ne "${GRY}${BD}IPSETS\t\t\t${BG}set\t#\trule"
     [[ "$FIREWALL" != "firewalld" ]] && echo -ne "${DM}"
-    echo -e "${BG}\trefer\trun\t--perm${NC}\t${VLT} ✓${NC}"
-    echo -ne "${GRY}${BD}-------\t\t\t---------------------"
+    echo -e "${BG}\trefer\trun\t--perm${NC}\t${VLT}  ✓${NC}"
+    echo -ne "${GRY}${BD}-------                ---------------------"
     [[ "$FIREWALL" != "firewalld" ]] && echo -ne "${DM}"
-    echo -e "   -----------------------${NC} ---"
+    echo -e "   -----------------------${NC}  ----"
 
     if [[ ${#select_ipsets[@]} -eq 0 ]]; then
         echo -e "${RED}No ipsets found.${NC}"
@@ -1509,8 +1513,8 @@ function check_and_repair() { #2do
     fi
     echo
 
-    echo -e "${GRY}${BD}FIREWALL\t\t ${VLT}✓${NC}"
-    echo -e "---------\t\t---"
+    echo -e "${GRY}${BD}FIREWALL\t\t ${VLT}status${NC}"
+    echo -e "---------\t\t--------"
 
     if [[ "$FIREWALL" == "ERROR" ]]; then
         echo -e "${RED}No firewall found.${NC}"
@@ -1753,18 +1757,22 @@ function ban_core() {
         count=$(count_ipset "$ipset")
         echo
         echo -e "${VLT} $count entries${NC} in ipset"
+
         case $check_status in
             1 | 2 | 6 | 7 | 8 | 9 )
-            if ! setup_ipset "$ipset"; then
-                outcome="$?"
-                echo -e "${RED}ipset error!${NC} $outcome"
-                log "@$LINENO: Error: Failed to set up ipset. $outcome"
-                ((ERRORS++))
-                err=1
-            fi
-            ;;
-            #0 | 3 | 4 | 5 )
-            #;;
+                # not found / orphaned
+                if ! setup_ipset "$ipset"; then
+                    outcome="$?"
+                    if [[ "$outcome" -ne 0 ]]; then
+                        echo -e "${RED}ipset error!${NC} $outcome"
+                        log "@$LINENO: Error: Failed to set up ipset. $outcome"
+                        ((ERRORS++))
+                        err=1
+                    fi
+                fi
+                ;;
+            0 | 3 | 4 | 5 )  #found
+                ;;
         esac
         echo -ne "$FIREWALL ⇄ ipset rule "
         if check_firewall_rules "$ipset" ; then

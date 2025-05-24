@@ -63,12 +63,21 @@ display() { #2do
 
 while true; do
     backtitle="VIPB - Versatile IP Blacklister - $VER"
+
+    {
+        echo -n "Checking Firewall rules... "
+        check_firewall_rules
+        echo "OK"
+        check_vipb_ipsets
+        sleep 1
+    } | dialog --title "Please wait..." --backtitle "$backtitle" --progressbox 4 38
+
+
     colors
-    check_vipb_ipsets
 
     CHOICE=$(dialog --clear --colors --backtitle "$backtitle" --title "VIPB Main Menu" \
     --extra-button --extra-label "About" \
-    --menu "\n    ${BLU}VIPB Banned:${NC} ${VLT}$VIPB_BANS${NC}   ${BLU}User Banned:${NC} ${VLT}$USER_BANS${NC}" 20 55 12 \
+    --menu "\n    ${BLU}Firewall:${NC} $FIREWALL\n    ${BLU}VIPB Banned:${NC} ${VLT}$VIPB_BANS${NC}     ${BLU}User Banned:${NC} ${VLT}$USER_BANS${NC}" 22 55 12 \
     1 "Download IPsum blacklist" \
     2 "Aggregate IPs into subnets" \
     3 "Ban from Blacklists" \
@@ -205,7 +214,7 @@ while true; do
 
             nocolors
             compressor "$selected_blacklist" "$cidr24_tol" "$cidr16_tol" | \
-                dialog --title "Compressing Blacklist" --backtitle "VIPB - Download IPsum" \
+                dialog --title "Compressing Blacklist" --backtitle "VIPB - Download IPsum" --cr-wrap \
                 --programbox 22 70
             d_exit=$?
             colors
@@ -254,7 +263,7 @@ while true; do
 
             nocolors
             ban_core "$selected_blacklist" | \
-                dialog --title "Banning IPs" --backtitle "$backtitle" \
+                dialog --title "Banning IPs" --backtitle "$backtitle" --cr-wrap \
                 --programbox 20 70
             d_exit=$?
             ban_exit=${PIPESTATUS[0]}  # Ottiene l'exit code di ban_core
@@ -325,12 +334,12 @@ while true; do
         download_dialog
         nocolors
         compressor | \
-            dialog --title "Compressing Blacklist" --backtitle "$backtitle" \
+            dialog --title "Compressing Blacklist" --backtitle "$backtitle" --cr-wrap \
             --programbox 22 70
         colors
         nocolors
         ban_core "$BLACKLIST_FILE" | \
-            dialog --title "Banning IPs" --backtitle "$backtitle" \
+            dialog --title "Banning IPs" --backtitle "$backtitle" --cr-wrap \
             --programbox 20 70
         d_exit=$?
         ban_exit=${PIPESTATUS[0]}  # exit code di ban_core
@@ -340,13 +349,17 @@ while true; do
     # 5. Check & Repair
     function check_repair_dialog() {
         backtitle="VIPB - Check & Repair"
-        dialog --title "Cron Job" --colors --backtitle "$backtitle" --msgbox "This section will allow you to view and eventually repair the ipsets.\n\n${YLW}Feature coming soon!${NC}" 10 50
         nocolors
         check_and_repair | \
             dialog --title "Check & Repair" --backtitle "$backtitle" \
+            --extra-button --extra-label "Repair" \
             --programbox 25 90
+        d_exit=$?
         colors
 
+        if [[ $d_exit -eq 3 ]]; then
+            dialog --title "Repair" --backtitle "$backtitle" --msgbox "Coming Soon." 7 40
+        fi
     }
 
     # 6. Manage ipsets

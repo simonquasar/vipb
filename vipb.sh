@@ -148,7 +148,8 @@ elif [ "$CLI" == "true" ]; then
                         echo "  compress [listfile.ipb]   compress IPs list [optional: file.ipb]"
                         echo "  banlist [listfile.ipb]    ban IPs/subnets list [optional: file.ipb]"
                         echo "  stats                     view banned VIPB IPs/subnets counts"
-                        echo "  gui                       start GUI interface (YAD)"
+                        echo "  dialog                    start GUI interface (dialog)"
+                        echo "  gui                       start xGUI interface (YAD)"
                         echo "  true                      simulate cron/CLI (or autoban)"
                         echo "  debug                     debug mode (echoes logs)"
                         echo
