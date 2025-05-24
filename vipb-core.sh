@@ -261,7 +261,7 @@ function check_ipset() {
 # Section: Firewall
 # ============================
 
-function get_fw_rules { #$FW_RULES_LIST used in 7.1.
+function get_fw_rules() { #$FW_RULES_LIST used in 7.1.
     local err=0
 
     function get_iptables_rules() {
@@ -414,7 +414,7 @@ function check_firewall_rules() { #optional ipset_name used for recovery
 
 }
 
-function find_vipb_rules { # for check_vipb_rules
+function find_vipb_rules() { # for check_vipb_rules
     local vipb_indexes=()
 
     if [[ ${#FW_RULES_LIST[@]} -eq 0 ]]; then
@@ -438,7 +438,7 @@ function find_vipb_rules { # for check_vipb_rules
     fi
 }
 
-function check_vipb_rules {
+function check_vipb_rules() {
     FOUND_VIPB_RULES=($(find_vipb_rules))
     local ret=$?
 
@@ -461,7 +461,7 @@ function check_vipb_rules {
     return $ret
 }
 
-function reload_firewall {
+function reload_firewall() {
     #lg "*" "reload_firewall"
 
     if [[ "$FIREWALL" == "firewalld" ]]; then
@@ -477,7 +477,7 @@ function reload_firewall {
     METAERRORS=0
 }
 
-function save_iptables_rules { #2do
+function save_iptables_rules() { #2do
     #if command -v netfilter-persistent >/dev/null 2>&1; then
     #    return $?
     #    echo "#2do netfilter-persistent save"
@@ -493,7 +493,7 @@ function save_iptables_rules { #2do
 
 }
 
-function restore_iptables_rules { #2do
+function restore_iptables_rules() { #2do
     iptables-restore < "$SCRIPT_DIR/iptables-rules.v4"
     return $?
 }
@@ -1258,7 +1258,7 @@ function download_blacklist() {
 # ============================
 # Section: Check and Repair
 # ============================
-function vipb_repair {
+function vipb_repair() {
     repair_ipsets=()
     repair_verdicts=()
     repair_statuses=()
@@ -1391,7 +1391,7 @@ function vipb_repair {
     esac
 }
 
-function check_and_repair { #2do
+function check_and_repair() { #2do
     echo -e "${BD}CHECKLIST${NC}"
 
         # check_and_repair STATUS CODES: verdict (stored in $ipsets_verdicts[i])
@@ -1550,6 +1550,8 @@ function compressor() {
     lg "*" "compressor [CLI=$CLI] $*"
 
     list_file=${1:-"$BLACKLIST_FILE"}
+    c24=${2:-3}
+    c16=${3:-4}
 
     echo -ne "${BLU}≡${NC} Blacklist file ${BG}${BLU}$list_file${NC}... "
 
@@ -1572,9 +1574,6 @@ function compressor() {
             }
             trap cleanup EXIT
             echo
-            # Default occurrence tolerance levels
-            c24=3
-            c16=4
 
             if [ "$CLI" == "false" ]; then
                 echo -e "${NC}${YLW}Set occurrence tolerance levels [2-9] ${DM}[Exit with 0]${NC}"
@@ -1694,33 +1693,6 @@ function compressor() {
             echo -e "${VLT}◕ $single_count IPs ${NC}($((single_count * 100 / total_ips))%) uncompressed"
             echo
             echo -e "${BD}${CYN}≡ $optimized_count sources${NC} detected"
-
-            #echo -e "    Total processed\t100% ◕  ${VLT}$total_ips IPs ${NC}"
-            #echo -e "         ${CYN}reduced to${NC}\t $progress% ◔  ${CYN}$optimized_count sources${NC}"
-            #echo -e "   "
-            #echo -e "               from\t ${BG}$((100-(single_count * 100 / total_ips)))%${NC}  ╔ ${VLT}$cut_count IPs${NC}"
-            #echo -e "                 to\t ${BG} $((progress - (single_count * 100 / total_ips)))%${NC}  ╙ ${S16}$((subnet24_count + subnet16_count)) subnets +${NC}"
-            #echo -e "       uncompressed\t ${BG}$((single_count * 100 / total_ips))%${NC}    ${CYN}$single_count IPs${NC}"
-
-            #list_ips(){ # why here? 2do
-            #if [ "$2" -lt "$3" ]; then
-                #while read -r subnet; do
-                #    echo -e "\t$subnet"
-                #done < "$1"
-            #fi
-            #}
-
-            #if [ "$subnet24_count" -lt "15" ] && [ "$subnet24_count" -ne "0" ]; then
-                #echo
-                #echo -e "${NC}${S24} /24 shortlist:"
-                #list_ips "$SUBNETS24_FILE" "$subnet24_count" 14
-            #fi
-            #if [ "$subnet16_count" -lt "15" ] && [ "$subnet16_count" -ne "0" ]; then
-                #echo
-                #echo -e "${NC}${S16} /16 shortlist:"
-                #list_ips "$SUBNETS16_FILE" "$subnet16_count" 14
-            #fi
-
             echo -e "${NC}${CYN}========================"
             echo -e " VIPB-Compressor Done.${NC}"
 

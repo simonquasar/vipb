@@ -124,6 +124,7 @@ elif [ "$CLI" == "true" ]; then
             "compress") echo "compress ${ARGS[1]}"; compressor "${ARGS[1]}"; exit 0;;
             "download") echo "download lv. ${ARGS[1]}"; download_blacklist "${ARGS[1]}"; exit 0;;
             "gui")      source "$SCRIPT_DIR/vipb-gui.sh"; exit 0;;
+            "dialog")   source "$SCRIPT_DIR/vipb-dialog.sh"; exit 0;;
             "unban")    echo "unban IP ${ARGS[1]}"; INFOS=true; unban_ip "$MANUAL_IPSET_NAME" "${ARGS[1]}"; exit 0;;
             "stats")    echo "Banned in $VIPB_IPSET_NAME set: $(count_ipset "$VIPB_IPSET_NAME")"
                         echo "Banned in $MANUAL_IPSET_NAME set: $(count_ipset "$MANUAL_IPSET_NAME")"
