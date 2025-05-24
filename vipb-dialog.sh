@@ -50,26 +50,44 @@ if ! command -v dialog &> /dev/null; then
 fi
 
 if [[ "$(basename "$0")" != "vipb.sh" ]] && [[ "$(basename "$0")" != "vipb" ]]; then
-    show_error "VIPB GUI must be launched via\n ./vipb.sh gui"
+    dialog --title "Error" --msgbox "This VIPB GUI must be launched via\n ./vipb.sh gui"
     exit 1
 fi
 
+display() { #2do
+    local title="$1"
+    local backtitle="$2"
+    local message="$3"
+    dialog --title "$title" --backtitle "VIPB - $backtitle" --msgbox "$message"
+}
+
 while true; do
+    backtitle="VIPB - Versatile IP Blacklister - $VER"
     colors
-    CHOICE=$(dialog --clear --colors --backtitle "VIPB ${VER}" --menu "VIPB Main Menu" 20 45 10 \
+    check_vipb_ipsets
+
+    CHOICE=$(dialog --clear --colors --backtitle "$backtitle" --title "VIPB Main Menu" \
+    --extra-button --extra-label "About" \
+    --menu "\n    ${BLU}VIPB Banned:${NC} ${VLT}$VIPB_BANS${NC}   ${BLU}User Banned:${NC} ${VLT}$USER_BANS${NC}" 20 55 12 \
     1 "Download IPsum blacklist" \
     2 "Aggregate IPs into subnets" \
     3 "Ban from Blacklists" \
     4 "Manual ban IPs" \
-    ">>" "${VLT}${UL}Download > Aggregate > Ban!" \
-    5 "${RED}Check & Repair${NC} ${BD}(2do)" \
-    6 "${BLU}Manage ipsets${NC} ${BD}(2do)" \
-    7 "${BLU}Manage firewall${NC} ${BD}(2do)" \
+    ">>" "${RED}Download > Aggregate & Ban!" \
+    5 "${RED}Check & Repair" \
+    6 "${BLU}Manage ipsets" \
+    7 "${BLU}Manage firewall" \
     8 "${BLU}Change IPsum level ${NC}$BLACKLIST_LV" \
     9 "${BLU}Daily Cron Job${NC}$( [[ "$DAILYCRON" == "true" ]] && echo " ↺")"\
     10 "${BLU}Geo IP lookup" \
-    11 "${BLU}Vars & Logs ${YLW}Extractor${NC} ${BD}(2do)" \
+    11 "${BLU}Vars & Logs ${YLW}Extractor${NC}" \
     2>&1 >/dev/tty)
+
+    d_exit=$?
+    if [[ $d_exit -eq 3 ]]; then
+        dialog --title "About VIPB" --backtitle "$backtitle" --colors --msgbox "\n${BLU}VIPB - Versatile IP Blacklister\n$VER (2025)${NC}\n\nA simple, versatile and efficient IP ban script for Linux servers.\n\nAuthor: simonquasar\nGitHub: ${UL}https://github.com/simonquasar/vipb${NC}\n\n${VLT}Protect your server with ease!\n${RV}${RED}Use at your own risk! Please review and test before deploying in production.${NC}" 18 60
+        continue
+    fi
 
     # 1. Download IPsum list
     function download_dialog() {
@@ -96,19 +114,20 @@ while true; do
 
             echo "# Download complete!"
             echo "100"
-        ) | dialog --title "Downloading LV $select_lv" --backtitle "VIPB - Download IPsum" --gauge "Starting download..." 10 60 0
+        ) | dialog --title "Downloading LV $select_lv" --backtitle "$backtitle" --gauge "Starting download..." 10 60 0
 
         local downloaded_count=$(wc -l < "$BLACKLIST_FILE")
-        dialog --title "Download Complete"  --backtitle "VIPB - Download IPsum" --colors \
+        dialog --title "Download Complete"  --backtitle "$backtitle" --colors \
             --msgbox "Download completed successfully!\n\nDownloaded ${VLT}$downloaded_count IP addresses${NC} @ IPsum level $select_lv" 8 60
     }
 
     function download_ipsum_dialog {
-        dialog --title "Download IPsum list" --backtitle "VIPB - Download IPsum" --colors \
+        backtitle="VIPB - Download IPsum"
+        dialog --title "Download IPsum list" --backtitle "$backtitle" --colors \
             --msgbox "${BLU}IPsum${NC} is a feed based on 30+ publicly available lists of suspicious and/or malicious IP addresses.\nThe provided list is made of IP addresses matched with a number of (black)lists occurrences. \n\nmore infos at ${BLU}${UL}https://github.com/stamparm/ipsum${NC}" 12 60
 
         local select_lv
-        select_lv=$(dialog --title "Download IPsum list" --backtitle "VIPB - Download IPsum" --colors \
+        select_lv=$(dialog --title "Download IPsum list" --backtitle "$backtitle" --colors \
             --default-item 4 \
             --menu "Select IPsum list level:" 15 50 7 \
             2 "${RED}Less strict (larger list)${NC}" \
@@ -128,31 +147,49 @@ while true; do
 
     # 2. Aggregate IPs into subnets
     function aggregator_dialog() {
-
-
-        dialog --title "Aggregator Info" --backtitle "VIPB - Aggregator" --colors \
-            --msgbox "\nThis will aggregate the selected blacklist into subnets.\n\n${UL}The tolerance level is used to determine how strict the aggregation should be.${NC}\n\nCIDR /24 (#.#.#.0) are often assigned for small networks, like a single office or department (256 addresses are then be banned) while CIDR /16 (#.#.0.0) cover larger networks, such as a whole organizations (65.536 addresses).\n\nA lower tolerance level will result in a larger list of subnets, while a higher tolerance level will result in a smaller list of subnets." 20 60
+        backtitle="VIPB - Aggregator"
 
         # Step 1: Select blacklist file
         blacklist_files=("$SCRIPT_DIR"/*.ipb)
         if [[ ! -f "$BLACKLIST_FILE" && ${#blacklist_files[@]} -gt 0 ]]; then
             default_blacklist="${blacklist_files[0]}"
+        else
+            default_blacklist="$BLACKLIST_FILE"
         fi
 
-        selected_blacklist=$(dialog --title "Select Blacklist File" --backtitle "VIPB - Aggregator" \
+        selected_blacklist=$(dialog --title "Select Blacklist File" --backtitle "$backtitle" \
+            --extra-button --extra-label "Info" \
             --fselect "$default_blacklist" 15 70 2>&1 >/dev/tty)
+
         d_exit=$?
+        if [[ $d_exit -eq 3 ]]; then
+            dialog --title "Aggregator Help" --backtitle "$backtitle Help" --colors --msgbox "\nSelect a .ipb blacklist file to aggregate. Use arrow keys to navigate, Enter to select, or Esc to cancel.\n\
+            \nThis will aggregate the selected blacklist into subnets.\n\n${UL}The tolerance level is used to determine how strict the aggregation should be.${NC}\
+            \n\nCIDR /24 (#.#.#.0) are often assigned for small networks, like a single office or department (256 addresses are then be banned) while CIDR /16 (#.#.0.0) cover larger networks, such as a whole organizations (65.536 addresses).\n\nA lower tolerance level will result in a larger list of subnets, while a higher tolerance level will result in a smaller list of subnets." 22 75
+            aggregator_dialog
+            return 1
+        fi
+
         if [ $d_exit -ne 0 ] || [ -z "$selected_blacklist" ]; then
             return 1
         fi
 
         # Step 2: Enter CIDR tolerances
-        response=$(dialog --title "Aggregator Options" --backtitle "VIPB - Aggregator" \
-            --form "Set CIDR subnet tolerances:" 9 40 2 \
-            "CIDR /24 (2-9):" 1 1 "3" 1 17 3 0 \
-            "CIDR /16 (2-9):" 2 1 "4" 2 17 3 0 \
-            2>&1 >/dev/tty)
+        cidr24_tol=$(dialog --title "CIDR /24 subnet tolerance" --backtitle "$backtitle" \
+            --rangebox "Set CIDR /24 tolerance (2-9):" 7 40 2 9 3 2>&1 >/dev/tty)
         d_exit=$?
+        if [ $d_exit -ne 0 ]; then
+            return 1
+        fi
+
+        cidr16_tol=$(dialog --title "CIDR /16 subnet tolerance" --backtitle "$backtitle" \
+            --rangebox "Set CIDR /16 tolerance (2-9):" 7 40 2 9 4 2>&1 >/dev/tty)
+        d_exit=$?
+        if [ $d_exit -ne 0 ]; then
+            return 1
+        fi
+
+        response="$cidr24_tol $cidr16_tol"
 
         if [ $d_exit -eq 1 ] || [ $d_exit -eq 252 ]; then
             return 1
@@ -161,7 +198,7 @@ while true; do
             read -r cidr24_tol cidr16_tol <<< "$response"
             selected_blacklist="$selected_blacklist"
             if [[ -z "$selected_blacklist" || ! -f "$selected_blacklist" || "${selected_blacklist##*.}" != "ipb" ]]; then
-                dialog --title "Error" --msgbox "No valid blacklist file selected. Please select a file with .ipb extension." 10 50
+                dialog --title "Error" --backtitle "$backtitle" --msgbox "No valid blacklist file selected. Please select a file with .ipb extension." 10 50
                 aggregator_dialog
                 return 1
             fi
@@ -174,7 +211,7 @@ while true; do
             colors
 
             if [ $d_exit -ne 0 ] && [ $d_exit -ne 252 ]; then
-                dialog --title "Error" --msgbox  "Compression cancelled."
+                dialog --title "Error" --backtitle "$backtitle" --msgbox "Compression cancelled."
                 return 1
             fi
 
@@ -183,7 +220,7 @@ while true; do
             local subnet16_count=$(wc -l < "$SUBNETS16_FILE")
             local compressed_count=$(wc -l < "$OPTIMIZED_FILE")
 
-            dialog --title "Aggregator Info" --backtitle "VIPB - Aggregator" --colors \
+            dialog --title "Aggregator Info" --backtitle "$backtitle" --colors \
                 --msgbox "\nThe aggregation is complete!\n\nThe original list contained ${BLU}$uncompressed_count IP addresses${NC}.\nThe optimized list contains ${VLT}$compressed_count sources${NC}.\n(Including ${VLT}$subnet24_count${CYN}@$cidr24_tol${NC} /24 subnets & ${VLT}$subnet16_count${CYN}@$cidr16_tol${NC} /16 subnets)\n\n    ${BD}Compressed: $(awk "BEGIN {if ($uncompressed_count > 0) printf \"%.2f\", 100 - ($compressed_count / $uncompressed_count * 100); else print \"0.00\"}")%${NC}\n\nThe optimized list is saved as ${VLT}$OPTIMIZED_FILE${NC}" 16 75
 
             next
@@ -192,9 +229,10 @@ while true; do
 
     # 3. Ban from Blacklists
     function blacklists_ban_dialog () {
+        backtitle="VIPB - Ban from Blacklists"
         blacklist_files=$(ls "$SCRIPT_DIR"/*.ipb 2>/dev/null)
         if [ -z "$blacklist_files" ]; then
-            dialog --title "Error" --msgbox "No blacklist files found in $BLACKLIST_DIR." 10 50
+            dialog --title "Error" --backtitle "$backtitle" --msgbox "No blacklist files found in $BLACKLIST_DIR." 10 50
             return 1
         fi
 
@@ -205,7 +243,7 @@ while true; do
             radiolist_options+=("$rel_file" "$count entries" "off")
         done
 
-        selected_blacklist=$(dialog --title "Select Blacklist file" --backtitle "VIPB - Ban" --radiolist "Select a blacklist file to ban IPs from:" 15 60 10 "${radiolist_options[@]}" \
+        selected_blacklist=$(dialog --title "Select Blacklist file" --backtitle "$backtitle" --radiolist "Select a blacklist file to ban IPs from:" 15 60 10 "${radiolist_options[@]}" \
             2>&1 >/dev/tty)
         d_exit=$?
 
@@ -216,33 +254,33 @@ while true; do
 
             nocolors
             ban_core "$selected_blacklist" | \
-                dialog --title "Banning IPs" --backtitle "VIPB - Ban" \
+                dialog --title "Banning IPs" --backtitle "$backtitle" \
                 --programbox 20 70
             d_exit=$?
             ban_exit=${PIPESTATUS[0]}  # Ottiene l'exit code di ban_core
             colors
 
-            dialog --title "DEBUG" --msgbox "d_exit=$d_exit\nselected_blacklist=$selected_blacklist\ntotal_lines=$total_lines\nban_exit=$ban_exit" 10 50
+            dialog --title "DEBUG" --backtitle "$backtitle" --msgbox "d_exit=$d_exit\nselected_blacklist=$selected_blacklist\ntotal_lines=$total_lines\nban_exit=$ban_exit" 10 50
 
             banlist_count=$(wc -l < "$selected_blacklist")
-            dialog --title "Ban Info" --backtitle "VIPB - Ban" --colors --msgbox "\nThe ban is complete!\n\nThe ban list contained $banlist_count sources.\nVIPB Banned ## sources."
+            dialog --title "Ban Info" --backtitle "$backtitle" --colors --msgbox "\nThe ban is complete!\n\nThe ban list contained $banlist_count sources.\nVIPB Banned ## sources."
         fi
     }
 
     # 4. Manual banning
     function manual_ban_dialog() {
-
+        backtitle="VIPB - Manual Ban"
         USER_STATUS=$(check_ipset "$MANUAL_IPSET_NAME" &>/dev/null)
         USER_BANS=$(count_ipset "$MANUAL_IPSET_NAME")
 
-        MANUAL_CHOICE=$(dialog --title "Manual Ban" --clear --colors --backtitle "VIPB - Manual Ban" --menu "User bans are stored in ipset ${BLU}$MANUAL_IPSET_NAME${NC} (max 254 sources allowed)" 11 45 10 \
+        MANUAL_CHOICE=$(dialog --title "Manual Ban" --clear --colors --backtitle "$backtitle" --menu "User bans are stored in ipset ${BLU}$MANUAL_IPSET_NAME${NC} (max 254 sources allowed)" 11 45 10 \
             1 "Ban IP" \
             2 "View Banned IPs" \
             3 "Export to file"\
             2>&1 >/dev/tty)
 
         case $MANUAL_CHOICE in
-            1)  ip_input=$(dialog --title "Manual Ban IP" --inputbox "Enter IP address or CIDR to ban:" 8 50 2>&1 >/dev/tty)
+            1)  ip_input=$(dialog --title "Manual Ban IP" --backtitle "$backtitle" --inputbox "Enter IP address or CIDR to ban:" 8 50 2>&1 >/dev/tty)
                 d_exit=$?
                 if [[ $d_exit -ne 0 || -z "$ip_input" ]]; then
                     manual_ban_dialog
@@ -261,7 +299,7 @@ while true; do
                     ipset add "$MANUAL_IPSET_NAME" "$ip_input"
                 fi
 
-                dialog --title "Manual Ban" --msgbox "IP/CIDR '$ip_input' has been banned." 8 40
+                dialog --title "Manual Ban" --backtitle "$backtitle" --msgbox "IP/CIDR '$ip_input' has been banned." 8 40
                 manual_ban_dialog
                 ;;
             2)  if [[ "$FIREWALL" == "firewalld" ]]; then
@@ -271,9 +309,9 @@ while true; do
                 fi
 
                 if [[ ${#user_ips[@]} -gt 0 ]]; then
-                    dialog --title "Manually Banned IPs" --backtitle "VIPB - Manual Ban" --msgbox "$(printf '%s\n' "${user_ips[@]}")" 15 60
+                    dialog --title "Manually Banned IPs" --backtitle "$backtitle" --msgbox "$(printf '%s\n' "${user_ips[@]}")" 15 60
                 else
-                    dialog --title "Manually Banned IPs" --backtitle "VIPB - Manual Ban" --msgbox "No manually banned IPs found." 8 40
+                    dialog --title "Manually Banned IPs" --backtitle "$backtitle" --msgbox "No manually banned IPs found." 8 40
                 fi
                 manual_ban_dialog ;;
             3) manual_ban_dialog ;;
@@ -283,15 +321,16 @@ while true; do
 
     # >>. DOWNLOAD, COMPRESS & BAN
     function dab() {
+        backtitle="VIPB - DOWNLOAD, COMPRESS & BAN"
         download_dialog
         nocolors
         compressor | \
-            dialog --title "Compressing Blacklist" --backtitle "VIPB - DOWNLOAD, COMPRESS & BAN" \
+            dialog --title "Compressing Blacklist" --backtitle "$backtitle" \
             --programbox 22 70
         colors
         nocolors
         ban_core "$BLACKLIST_FILE" | \
-            dialog --title "Banning IPs" --backtitle "VIPB - DOWNLOAD, COMPRESS & BAN" \
+            dialog --title "Banning IPs" --backtitle "$backtitle" \
             --programbox 20 70
         d_exit=$?
         ban_exit=${PIPESTATUS[0]}  # exit code di ban_core
@@ -300,10 +339,11 @@ while true; do
 
     # 5. Check & Repair
     function check_repair_dialog() {
-        dialog --title "Cron Job" --colors --backtitle "VIPB - Check & Repair" --msgbox "This section will allow you to view and eventually repair the ipsets.\n\n${YLW}Feature coming soon!${NC}" 10 50
+        backtitle="VIPB - Check & Repair"
+        dialog --title "Cron Job" --colors --backtitle "$backtitle" --msgbox "This section will allow you to view and eventually repair the ipsets.\n\n${YLW}Feature coming soon!${NC}" 10 50
         nocolors
         check_and_repair | \
-            dialog --title "Check & Repair" --backtitle "VIPB - Check & Repair" \
+            dialog --title "Check & Repair" --backtitle "$backtitle" \
             --programbox 25 90
         colors
 
@@ -314,34 +354,36 @@ while true; do
 
     # 8. Change default LV
     function change_default_lv_dialog() {
+        backtitle="VIPB - Change IPsum ▼ download list level"
         local new_lv
-        new_lv=$(dialog --title "Change Default IPsum Level" --backtitle "VIPB - Change IPsum ▼ download list level" --colors \
+        new_lv=$(dialog --title "Change Default IPsum Level" --backtitle "$backtitle" --colors \
             --rangebox "Select the new default IPsum list level.\nUse arrow keys up/down or enter a number.\n${BD}(2 = less strict, 8 = very strict):" 10 60 2 8 "$BLACKLIST_LV" 2>&1 >/dev/tty)
         d_exit=$?
         if [[ $d_exit -eq 0 && -n "$new_lv" ]]; then
             set_blacklist_level "$new_lv"
-            dialog --title "Default Level Changed" --msgbox "Default IPsum list level set to $new_lv." 7 40
+            dialog --title "Default Level Changed" --backtitle "$backtitle" --msgbox "Default IPsum list level set to $new_lv." 7 40
         fi
     }
 
     # 9. Cron Job
     function cron_job_dialog() {
+        backtitle="VIPB - Daily Cron Autoban Job"
         if [[ "$DAILYCRON" == "true" ]]; then
             cronstatus_msg="VIPB autoban job ${GRN}found${NC}."
         else
             cronstatus_msg="VIPB autoban job ${RED}not found${NC}."
         fi
-        dialog --colors --yesno "$cronstatus_msg\n\nDo you want to ${RV}$( [[ "$DAILYCRON" == "true" ]] && echo "remove" || echo "add" )${NC} the daily VIPB autoban job?" 8 50
+        dialog --colors --backtitle "$backtitle" --yesno "$cronstatus_msg\n\nDo you want to ${RV}$( [[ "$DAILYCRON" == "true" ]] && echo "remove" || echo "add" )${NC} the daily VIPB autoban job?" 8 50
         yn_exit=$?
         if [[ $yn_exit -eq 0 ]]; then
             if [[ "$DAILYCRON" == "true" ]]; then
             DAILYCRON=false
             crontab -l | grep -v "vipb.sh" | crontab -
-            dialog --title "VIPB autoban job" --msgbox "VIPB daily ban job has been removed." 7 40
+            dialog --title "VIPB autoban job" --backtitle "$backtitle" --msgbox "VIPB daily ban job has been removed." 7 40
             else
             subtitle="add daily ban job"
             (crontab -l 2>/dev/null; echo "10 4 * * * $SCRIPT_DIR/vipb.sh") | crontab -
-            dialog --title "VIPB autoban job" --msgbox "Cron Job added for daily VIPB autoban on blacklist at 4:10 AM server time." 8 50
+            dialog --title "VIPB autoban job" --backtitle "$backtitle" --msgbox "Cron Job added for daily VIPB autoban on blacklist at 4:10 AM server time." 8 50
             DAILYCRON=true
             fi
         fi
@@ -349,20 +391,22 @@ while true; do
 
     # 10. Geo IP info
     function geo_ip_dialog() {
+        backtitle="VIPB - Geo IP Lookup"
         local ip_input
-        ip_input=$(dialog --title "Geo IP Lookup" --inputbox "Enter an IP address to lookup:" 8 50 2>&1 >/dev/tty)
+        ip_input=$(dialog --title "Geo IP Lookup" --backtitle "$backtitle" --inputbox "Enter an IP address to lookup:" 8 50 2>&1 >/dev/tty)
         d_exit=$?
         if [[ $d_exit -ne 0 || -z "$ip_input" ]]; then
             return 1
         fi
         nocolors
-        geo_ip "$ip_input" | dialog --title "Geo IP Info" --programbox 20 70
+        geo_ip "$ip_input" | dialog --title "Geo IP Info" --backtitle "$backtitle" --programbox 20 70
         colors
     }
 
     # 11. Log Extractor & Vars
     function log_vars_dialog() {
-        dialog --title "Logs & Vars" --colors --backtitle "VIPB - Logs & Vars" --msgbox "This section will allow you to view logs and variables.\n\n${YLW}Feature coming soon!${NC}" 10 50
+        backtitle="VIPB - Vars & Logs Extractor"
+        dialog --title "Logs & Vars" --colors --backtitle "$backtitle" --msgbox "This section will allow you to view logs and variables.\n\n${YLW}Feature coming soon!${NC}" 10 50
     }
 
     case $CHOICE in
