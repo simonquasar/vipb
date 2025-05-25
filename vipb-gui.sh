@@ -3,6 +3,7 @@
 # VIPB Graphical User Interface
 # A simple, versatile and efficient IP ban script for Linux servers
 
+CLI="gui-yad"
 # Colors
 RED=''
 GRN=''

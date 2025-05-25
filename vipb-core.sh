@@ -17,13 +17,15 @@ BASECRJ='https://raw.githubusercontent.com/stamparm/ipsum/master/levels/'
 BLACKLIST_URL="$BASECRJ${BLACKLIST_LV}.txt"
 FIREWALL='iptables'
 INFOS=false
-ADDED_IPS=0
-ALREADYBAN_IPS=0
-REMOVED_IPS=0
-METAERRORS=0
+ERRORS=false
+ADDED_IPS=false
+ALREADYBAN_IPS=false
+REMOVED_IPS=false
+METAERRORS=false
 RUN_BANS="n/a"
 PERM_BANS="n/a"
 IPS=()
+err=false
 # some basic colors
 RED='\033[31m'
 GRN='\033[32m'
@@ -42,6 +44,33 @@ fi
 
 # VIPB Core functions
 echo -e "${VLT}✦ VIPB $VER ✦${NC}"
+
+function eta() {    # ETA calculation
+    start_time="$1"
+    done_count="$2"
+    total_count="$3"
+    now_time=$(date +%s)
+    elapsed=$((now_time - start_time))
+    remaining=$((total_count - done_count))
+    sample=$((total_count / 5))
+    if ((done_count > sample)) || ((elapsed > 0)); then
+        avg_time=$(awk "BEGIN {printf \"%.4f\", $elapsed / $done_count}")
+        eta_sec=$(awk "BEGIN {printf \"%.1f\", $avg_time * $remaining}")
+        if ((${eta_sec%.*} > 60)); then
+            eta_min=$(awk "BEGIN {printf \"%.1f\", $eta_sec / 60}")
+            eta_str="~${eta_min} minute(s) remaining (avg: ${avg_time}s)"
+        else
+            eta_str="~${eta_sec}s remaining"
+        fi
+        echo "$eta_str"
+        return ${eta_sec%.*} # return the remaining seconds as integer
+    else
+        echo "Calculating ETA..."
+        return 99999 # return a large number to indicate no valid ETA
+    fi
+
+
+}
 
 function check_dependencies() {
     err=0
@@ -926,7 +955,6 @@ function ban_ip() {
                         # it's already in the ipset, so possible conflict in cross use
                         log "@$LINENO Warning [$?] > $outcome"
                         ban_ip_result=2
-                        ((ERRORS++))
                         ((METAERRORS++))
                         METAERROR="found rules in other firewall"
                         ;;
@@ -987,29 +1015,30 @@ function ban_ip() {
     case $ban_ip_result in
         0)  debug_log "IP $ip added to $FIREWALL in $ipset_name"
             ((ADDED_IPS++))
-            if  [ "$INFOS" == "true" ]; then
+            if  [ "$INFOS" == "true" ] || [ "$DEBUG" == "true" ]; then
                 echo -ne "✓ ${GRN}IP $ip \t"
                 if [ "$PERSISTENT" == "true" ]; then
                     echo -ne "permanently "
                 fi
                 echo -e "added${NC}" # to ${BG}$ipset_name${NC}
             else
-                echo -ne "${GRN}✓${NC}"
+                [ "$DEBUG" == "true" ] && echo -ne "${GRN}✓${NC}";
             fi
             ;;
         1)  debug_log "IP $ip ban error"
-            if [ "$INFOS" == "true" ]; then
+            ((ERRORS++))
+            if [ "$INFOS" == "true" ] || [ "$DEBUG" == "true" ]; then
                 echo -e "✗ ${RED}IP $ip \tban error${NC}"
             else
-                echo -ne "${RED}⊗${NC}"
+                [ "$DEBUG" == "true" ] && echo -ne "${RED}⊗${NC}";
             fi
             ;;
         2)  debug_log "IP $ip already banned in $ipset_name"
             ((ALREADYBAN_IPS++))
-            if [ "$INFOS" == "true" ]; then
+            if [ "$INFOS" == "true" ] || [ "$DEBUG" == "true" ]; then
                 echo -e "○ ${ORG}IP $ip \talready banned${NC}"
             else
-                echo -ne "${ORG}○${NC}"
+                [ "$DEBUG" == "true" ] && echo -ne "${ORG}○${NC}";
             fi
             ;;
         *)  debug_log "?? ban_ip_result: $ban_ip_result";;
@@ -1037,6 +1066,7 @@ function add_ips() {
         log "Adding IPs into ipset $ipset..."
         shift
         local ips=("$@")
+
         echo -e "Adding ${GRN}${#ips[@]} IPs${NC} into ipset ${BG}'$ipset'${NC}..."
         ADDED_IPS=0
         ALREADYBAN_IPS=0
@@ -1424,9 +1454,9 @@ function check_and_repair() { #2do
     echo -ne "${GRY}${BD}IPSETS\t\t\t${BG}set\t#\trule"
     [[ "$FIREWALL" != "firewalld" ]] && echo -ne "${DM}"
     echo -e "${BG}\trefer\trun\t--perm${NC}\t${VLT}  ✓${NC}"
-    echo -ne "${GRY}${BD}-------                ---------------------"
+    echo -ne "${GRY}${BD}=======                ====================="
     [[ "$FIREWALL" != "firewalld" ]] && echo -ne "${DM}"
-    echo -e "   -----------------------${NC}  ----"
+    echo -e "   =======================${NC}  ===="
 
     if [[ ${#select_ipsets[@]} -eq 0 ]]; then
         echo -e "${RED}No ipsets found.${NC}"
@@ -1503,43 +1533,12 @@ function check_and_repair() { #2do
             echo -ne "${NC}"
             ipsets_verdicts[i]=$verdict
             case $verdict in
-                0) echo -e "\t ${GRN}✓${NC}" ;;
-                1) echo -e "\t ${RED}✦${NC}" ;;
-                2) echo -e "\t ${ORG}✦${NC}" ;;
-                3) echo -e "\t ${YLW}✓${NC}" ;;
-                *) echo -e "\t ${VLT}${ipsets_verdicts[$i]}${NC}" ;;
+                0) echo -e "\t  ${GRN}✓${NC}" ;;
+                1) echo -e "\t  ${RED}✦${NC}" ;;
+                2) echo -e "\t  ${ORG}✦${NC}" ;;
+                3) echo -e "\t  ${YLW}✓${NC}" ;;
+                *) echo -e "\t  ${VLT}${ipsets_verdicts[$i]}${NC}" ;;
             esac
-        done
-    fi
-    echo
-
-    echo -e "${GRY}${BD}FIREWALL\t\t ${VLT}status${NC}"
-    echo -e "---------\t\t--------"
-
-    if [[ "$FIREWALL" == "ERROR" ]]; then
-        echo -e "${RED}No firewall found.${NC}"
-    else
-        check_firewall_rules
-        for i in "${!select_ipsets[@]}"; do
-            current_ipset="${select_ipsets[$i]}"
-            [[ "$current_ipset" != vipb-* ]] && echo -ne "${BLU}" ||echo -ne "${VLT}";
-            printf "%-*.*s" "20" "20" " $current_ipset"
-            check_firewall_rules "$current_ipset"
-            check_status="$?"
-            case $check_status in
-                0) echo -e "\t ${GRN}✓${NC}" ;;
-                1) echo -e "\t ${RED}not found${NC}" ;;
-                2) echo -e "\t ${ORG}err?${NC}" ;;
-                3) echo -e "\t ${S24}✓${NC}" ;;
-                4) echo -e "\t ${BLU}✓--${NC}" ;;
-                *) echo -e "\t ${ORG}$check_status too many${NC}" ;;
-            esac
-        # STATUS CODES:
-        #   0 ok found (all)
-        #   1 not found (all)
-        #   3 ok runtime (firewalld)
-        #   4 ok permanent (firewalld)
-        #   + too many #2do
         done
     fi
     echo
@@ -1557,7 +1556,11 @@ function compressor() {
     c24=${2:-3}
     c16=${3:-4}
 
-    echo -ne "${BLU}≡${NC} Blacklist file ${BG}${BLU}$list_file${NC}... "
+    echo -e "${CYN} VIPB-Compressor Start "
+    echo -e "========================"
+    echo -e "${BLU}≡${NC} Blacklist file: "
+    echo -e "${BLU}≡ $list_file${NC} "
+    echo -ne "${BLU}჻ "
 
     if ! check_blacklist_file "$list_file"; then
         echo -e "${RED}ERROR: no blacklist${NC} $list_file"
@@ -1608,12 +1611,12 @@ function compressor() {
                 done
             fi
 
-            # Extract subnets
-            echo -e "${CYN} VIPB-Compressor Start "
-            echo -e "========================"
+            echo "◣ Start validation..."
             echo -ne "${VLT}◣ IPs list                ${NC}"
             log "========================"
             log "Start compression > /16 @ $c16 | /24 @ $c24"
+
+            # Extract subnets
 
             awk -F'.' '{print $1"."$2"."$3".0/24 " $0}' "$list_file" | \
                 sort > "$temp_file"
@@ -1680,7 +1683,6 @@ function compressor() {
                 echo -e "${progress_bar}${CYN}${BD}${progress}%${NC}"
                 echo -e "${VLT}${barips}${CYN}${barnets}${CYN}${spaces}${NC}"
             }
-            echo
             compression_bar
 
             log "====================="
@@ -1695,10 +1697,11 @@ function compressor() {
             log "====================="
             echo -e "${CYN}◔ $cut_count IPs ${NC}($((100-(single_count * 100 / total_ips)))%) reduced to ${S16}$((subnet24_count + subnet16_count)) subnets${NC}" # "($((progress - (single_count * 100 / total_ips)))%)"
             echo -e "${VLT}◕ $single_count IPs ${NC}($((single_count * 100 / total_ips))%) uncompressed"
-            echo
-            echo -e "${BD}${CYN}≡ $optimized_count sources${NC} detected"
-            echo -e "${NC}${CYN}========================"
-            echo -e " VIPB-Compressor Done.${NC}"
+            echo -e "${NC}${CYN}----------------${NC}"
+            echo -e "${BD}${CYN}჻ $optimized_count sources${NC} aggregated"
+            echo -e "${BD}${CYN}≡ in file: ${OPTIMIZED_FILE}${NC}"
+            echo -e "${NC}${CYN}========================${NC}"
+            echo -e "${NC}${CYN} VIPB-Compressor Done.${NC}"
 
         else
             echo
@@ -1709,10 +1712,7 @@ function compressor() {
     fi
 }
 
-function ban_core() {
-    lg "*" "ban_core $*"
-    # ban_core blacklist.ipb [ipset_name]
-
+ban_core_start(){
     echo -e "${VLT}■■■■■■■■■■■■■■■■■■■■■■■■"
     echo -e "   VIPB-Ban started!"
     echo -e "■■■■■■■■■■■■■■■■■■■■■■■■${NC}"
@@ -1729,7 +1729,7 @@ function ban_core() {
         IPS=()
         while IFS= read -r ip; do
             if [[ -n "$ip" && "$ip" != "#"* ]]; then
-                 if validate_ip "$ip"; then
+                if validate_ip "$ip"; then
                     IPS+=("$ip")
                 else
                     echo -e "[" "$ip" "] ${ORG}invalid IP address${NC}"
@@ -1737,6 +1737,12 @@ function ban_core() {
                 fi
             fi
         done < "$blacklist"
+        # Also write the valid IPS to a fixed temp file for later use
+        temp_ips_file="$SCRIPT_DIR/vipb-last-ips.tmp"
+        : > "$temp_ips_file"
+        for valid_ip in "${IPS[@]}"; do
+            echo "$valid_ip" >> "$temp_ips_file"
+        done
         total_blacklist_read=${#IPS[@]}
         echo -e "჻ Loaded ${VLT}${total_blacklist_read} sources${NC}."
         log "Loaded $total_blacklist_read sources"
@@ -1756,7 +1762,7 @@ function ban_core() {
         check_status="$?"
         count=$(count_ipset "$ipset")
         echo
-        echo -e "${VLT} $count entries${NC} in ipset"
+        echo -e "${VLT}$count entries${NC} in ipset"
 
         case $check_status in
             1 | 2 | 6 | 7 | 8 | 9 )
@@ -1779,22 +1785,19 @@ function ban_core() {
             echo -e "${GRN}OK${NC}"
         else
             echo -e "${ORG}not found${NC}"
-            echo -ne "  "
             add_firewall_rules "$ipset"
-        fi
-        if [ "$FIREWALL" == "firewalld" ] && [ -f "$blacklist" ] ; then
-            echo -ne "Adding entries to '${BG}$ipset${NC}' from list... "
-            if ! firewall-cmd ${PERMANENT:+$PERMANENT} --ipset="$ipset" --add-entries-from-file="$blacklist"; then
-                ((ERRORS++))
-                err=$?
-                log "@$LINENO: firewall-cmd $err"
-            fi
-        else
-            add_ips "$ipset" "${IPS[@]}"
-            err=$?
+            echo
         fi
     fi
+}
+
+ban_core_end(){
+    blacklist="$1"
+    ipset=${2:-"$VIPB_IPSET_NAME"}
     count=$(count_ipset "$ipset")
+    temp_ips_file="$SCRIPT_DIR/vipb-last-ips.tmp"
+    total_blacklist_read=$(wc -l < "$temp_ips_file")
+    [ -f "$temp_ips_file" ] && rm -f "$temp_ips_file"
     echo
     echo -e "${VLT}■■■■■■■■■■■■■■■■■■■■■■■■"
     echo -e "   VIPB-Ban finished "
@@ -1820,7 +1823,28 @@ function ban_core() {
     log "          Added:   $ADDED_IPS"
     log "  Already known:   $ALREADYBAN_IPS"
     log "          TOTAL:   $count IPs/sources banned in ipset"
+}
 
+function ban_core() {
+    lg "*" "ban_core $*"
+    # ban_core blacklist.ipb [ipset_name]
+
+
+    ban_core_start $*
+
+    if [ "$FIREWALL" == "firewalld" ] && [ -f "$blacklist" ] ; then
+        echo -ne "Adding entries to '${BG}$ipset${NC}' from list... " # here since firewalld-cmd supports files #2do move into add_ips() function!!
+        if ! firewall-cmd ${PERMANENT:+$PERMANENT} --ipset="$ipset" --add-entries-from-file="$blacklist"; then
+            ((ERRORS++))
+            err=$?
+            log "@$LINENO: firewall-cmd $err"
+        fi
+    else
+        add_ips "$ipset" "${IPS[@]}"
+        err=$?
+    fi
+
+    ban_core_end $*
     return $err
 }
 
