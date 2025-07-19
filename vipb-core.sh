@@ -21,7 +21,7 @@ ERRORS=false
 ADDED_IPS=false
 ALREADYBAN_IPS=false
 REMOVED_IPS=false
-METAERRORS=false
+METAERRORS=0
 RUN_BANS="n/a"
 PERM_BANS="n/a"
 IPS=()
@@ -44,6 +44,16 @@ fi
 
 # VIPB Core functions
 echo -e "${VLT}✦ VIPB $VER ✦${NC}"
+if [ "$EUID" -ne 0 ]; then
+    echo "WARNING: This program must be run as admin. Please use sudo."
+    if [[ $DEBUG != "true" ]]; then
+        exit 1
+    fi
+fi
+
+log "▤▤▤▤▤▤▤▤ VIPB START ▤▤▤▤ $VER"
+log "▤ ARGS [""${ARGS[*]}""]"
+debug_log "▤ DEBUG mode ENABLED"
 
 function eta() {    # ETA calculation
     start_time="$1"
@@ -410,7 +420,7 @@ function check_firewall_rules() { #optional ipset_name used for recovery
         elif [[ "$FIREWALL" == "ufw" ]]; then
             ufw status | grep -q "$ipset_name" && return 0 || return 1
         fi
-    else    # look for any VIPB- rules
+    else    # look for any VIPB- rules #2do redo
         FW_RULES="false"
         if [[ "$FIREWALL" == "iptables" ]]; then
             iptables -L INPUT -n --line-numbers | grep -q "match-set vipb-" && FW_RULES="true" || FW_RULES="false"
@@ -1761,7 +1771,6 @@ ban_core_start(){
         check_ipset "$ipset"
         check_status="$?"
         count=$(count_ipset "$ipset")
-        echo
         echo -e "${VLT}$count entries${NC} in ipset"
 
         case $check_status in

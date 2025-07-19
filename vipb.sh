@@ -12,12 +12,6 @@
 VER="v0.9.4-gui"
 ARGS=("$@")
 
-if [ "$EUID" -ne 0 ]; then
-    #echo "✦ VIPB $VER ✦"
-    echo "WARNING: This program must be run as root. Please use sudo.${NC}"
-    #exit 1
-fi
-
 # check if debug mode is enabled
 check_debug_mode() {
     DEBUG="false"
@@ -70,10 +64,6 @@ function log() {
     fi
 }
 
-log "▤▤▤▤▤▤▤▤ VIPB START ▤▤▤▤ $VER"
-log "▤ ARGS [""${ARGS[*]}""]"
-debug_log "▤ DEBUG mode ENABLED"
-
 # bootstrap VIPB core functions and variables
 source "$SCRIPT_DIR/vipb-core.sh" "${ARGS[*]}"
 log "$SCRIPT_DIR/vipb-core.sh $( echo -e "${GRN}LOADED${NC}")"
@@ -123,8 +113,8 @@ elif [ "$CLI" == "true" ]; then
             "banlist")  echo "banlist ${ARGS[1]}"; ban_core "${ARGS[1]}"; exit 0;;
             "compress") echo "compress ${ARGS[1]}"; compressor "${ARGS[1]}"; exit 0;;
             "download") echo "download lv. ${ARGS[1]}"; download_blacklist "${ARGS[1]}"; exit 0;;
-            "gui")      source "$SCRIPT_DIR/vipb-gui.sh"; exit 0;;
-            "dialog")   source "$SCRIPT_DIR/vipb-dialog.sh"; exit 0;;
+            "xgui")      source "$SCRIPT_DIR/vipb-gui.sh"; exit 0;;
+            "dialog" | "gui")   source "$SCRIPT_DIR/vipb-dialog.sh"; exit 0;;
             "unban")    echo "unban IP ${ARGS[1]}"; INFOS=true; unban_ip "$MANUAL_IPSET_NAME" "${ARGS[1]}"; exit 0;;
             "stats")    echo "Banned in $VIPB_IPSET_NAME set: $(count_ipset "$VIPB_IPSET_NAME")"
                         echo "Banned in $MANUAL_IPSET_NAME set: $(count_ipset "$MANUAL_IPSET_NAME")"
@@ -148,8 +138,8 @@ elif [ "$CLI" == "true" ]; then
                         echo "  compress [listfile.ipb]   compress IPs list [optional: file.ipb]"
                         echo "  banlist [listfile.ipb]    ban IPs/subnets list [optional: file.ipb]"
                         echo "  stats                     view banned VIPB IPs/subnets counts"
-                        echo "  dialog                    start GUI interface (dialog)"
-                        echo "  gui                       start xGUI interface (YAD)"
+                        echo "  dialog | gui              start GUI interface (dialog)"
+                        #echo "  xgui                      start xGUI interface (YAD) "
                         echo "  true                      simulate cron/CLI (or autoban)"
                         echo "  debug                     debug mode (echoes logs)"
                         echo

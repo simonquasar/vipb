@@ -5,7 +5,10 @@
 
 # https://www.geeksforgeeks.org/creating-dialog-boxes-with-the-dialog-tool-in-linux/
 # dialog --common-options --boxType "Text" Height Width --box-specific-option
-
+DIALOGRC="$SCRIPT_DIR/dialog.vipb"
+DIALOGOPTS="--backtitle 'VIPB - Versatile IP Blacklister'"
+echo "Loading VIPB dialog interface..."
+sleep 5
 CLI="dialog"
 
 # Colors
@@ -56,30 +59,35 @@ if [[ "$(basename "$0")" != "vipb.sh" ]] && [[ "$(basename "$0")" != "vipb" ]]; 
     exit 1
 fi
 
-display() { #2do
-    local title="$1"
-    local backtitle="$2"
-    local message="$3"
-    dialog --title "$title" --backtitle "VIPB - $backtitle" --msgbox "$message"
-}
+function check_dialog() {
+        (   echo -n "Checking Firewall rules... "
+            check_firewall_rules
+            echo "$FW_RULES" > "$SCRIPT_DIR/FW_RULES.tmp"
+            echo "OK"
+            check_vipb_ipsets
+            echo "$VIPB_STATUS" > "$SCRIPT_DIR/VIPB_STATUS.tmp"
+            echo "$VIPB_BANS" > "$SCRIPT_DIR/VIPB_BANS.tmp"
+            echo "$USER_STATUS" > "$SCRIPT_DIR/USER_STATUS.tmp"
+            echo "$USER_BANS" > "$SCRIPT_DIR/USER_BANS.tmp"
+            sleep 1
+        ) | dialog --title "Please wait..." --backtitle "$backtitle" --colors --progressbox 4 38
+            FW_RULES=$(cat "$SCRIPT_DIR/FW_RULES.tmp")
+            VIPB_STATUS=$(cat "$SCRIPT_DIR/VIPB_STATUS.tmp")
+            VIPB_BANS=$(cat "$SCRIPT_DIR/VIPB_BANS.tmp")
+            USER_STATUS=$(cat "$SCRIPT_DIR/USER_STATUS.tmp")
+            USER_BANS=$(cat "$SCRIPT_DIR/USER_BANS.tmp")
+            rm -f "$SCRIPT_DIR/FW_RULES.tmp" "$SCRIPT_DIR/VIPB_STATUS.tmp" "$SCRIPT_DIR/VIPB_BANS.tmp" "$SCRIPT_DIR/USER_STATUS.tmp" "$SCRIPT_DIR/USER_BANS.tmp"
+    }
 
-
-dialog --title "WELCOME to VIPB" --backtitle "VIPB - Versatile IP Blacklister - $VER $CLI" --infobox "       $VER" 3 24
+backtitle="VIPB - Versatile IP Blacklister - $VER $CLI";
+dialog --title "WELCOME to VIPB" --backtitle "$backtitle" --infobox "       $VER" 3 24
 sleep 0.5
-
+check_dialog
 while true; do
     colors
     backtitle="${RED}VIPB - Versatile IP Blacklister${NC} - $VER (2025) by simonquasar";
-
     [[ $DEBUG == "true" ]] && backtitle+=" - DEBUG MODE";
 
-    {
-        echo -n "Checking Firewall rules... "
-        check_firewall_rules
-        echo "OK"
-        check_vipb_ipsets
-        sleep 1
-    } | dialog --title "Please wait..." --backtitle "$backtitle" --colors --progressbox 4 38
 
 
     CHOICE=$(dialog --clear --colors --backtitle "$backtitle" --title "VIPB Main Menu" \
@@ -91,8 +99,8 @@ while true; do
     4 "Manual ban IPs" \
     ">>" "${RED}Download > Aggregate & Ban!" \
     5 "${RED}Check & Repair" \
-    6 "${BLU}${BD}Manage ipsets" \
-    7 "${BLU}${BD}Manage firewall" \
+    6 "${BLU}${BD}(2do) Manage ipsets" \
+    7 "${BLU}${BD}(2do) Manage firewall" \
     8 "${BLU}Change IPsum level ${NC}$BLACKLIST_LV" \
     9 "${BLU}Daily Cron Job${NC}$( [[ "$DAILYCRON" == "true" ]] && echo " ↺")"\
     10 "${BLU}Geo IP lookup" \
@@ -320,6 +328,7 @@ while true; do
 
             colors
         fi
+        check_dialog
     }
 
     # 4. Manual banning
@@ -331,7 +340,7 @@ while true; do
         MANUAL_CHOICE=$(dialog --title "Manual Ban" --clear --colors --backtitle "$backtitle" --menu "User bans are stored in ipset ${BLU}$MANUAL_IPSET_NAME${NC} (max 254 sources allowed)" 11 45 10 \
             1 "Ban IP" \
             2 "View Banned IPs" \
-            3 "Export to file"\
+            3 "(2do) Export to file"\
             2>&1 >/dev/tty)
 
         case $MANUAL_CHOICE in
@@ -340,21 +349,42 @@ while true; do
                 if [[ $d_exit -ne 0 || -z "$ip_input" ]]; then
                     manual_ban_dialog
                 fi
-
                 # Validate IP/CIDR (basic check)
                 if ! [[ "$ip_input" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}(/[0-9]{1,2})?$ ]]; then
                     dialog --title "Error" --msgbox "Invalid IP or CIDR format." 8 40
-                    manual_ban_dialog
-                fi
+                    break
+                else
 
-                # Add to ipset
-                if [[ "$FIREWALL" == "firewalld" ]]; then
-                    firewall-cmd ${PERMANENT:+$PERMANENT} --ipset="$MANUAL_IPSET_NAME" --add-entry="$ip_input"
-                elif [[ "$FIREWALL" == "iptables" ]]; then
-                    ipset add "$MANUAL_IPSET_NAME" "$ip_input"
-                fi
+                    # Check if ipset exists, if not create it
+                    check_ipset "$MANUAL_IPSET_NAME"
+                    check_status="$?"
+                    count=$(count_ipset "$MANUAL_IPSET_NAME")
+                    case $check_status in
+                        1 | 2 | 6 | 7 | 8 | 9 )
+                            # not found / orphaned
+                            if ! setup_ipset "$MANUAL_IPSET_NAME"; then
+                                outcome="$?"
+                                if [[ "$outcome" -ne 0 ]]; then
+                                    dialog --title "Manual Ban" --backtitle "$backtitle" --msgbox "${RED}ipset error.${NC}\n$outcome" 8 40
+                                    log "@$LINENO: Error: Failed to set up ipset. $outcome"
+                                    ((ERRORS++))
+                                    err=1
+                                else
+                                    dialog --title "Manual Ban" --backtitle "$backtitle" --msgbox "${GRN}ipset created.${NC}\n$outcome" 8 40
+                                fi
+                            fi
+                            ;;
+                        0 | 3 | 4 | 5 )  #found
+                            ;;
+                    esac
 
-                dialog --title "Manual Ban" --backtitle "$backtitle" --msgbox "IP/CIDR '$ip_input' has been banned." 8 40
+                    # Ban ip in manual ipset
+
+                    ban_ip "$MANUAL_IPSET_NAME" "$ip_input"
+                    err=$?
+
+                    dialog --title "Manual Ban ($err)" --backtitle "$backtitle" --msgbox "IP/CIDR '$ip_input' has been banned." 8 40
+                fi
                 manual_ban_dialog
                 ;;
             2)  if [[ "$FIREWALL" == "firewalld" ]]; then
@@ -372,6 +402,7 @@ while true; do
             3) manual_ban_dialog ;;
             *) break ;;
         esac
+        check_dialog
     }
 
     # >>. DOWNLOAD, COMPRESS & BAN
@@ -384,13 +415,14 @@ while true; do
             --programbox 22 70
         colors
         nocolors
-        ban_core "$BLACKLIST_FILE" | \
+        ban_core "$OPTIMIZED_FILE" | \
             dialog --title "Banning IPs" --backtitle "$backtitle" --cr-wrap \
             --programbox 20 70
 
         d_exit=$?
         ban_exit=${PIPESTATUS[0]}  # exit code di ban_core
         colors
+        check_dialog
     }
 
     # 5. Check & Repair
@@ -407,10 +439,12 @@ while true; do
         if [[ $d_exit -eq 3 ]]; then
             dialog --title "Repair" --backtitle "$backtitle" --msgbox "Coming Soon." 7 40
         fi
+
+        check_dialog
     }
 
-    # 6. Manage ipsets
-    # 7. Manage firewall
+    # 6. Manage ipsets #2do
+    # 7. Manage firewall #2do
 
     # 8. Change default LV
     function change_default_lv_dialog() {
@@ -491,8 +525,9 @@ while true; do
                     "DEBUG:$DEBUG"
                     "SCRIPT_DIR:$SCRIPT_DIR"
                     "LOG_FILE:$LOG_FILE"
+                    "BLACKLIST_LV:$BLACKLIST_LV"
                     "VIPB_IPSET_NAME:$VIPB_IPSET_NAME"
-                    "VIPB_STATUS[$VIPB_STATUS"
+                    "VIPB_STATUS:$VIPB_STATUS"
                     "MANUAL_IPSET_NAME:$MANUAL_IPSET_NAME"
                     "USER_STATUS:$USER_STATUS"
                     "FIREWALL:$FIREWALL"
@@ -504,11 +539,9 @@ while true; do
                     "PERMANENT:$PERMANENT"
                     "CRON:$CRON"
                     "DAILYCRON:$DAILYCRON"
-                    "BLACKLIST_LV:$BLACKLIST_LV"
                 )
 
                 menu_items=()
-                i=1
                 for var in "${vars[@]}"; do
                     key="${var%%:*}"
                     value="${var#*:}"
@@ -517,7 +550,7 @@ while true; do
                 done
 
                 dialog --title "VIPB variables" --backtitle "$backtitle" --no-cancel \
-                    --menu 25 60 15 \
+                    --menu "Environment vars:" 25 60 15 \
                     "${menu_items[@]}"
 
                 log_vars_dialog ;;
