@@ -31,9 +31,9 @@ License: GPL2"
 ## START
 # Check if the script is running from CLI
 if (echo "$DISPLAY" | grep -qE ':[0-9]'); then
-    echo "Loading GUI..."
+    echo "Loading xGUI..."
     echo "##################################################################"
-    echo "         WARNING: GUI mode is still under development!"
+    echo "         WARNING: xGUI mode is still under development!"
     echo "##################################################################"
     # Check if yad is installed
     if ! command -v yad &> /dev/null; then

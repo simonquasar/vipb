@@ -1083,16 +1083,22 @@ function add_ips() {
         err=0
         ERRORS=0
         for ip in "${ips[@]}"; do
+            echo -ne "Ban IP: $ip \r"
             ban_ip "$ipset" "$ip"
             err=$?
             if [[ "$err" == "1" ]]; then
                 ((ERRORS++))
             fi
+            #echo -ne "\t > $err \r"
         done
+        echo -ne "\r\033[K" # Clear the line after the loop
+        echo -ne "Done"
 
         if [ "$ERRORS" -gt 0 ]; then
+            echo -e " with ${RED}$ERRORS errors${NC}."
             return 1
         else
+            echo -e "."
             return 0
         fi
     fi
