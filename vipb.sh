@@ -19,7 +19,7 @@ check_debug_mode() {
 
     if [ "$1" == "debug" ]; then
         DEBUG="true"
-        echo ">> DEBUG MODE [$DEBUG]"
+        echo ">> DEBUG MODE ON"
         shift
     fi
     ARGS=("$@")
@@ -66,31 +66,38 @@ function log() {
 
 # bootstrap VIPB core functions and variables
 source "$SCRIPT_DIR/vipb-core.sh" "${ARGS[*]}"
-log "$SCRIPT_DIR/vipb-core.sh $( echo -e "${GRN}LOADED${NC}")"
+log "▤ SCRIPT_DIR: $SCRIPT_DIR/"
 
 # check/set dependencies
 log "Checking dependencies..."
 check_dependencies
 err=$?
 if [ "$err" == 0 ]; then
-    log "Dependencies OK"
+    log "Dependencies   OK"
 else
-    log "Dependencies ERROR $err"
+    log "Dependencies   ERROR $err"
+    exit $err
 fi
 debug_log "check_dependencies() $err"
 echo "Firewall: $FIREWALL"
 
-# if UI terminal > load vipb-ui.sh
+# if UI terminal > load vipb-ui.sh (default VIPB-UI)
 if [ "$CLI" == "false" ]; then
     # Start
+    log "Checking firewall rules..."
     echo -n "Checking firewall rules... "
     check_firewall_rules
     echo "OK"
+    log "Firewall rules OK"
+    echo -n "Checking VIPB ipsets.."
     check_vipb_ipsets
+    echo ". OK"
+    log "VIPB ipsets    OK"
     # load UI
     source "$SCRIPT_DIR/vipb-ui.sh"
-    log "$SCRIPT_DIR/vipb-ui.sh $( echo -e "${GRN}LOADED${NC}")"
-    log "UI interface LOADED"
+    debug_log "$SCRIPT_DIR/vipb-ui.sh $( echo -e "${GRN}LOADED${NC}")"
+    log "UI interface   LOADED"
+    log "----------------------------"
     # Start UI execution
     header
     menu_main
@@ -102,7 +109,7 @@ if [ "$CLI" == "false" ]; then
     log "UI error? Exit."
     exit 1
 
-# if CLI/CronJob > parse arguments
+# if CLI/CronJob > parse arguments (and/or loads other GUI extensions)
 elif [ "$CLI" == "true" ]; then
     #echo "VIPB $VER loaded in CLI/CronJob mode"
     log "VIPB loaded in CLI/CronJob mode."
@@ -139,8 +146,8 @@ elif [ "$CLI" == "true" ]; then
                         echo "  banlist [listfile.ipb]    ban IPs/subnets list [optional: file.ipb]"
                         echo "  stats                     view banned VIPB IPs/subnets counts"
                         echo "  dialog | gui              start GUI interface (dialog)"
-                        #echo "  xgui                      start xGUI interface (YAD) "
-                        echo "  true                      simulate cron/CLI (or autoban)"
+                    #   echo "  xgui                      start xGUI interface (YAD) "                  # in development
+                        echo "  true | autoban            simulate cron/CLI (autoban)"
                         echo "  debug                     debug mode (echoes logs)"
                         echo
                         echo "                            (*.ipb = list of IPs, one per line)"

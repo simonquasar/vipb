@@ -482,7 +482,7 @@ function change_default_lv_dialog() {
     backtitle="VIPB - Change IPsum ▼ download list level"
     local new_lv
     new_lv=$(dialog --title "Change Default IPsum Level" --backtitle "$backtitle" --colors \
-        --rangebox "Select the new default IPsum list level that will be used by VIPB as default.\n${BD}(2 = less strict, 8 = very strict)${NC}\nUse arrow keys up/down or enter a number:" 11 60 2 8 "$BLACKLIST_LV" 2>&1 >/dev/tty)
+        --rangebox "Select the new default IPsum list level that will be used by VIPB as default.\nUse arrow keys up/down or enter a number:${BD}(2 = less strict, 8 = very strict)${NC}\n" 11 60 2 8 "$BLACKLIST_LV" 2>&1 >/dev/tty)
     d_exit=$?
     if [[ $d_exit -eq 0 && -n "$new_lv" ]]; then
         set_blacklist_level "$new_lv"

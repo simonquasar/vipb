@@ -31,14 +31,16 @@ License: GPL2"
 ## START
 # Check if the script is running from CLI
 if (echo "$DISPLAY" | grep -qE ':[0-9]'); then
-    echo "Loading xGUI..."
+    echo "Display found."
     echo "##################################################################"
     echo "         WARNING: xGUI mode is still under development!"
     echo "##################################################################"
     # Check if yad is installed
     if ! command -v yad &> /dev/null; then
-        echo "YAD is not installed. Please install YAD to use VIPB-gui."
+        echo "YAD is not installed. Please install YAD to use VIPB-xgui."
         exit 1
+    else
+        echo "YAD found, continuing..."
     fi
     # Constants and styling
     TITLE="VIPB $VER"
@@ -339,8 +341,7 @@ if (echo "$DISPLAY" | grep -qE ':[0-9]'); then
             fi
         done
 
-    else
-        echo "No graphical interface detected. Please run this script in a graphical environment."
-        exit 1
-    fi
-
+else
+    echo "No graphical interface detected. Please run this script in a graphical environment."
+    exit 1
+fi

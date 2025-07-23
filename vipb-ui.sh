@@ -12,7 +12,7 @@ if [ "$CLI" == "true" ]; then
         exit 1
     fi
 else
-    log "Loading UI..."
+    log "Loading UI interface..."
     echo -e "▩▩▩ Hello Human! ▩▩▩"
     BD='\033[1m' # bold
     DM='\033[2m' # dim color
@@ -103,7 +103,7 @@ function next() {
 function vquit {
     echo -e "${VLT}"
     subtitle "ViPB end."
-    log "▩▩▩▩▩▩▩▩ VIPB END.  ▩▩▩▩"
+    log "▩▩▩▩▩▩▩▩ VIPB END.  ▩▩▩▩▩▩▩▩"
     exit 0
 }
 
@@ -175,7 +175,8 @@ function handle_aggregator() {
     header
     echo -ne "${CYN}"
     subtitle "VIPB-aggregator"
-    echo "Aggregator is a script that compresses the IPsum blacklist into a smaller set of sources (subnetworks)."
+    echo "Aggregator is a script that compresses the IPs(um) blacklist into a smaller set of sources (subnetworks)."
+    echo
     compressor
     next
     back
@@ -664,7 +665,9 @@ function handle_download_and_ban() {
                 subtitle "3. ${BLU} Ban!"
                 INFOS="false"
                 ban_core $OPTIMIZED_FILE
+                echo -n "Reloading"
                 check_vipb_ipsets
+                echo -ne "\r\033[K" # Clear the linee
                 ;;
         esac
 
@@ -1063,9 +1066,7 @@ function handle_firewalls() {
                 if [ "$IPTABLES" == "true" ]; then
                     fw_options+=("iptables ${BG}${S16}[default]${NC}")
                 fi
-                if [ "$FIREWALLD" == "true" ]; then
-                    fw_options+=("FirewallD")
-                fi
+                fw_options+=("FirewallD")
                 if [ "$DEBUG" == "true" ]; then
                     fw_options+=("ufw ${BG}[not supported]${NC}") #2do
                 fi
@@ -1096,8 +1097,9 @@ function handle_firewalls() {
                 METAERRORS=0
                 echo -n "Checking firewall rules... "
                 check_firewall_rules
-                echo "OK"
+                echo -ne "\nChecking ipsets"
                 check_vipb_ipsets
+                echo
                 next
                 ;;
             6)  debug_log " $fw_choice. Switch Edit Mode"
@@ -1471,6 +1473,10 @@ function header() {
     else
        clear
     fi
+    check_firewall_rules $VIPB_IPSET_NAME
+    VIPB_FW_STATUS=$?
+    check_firewall_rules $MANUAL_IPSET_NAME
+    USER_FW_STATUS=$?
 
     echo -ne "${NC}${RED}${DM}"
     echo -e "▁ ▂ ▃ ▅ ▆ ▇ ▉ ▇ ▆ ▅ ▃ ▂ ${NC}${VLT}${BD}Versatile IPs Blacklister${NC} ${DM}${VER}${RED} ▁ ▂ ▃ ▅ ▆ ▇ ▉ ▇ ▆ ▅ ▃ ▂${NC}"
@@ -1479,32 +1485,38 @@ function header() {
     echo -e "\t  ██║   ██║██║██╔══██╗██╔══██╗     ${DM}by ┛┗┛┗┗┗┛┛┗┗┫┗┻┗┻┛┗┻┛ ${NC}"
     echo -e "\t  ██║   ██║██║██████╔╝██████╔╝     ${DM}             ┗         ${NC}"
     echo -ne "\t  ╚██╗ ██╔╝██║██╔═══╝ ██╔══██╗    "
+    case $VIPB_FW_STATUS in
+        0) echo -ne "${GRN}●${NC} ";;          #0 ok found ✦
+        1) echo -ne "${RED}●${NC} ";;          #1 not found
+    esac
     case $VIPB_STATUS in
-        0 | 5) echo -ne "${GRN}";;      #OK
-        1 | 6) echo -ne "${DM}${RED}";; #not found
-        2) echo -ne "${RED}";;          #firewalld: no sets
-        3) echo -ne "${S24}";;          #firewalld: ok runtime
-        4) echo -ne "${BLU}";;          #firewalld: ok permanent
-        7 | 8 | 9) echo -ne "${DM}${ORG}";;   #firewalld: orph
+        0 | 5) echo -ne "${GRN}●";;      #OK
+        1 | 6) echo -ne "${RED}●";;      #not found
+        2) echo -ne "${ORG}●";;          #firewalld: no sets
+        3) echo -ne "${S24}●";;          #firewalld: ok runtime
+        4) echo -ne "${BLU}●";;          #firewalld: ok permanent
+        7 | 8 | 9) echo -ne "${YLW}●";;   #firewalld: orph
         *) log "$VIPB_STATUS";;
     esac
-    echo -ne "✦ VIPB ${VLT}$VIPB_BANS ${NC}"
+    echo -ne " VIPB ${VLT}$VIPB_BANS ${NC}"
     echo
     echo -ne "\t   ╚████╔╝ ██║██║     ██████╔╝    "
+    case $USER_FW_STATUS in
+        0) echo -ne "${GRN}●${NC} ";;          #0 ok found
+        1) echo -ne "${RED}●${NC} ";;          #1 not found
+    esac
     case $USER_STATUS in
-        0 | 5) echo -ne "${GRN}";;      #OK
-        1 | 6) echo -ne "${DM}${RED}";; #not found
-        2) echo -ne "${RED}";;          #firewalld: no sets
-        3) echo -ne "${S24}";;          #firewalld: ok runtime
-        4) echo -ne "${BLU}";;          #firewalld: ok permanent
-        7 | 8 | 9) echo -ne "${DM}${ORG}";;   #firewalld: orph
+        0 | 5) echo -ne "${GRN}●";;      #OK
+        1 | 6) echo -ne "${RED}◌";;      #not found
+        2) echo -ne "${ORG}●";;          #firewalld: no sets
+        3) echo -ne "${S24}○";;          #firewalld: ok runtime
+        4) echo -ne "${BLU}○";;          #firewalld: ok permanent
+        7 | 8 | 9) echo -ne "${YLW}●";;   #firewalld: orph
         *) log "$USER_STATUS";;
     esac
-    echo -ne "✦ USER ${YLW}$USER_BANS ${NC}"
+    echo -ne " USER ${VLT}$USER_BANS ${NC}"
     echo
     echo -ne "\t    ╚═══╝  ╚═╝╚═╝     ╚═════╝     "
-    [ "$FW_RULES" == "true" ] && echo -ne "${GRN}✦ " || echo -ne "${RED}✦ no ";
-    echo -ne "rules${NC} in ${ORG}$FIREWALL${NC}"
     echo
     echo -ne "${DM}"
     if [ "$METAERRORS" -gt 0 ]; then
