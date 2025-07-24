@@ -1486,32 +1486,32 @@ function header() {
     echo -e "\t  ██║   ██║██║██████╔╝██████╔╝     ${DM}             ┗         ${NC}"
     echo -ne "\t  ╚██╗ ██╔╝██║██╔═══╝ ██╔══██╗    "
     case $VIPB_FW_STATUS in
-        0) echo -ne "${GRN}●${NC} ";;          #0 ok found ✦
-        1) echo -ne "${RED}●${NC} ";;          #1 not found
+        0) echo -ne "${GRN}✦${NC} ";;          #0 ok found ✦
+        1) echo -ne "${RED}✧${NC} ";;          #1 not found
     esac
     case $VIPB_STATUS in
-        0 | 5) echo -ne "${GRN}●";;      #OK
-        1 | 6) echo -ne "${RED}●";;      #not found
-        2) echo -ne "${ORG}●";;          #firewalld: no sets
-        3) echo -ne "${S24}●";;          #firewalld: ok runtime
-        4) echo -ne "${BLU}●";;          #firewalld: ok permanent
-        7 | 8 | 9) echo -ne "${YLW}●";;   #firewalld: orph
+        0 | 5) echo -ne "${GRN}█";;      #OK
+        1 | 6) echo -ne "${RED}░";;      #not found
+        2) echo -ne "${ORG}░";;          #firewalld: no sets
+        3) echo -ne "${S24}▓";;          #firewalld: ok runtime
+        4) echo -ne "${BLU}▓";;          #firewalld: ok permanent
+        7 | 8 | 9) echo -ne "${YLW}░";;   #firewalld: orph
         *) log "$VIPB_STATUS";;
     esac
     echo -ne " VIPB ${VLT}$VIPB_BANS ${NC}"
     echo
     echo -ne "\t   ╚████╔╝ ██║██║     ██████╔╝    "
     case $USER_FW_STATUS in
-        0) echo -ne "${GRN}●${NC} ";;          #0 ok found
-        1) echo -ne "${RED}●${NC} ";;          #1 not found
+        0) echo -ne "${GRN}✦${NC} ";;          #0 ok found
+        1) echo -ne "${RED}✧${NC} ";;          #1 not found
     esac
     case $USER_STATUS in
-        0 | 5) echo -ne "${GRN}●";;      #OK
-        1 | 6) echo -ne "${RED}◌";;      #not found
-        2) echo -ne "${ORG}●";;          #firewalld: no sets
-        3) echo -ne "${S24}○";;          #firewalld: ok runtime
-        4) echo -ne "${BLU}○";;          #firewalld: ok permanent
-        7 | 8 | 9) echo -ne "${YLW}●";;   #firewalld: orph
+        0 | 5) echo -ne "${GRN}█";;      #OK
+        1 | 6) echo -ne "${RED}░";;      #not found
+        2) echo -ne "${ORG}░";;          #firewalld: no sets
+        3) echo -ne "${S24}▓";;          #firewalld: ok runtime
+        4) echo -ne "${BLU}▓";;          #firewalld: ok permanent
+        7 | 8 | 9) echo -ne "${YLW}░";;   #firewalld: orph
         *) log "$USER_STATUS";;
     esac
     echo -ne " USER ${VLT}$USER_BANS ${NC}"

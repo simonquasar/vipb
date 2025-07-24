@@ -9,7 +9,7 @@
 # |  |  | |   __| __ -|
 #  \___/|_|__|  |_____| v0.9
 #
-VER="v0.9.4-gui"
+VER="v0.9.5-gui"
 ARGS=("$@")
 
 # check if debug mode is enabled
