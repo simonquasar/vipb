@@ -3,7 +3,7 @@ set -o pipefail
 
 # Variables & Logging
 # set the blacklisted IPsum level (2-8, default 3)
-BLACKLIST_LV=4
+BLACKLIST_LV=5
 # set the default files names and path
 BLACKLIST_FILE="$SCRIPT_DIR/vipb-blacklist.ipb"
 OPTIMIZED_FILE="$SCRIPT_DIR/vipb-optimised.ipb"
@@ -217,75 +217,51 @@ function check_ipset() {
     #   --
     #   10 impossible - contact dev!
 
-    if [[ "$IPSET" == "true" ]] && [[ -n "$ipset_name" ]] ; then
+    if [[ "$IPSET" == "true" ]] && [[ -n "$ipset_name" ]]; then
         echo -ne "ipset ${BG}'$ipset_name'${NC} "
 
-        if ! ipset list "$ipset_name" &>/dev/null; then
-            echo -ne "${RED}not "
-            err=1                   # 1 - IPSET not found
-        else                        # 0 - IPSET found
-            echo -ne "${GRN}"
+        if ipset list "$ipset_name" &>/dev/null; then
+            echo -ne "${GRN}found in system${NC} "
+            err=0
+        else
+            echo -ne "${RED}not found in system${NC} "
+            err=1
         fi
-        echo -ne "found in system${NC} "
 
         if [[ "$FIREWALLD" == "true" || "$FIREWALL" == "firewalld" ]]; then
-            #echo -ne "in ${ORG}${BG}firewalld${NC}: "
-            if firewall-cmd --get-ipsets | grep -q "$ipset_name"; then
-                #echo -ne "${S24}--runtime${NC} "
-                r=1
-                ((f++))
-            fi
+            P=$P-1
 
-            if firewall-cmd --permanent --get-ipsets | grep -q "$ipset_name"; then
-                #echo -ne "${BLU}--permanent${NC} locked "
-                P=1
-                ((f++))
-            fi
+            [[ $(firewall-cmd --get-ipsets | grep -q "$ipset_name" && echo 1) ]] && ((r++, f++))
+            [[ $(firewall-cmd --permanent --get-ipsets | grep -q "$ipset_name" && echo 1) ]] && ((P++, f++))
+
             echo -n "["
 
-            if [[ "$err" == 0 ]] ; then                 # 0 - IPSET found
-                if [[ "$f" -gt 0 ]]; then
-                    if [[ "$f" -gt 1 ]]; then           ## 5 - OK! firewalld: both --permanent and runtime found
-                        echo -ne "${S16}BOTH${NC}"
-                        err=5
-                    else
-                        if [[ "$r" -gt 0 ]] ; then      ## 3 - OK firewalld: runtime found
-                            echo -ne "${S24}RUNTIME${NC}"
-                            err=3
-                        elif [[ "$r" -gt 0 ]] ; then    ## 4 - OK firewalld: --permanent found
-                            echo -ne "${BLU}--PERMANENT${NC}"
-                            err=4
-                        else                            ## 10 - impossible
-                            echo -ne "${RED}-impossible-${NC}"
-                            err=10
+            if [[ "$err" == 0 ]]; then
+                case $f in
+                    0) echo -ne "${ORG}NO LINK${NC}"; err=2 ;;
+                    1)
+                        if (( r )); then
+                            echo -ne "${S24}RUNTIME${NC}"; err=3
+                        else
+                            echo -ne "${BLU}--PERMANENT${NC}"; err=4
                         fi
-                    fi
-                else                                    ## 2 - firewalld: no sets found
-                    echo -ne "${ORG}NO REFERENCES${NC}"
-                    err=2
-                fi
-            else                                        # 1 - IPSET not found (orphaned)
-                if [[ "$f" -gt 0 ]]; then
-                    if [[ "$f" -gt 1 ]]; then           ## 8 - firewalld: both --permanent and runtime found, but no ipset
-                        echo -ne "${YLW}BOTH${NC}"
-                        err=9
-                    else                                ##  orphaned
-                        if [[ "$r" -gt 0 ]] ; then      ## 7 - firewalld: runtime found
-                            echo -ne "${YLW}RUNTIME${NC}"
-                            err=7
-                        elif [[ "$r" -gt 0 ]] ; then    ## 8 - firewalld: --permanent found
-                            echo -ne "${YLW}--PERMANENT${NC}"
-                            err=8
-                        else                            ## 10 -
-                            echo -ne "${RED}-impossible-${NC}"
-                            err=10
+                        ;;
+                    2) echo -ne "${S16}BOTH${NC}"; err=5 ;;
+                    *) echo -ne "${RED}-impossible-${NC}"; err=10 ;;
+                esac
+            else
+                case $f in
+                    0) echo -ne "${YLW}NO LINK${NC}"; err=6 ;;
+                    1)
+                        if (( r )); then
+                            echo -ne "${YLW}RUNTIME${NC} ${ORG}ORPHANED${NC}"; err=7
+                        else
+                            echo -ne "${YLW}--PERMANENT${NC} ${ORG}ORPHANED${NC}"; err=8
                         fi
-                    fi
-                    echo -ne " ${ORG}ORPHANED${NC}"
-                else                                    ## 6 - firewalld: also not found
-                    echo -ne "${YLW}NO REFERENCES${NC}"
-                    err=6
-                fi
+                        ;;
+                    2) echo -ne "${YLW}BOTH${NC} ${ORG}ORPHANED${NC}"; err=9 ;;
+                    *) echo -ne "${RED}-impossible-${NC}"; err=10 ;;
+                esac
             fi
             echo "] "
         fi
@@ -527,8 +503,8 @@ function save_iptables_rules() { #2do
     #else
     #    log "netfilter-persistent not found, falling back to manual save" >&2
     #
-        iptables-save > "$SCRIPT_DIR/iptables-rules.v4"
-        return $?
+       # iptables-save > "$SCRIPT_DIR/iptables-rules.v4"
+        return 1
     #fi
     #if ! iptables -S > "$SCRIPT_DIR/vipb-iptables.v4" 2>/dev/null; then
     #    log "Error: Failed to backup iptables -S rules" >&2
@@ -710,7 +686,7 @@ function count_ipset() {
         elif [[ "$query" == "ufw" ]]; then
             echo -n "UFW 2do"
         fi
-        debug_log "@$LINENO: count $ipset_name query: $query f: $f | total_ipset: $total_ipset | $RUN_BANS --$PERM_BANS"
+        #debug_log "@$LINENO: count $ipset_name query: $query f: $f | total_ipset: $total_ipset | $RUN_BANS --$PERM_BANS"
         return 0
     else
         echo -n "err"
@@ -950,7 +926,8 @@ function ban_ip() {
 
     local ban_ip_result=0
     # 0 OK - 1 ERROR - 2 ALREADY BANNED
-    echo -ne "Ban IP: $ip \r"
+
+    [[ "$CLI" != "true" || "$DEBUG" == "true" ]] && echo -ne "Ban IP: $ip \r"
 
     if validate_ip "$ip"; then
         if [[ "$FIREWALL" == "firewalld" ]]; then
@@ -1591,167 +1568,177 @@ function compressor() {
     c24=${2:-3}
     c16=${3:-4}
 
-    echo -e "${CYN} VIPB-Compressor Start "
-    echo -e "========================"
-    echo -ne "${BLU}≡${NC} $list_file ${BLU}჻ "
+    log "=========================================="
+    log " Start VIPB-Compressor"
 
-    if ! check_blacklist_file "$list_file"; then
-        echo -e "${RED}ERROR: no blacklist${NC} $list_file"
-        log "@$LINENO: ERROR: no blacklist"
-    else
-        if [ -f "$list_file" ]; then
-            total_ips=$(wc -l < "$list_file")
+    echo -e "${CYN}■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■"
+    echo -e "\t\tVIPB-Compressor Start"
+    echo -e "■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■${NC}"
+    echo -e "${BLU}≡${NC} $list_file "
+    modified=$(stat -c "%y" "$list_file" | cut -d. -f1)
+    echo -e "${BLU}≡${NC} $modified "
+    echo -ne "${BLU}჻ "
 
-            temp_files=()
-            compression=0
-            temp_file=$(mktemp) && temp_files+=("$temp_file")
-            subnet_temp=$(mktemp) && temp_files+=("$subnet_temp")
-            temp_16_file=$(mktemp) && temp_files+=("$temp_16_file")
-            remaining_24_temp=$(mktemp) && temp_files+=("$remaining_24_temp")
-            cleanup() {
-                for tf in "${temp_files[@]}"; do
-                    [ -f "$tf" ] && rm -f "$tf"
-                done
-            }
-            trap cleanup EXIT
+    if check_blacklist_file "$list_file"; then
+        total_ips=$(wc -l < "$list_file")
+
+        temp_files=()
+        compression=0
+        temp_file=$(mktemp) && temp_files+=("$temp_file")
+        subnet_temp=$(mktemp) && temp_files+=("$subnet_temp")
+        temp_16_file=$(mktemp) && temp_files+=("$temp_16_file")
+        remaining_24_temp=$(mktemp) && temp_files+=("$remaining_24_temp")
+        cleanup() {
+            for tf in "${temp_files[@]}"; do
+                [ -f "$tf" ] && rm -f "$tf"
+            done
+        }
+        trap cleanup EXIT
+        echo
+
+        if [ "$CLI" == "false" ]; then
             echo
-
-            if [ "$CLI" == "false" ]; then
-                echo
-                echo -e "${NC}${YLW}Set occurrence tolerance levels [2-9] ${DM}[Exit with 0]${NC}"
-                echo
-                while true; do
-                    echo -ne "${NC}  for ${S24}/24 subnets${NC} (#.#.#.${BG}0${NC}): ${YLW}"
-                    read -r ip_occ
-                    if [[ "$ip_occ" =~ ^[2-9]$ ]]; then
-                        c24="$ip_occ"
-                        break
-                    elif [[ "$ip_occ" =~ ^[0]$ ]]; then
-                        back
-                    else
-                        echo -e "${NC}Invalid input. Please enter a number between 2 and 9. Exit with 0."
-                    fi
-                done
-                while true; do
-                    echo -ne "${NC}  for ${S16}/16 subnets${NC} (#.#.${BG}0.0${NC}): ${YLW}"
-                    read -r ip_occ
-                    if [[ "$ip_occ" =~ ^[2-9]$ ]]; then
-                        c16="$ip_occ"
-                        break
-                    elif [[ "$ip_occ" =~ ^[0]$ ]]; then
-                        back
-                    else
-                        echo -e "${NC}Invalid input. Please enter a number between 2 and 9. ${DM}Exit with 0.${NC}"
-                    fi
-                done
-                echo
-            fi
-
-            log "=========================================="
-            log "Start compression > /16 @ $c16 | /24 @ $c24"
-            echo "◣ Start validation..."
-            echo -ne "${VLT}◣ IPs list                ${NC}"
-
-            # Extract subnets
-
-            awk -F'.' '{print $1"."$2"."$3".0/24 " $0}' "$list_file" | \
-                sort > "$temp_file"
-            awk -F'[ .]' -v c="$c24" '{print $1"."$2"."$3".0/24"}' "$temp_file" | \
-                sort | uniq -c | awk -v c="$c24" '$1 >= c {print $2}' > "$SUBNETS24_FILE"
-            sed 's/\([0-9]\+\.[0-9]\+\)\.[0-9]\+\.0\/24/\1.0.0\/16/' "$SUBNETS24_FILE" | \
-                sort | uniq -c | \
-                awk -v c="$c16" '$1 >= c {print $2}' > "$SUBNETS16_FILE"
-            echo -e "${GRN}Done. ${VLT}$total_ips IPs${NC}"
-
-            # Create  optimized list
-            # /16 #.#.0.0
-            cat "$SUBNETS16_FILE" > "$OPTIMIZED_FILE"
-            subnet16_count=$(wc -l < "$SUBNETS16_FILE")
-
-            # /24 #.#.#.0
-            echo -ne "${S24}◣ /24 subnets${NC} (#.#.#.${BG}0${NC})   ${NC}"
-            while read -r subnet16; do
-                prefix16=$(echo "$subnet16" | cut -d'/' -f1 | sed 's/\.0\.0$//')
-                grep -v "^$prefix16" "$SUBNETS24_FILE" > "$remaining_24_temp"
-                mv "$remaining_24_temp" "$SUBNETS24_FILE"
-            done < "$SUBNETS16_FILE"
-            cat "$SUBNETS24_FILE" >> "$OPTIMIZED_FILE"
-            subnet24_count=$(wc -l < "$SUBNETS24_FILE")
-
-            # IPs #.#.#.#
-            while read -r subnet24; do
-                subnet_prefix=$(echo "$subnet24" | cut -d'/' -f1 | sed 's/\.0$//')
-                grep -v "^$subnet_prefix" "$temp_file" > "$subnet_temp"
-                mv "$subnet_temp" "$temp_file"
-            done < "$SUBNETS24_FILE"
-            echo -e "${GRN}Done. ${S24}$subnet24_count subnets @ x$c24${NC}"
-            echo -ne "${S16}◣ /16 subnets${NC} (#.#.${BG}0.0${NC})   ${NC}"
-            while read -r subnet16; do
-                prefix16=$(echo "$subnet16" | cut -d'/' -f1 | sed 's/\.0\.0$//')
-                grep -v "^$prefix16" "$temp_file" > "$subnet_temp"
-                mv "$subnet_temp" "$temp_file"
-            done < "$SUBNETS16_FILE"
-            echo -e "${GRN}Done. ${S16}$subnet16_count subnets @ x$c16${NC}"
-
-            echo -ne "${BLU}◣ Writing to file...      ${NC}"
-            awk '{print $2}' "$temp_file" >> "$OPTIMIZED_FILE"
-            optimized_count=$(wc -l < "$OPTIMIZED_FILE")
-            single_count=$((optimized_count - subnet16_count - subnet24_count))
-            cut_count=$((total_ips - single_count))
-            echo -e "${GRN}Done. ${BLU}$optimized_count sources${NC}"
-            prog_ips=$((single_count * 100 / total_ips))
-            prog_nets=$(((subnet24_count + subnet16_count) * 100 / total_ips))
-            compression=$((prog_ips + prog_nets))
-
-            function compression_bar() {
-                ratio=3
-                filips=$((prog_ips / ratio))
-                filnets=$((prog_nets / ratio))
-                filled=$((compression / ratio))
-                fullbar=100/ratio
-                empty=$((fullbar - filled))
-                barips=$(printf "%0.s■" $(seq 1 $filips))
-                barnets=$(printf "%0.s■" $(seq 1 $filnets))
-                spaces=$(printf "%0.s□" $(seq 1 $empty))
-                fill=$((filled - 2))
-                compression_bar=$(printf "%0.s " $(seq 1 $fill))
-                echo -e "${compression_bar}${S16}${BD}${compression}%${NC}"
-                echo -e "${VLT}${barips}${S16}${barnets}${CYN}${spaces}${NC}"
-            }
-
-
-            log "Compression Done!"
-            log "========================"
-            log "$total_ips total IPs processed"
-            log "$cut_count IPs reduced to $((subnet24_count + subnet16_count)) subnets | $subnet24_count /24subnets (x$c24) + $subnet16_count /16subnets (x$c16)"
-            log "$single_count uncompressed IPs"
-            log "======"
-            log "$optimized_count compressed sources ($compression%)"
-            log "========================"
-
+            echo -e "${NC}${YLW}Set occurrence tolerance levels [2-9] ${DM}[Exit with 0]${NC}"
             echo
-            echo -e "${S16}◔ $((subnet24_count + subnet16_count)) subnets${NC} detected in ${CYN}$cut_count IPs ${NC}($((100-(single_count * 100 / total_ips)))%) " # "($((compression - (single_count * 100 / total_ips)))%)"
-            echo -e "${VLT}◕ $single_count IPs ${NC} uncompressed ($((single_count * 100 / total_ips))%)"
-            echo -e "${BD}${BLU}= $optimized_count sources ${NC}optimized ($compression%)"
-            #echo -e "${BD}${CYN}≡ ${OPTIMIZED_FILE}${NC}"
+            while true; do
+                echo -ne "${NC}  for ${S24}/24 subnets${NC} (#.#.#.${BG}0${NC}): ${YLW}"
+                read -r ip_occ
+                if [[ "$ip_occ" =~ ^[2-9]$ ]]; then
+                    c24="$ip_occ"
+                    break
+                elif [[ "$ip_occ" =~ ^[0]$ ]]; then
+                    back
+                else
+                    echo -e "${NC}Invalid input. Please enter a number between 2 and 9. Exit with 0."
+                fi
+            done
+            while true; do
+                echo -ne "${NC}  for ${S16}/16 subnets${NC} (#.#.${BG}0.0${NC}): ${YLW}"
+                read -r ip_occ
+                if [[ "$ip_occ" =~ ^[2-9]$ ]]; then
+                    c16="$ip_occ"
+                    break
+                elif [[ "$ip_occ" =~ ^[0]$ ]]; then
+                    back
+                else
+                    echo -e "${NC}Invalid input. Please enter a number between 2 and 9. ${DM}Exit with 0.${NC}"
+                fi
+            done
             echo
-            compression_bar
-            echo
-            echo -e "${NC}${CYN} Compression done!${NC}"
-
-        else
-            echo
-            echo -e "${RED}ERROR reading blacklist:${NC} $1"
-            log "ERROR reading blacklist $1"
-            return 1
         fi
+
+        log "=========================================="
+        log "Start compression > /16 @ $c16 | /24 @ $c24"
+        echo
+        echo "◣ Start validation..."
+        echo -ne "${VLT}◣ IPs list                ${NC}"
+
+        # Extract subnets
+
+        awk -F'.' '{print $1"."$2"."$3".0/24 " $0}' "$list_file" | \
+            sort > "$temp_file"
+        awk -F'[ .]' -v c="$c24" '{print $1"."$2"."$3".0/24"}' "$temp_file" | \
+            sort | uniq -c | awk -v c="$c24" '$1 >= c {print $2}' > "$SUBNETS24_FILE"
+        sed 's/\([0-9]\+\.[0-9]\+\)\.[0-9]\+\.0\/24/\1.0.0\/16/' "$SUBNETS24_FILE" | \
+            sort | uniq -c | \
+            awk -v c="$c16" '$1 >= c {print $2}' > "$SUBNETS16_FILE"
+        echo -e "${GRN}Done. ${VLT}$total_ips IPs${NC}"
+
+        # Create  optimized list
+        # /16 #.#.0.0
+        cat "$SUBNETS16_FILE" > "$OPTIMIZED_FILE"
+        subnet16_count=$(wc -l < "$SUBNETS16_FILE")
+
+        # /24 #.#.#.0
+        echo -ne "${S24}◣ /24 subnets${NC} (#.#.#.${BG}0${NC})   ${NC}"
+        while read -r subnet16; do
+            prefix16=$(echo "$subnet16" | cut -d'/' -f1 | sed 's/\.0\.0$//')
+            grep -v "^$prefix16" "$SUBNETS24_FILE" > "$remaining_24_temp"
+            mv "$remaining_24_temp" "$SUBNETS24_FILE"
+        done < "$SUBNETS16_FILE"
+        cat "$SUBNETS24_FILE" >> "$OPTIMIZED_FILE"
+        subnet24_count=$(wc -l < "$SUBNETS24_FILE")
+
+        # IPs #.#.#.#
+        while read -r subnet24; do
+            subnet_prefix=$(echo "$subnet24" | cut -d'/' -f1 | sed 's/\.0$//')
+            grep -v "^$subnet_prefix" "$temp_file" > "$subnet_temp"
+            mv "$subnet_temp" "$temp_file"
+        done < "$SUBNETS24_FILE"
+        echo -e "${GRN}Done. ${S24}$subnet24_count subnets @ x$c24${NC}"
+        echo -ne "${S16}◣ /16 subnets${NC} (#.#.${BG}0.0${NC})   ${NC}"
+        while read -r subnet16; do
+            prefix16=$(echo "$subnet16" | cut -d'/' -f1 | sed 's/\.0\.0$//')
+            grep -v "^$prefix16" "$temp_file" > "$subnet_temp"
+            mv "$subnet_temp" "$temp_file"
+        done < "$SUBNETS16_FILE"
+        echo -e "${GRN}Done. ${S16}$subnet16_count subnets @ x$c16${NC}"
+
+        echo -ne "${BLU}◣ Writing to file...      ${NC}"
+        awk '{print $2}' "$temp_file" >> "$OPTIMIZED_FILE"
+        echo -ne "${GRN}Done. "
+
+        optimized_count=$(wc -l < "$OPTIMIZED_FILE")
+        single_count=$((optimized_count - subnet16_count - subnet24_count))
+        subs_count=$((subnet24_count + subnet16_count))
+        cut_count=$((total_ips - single_count))
+        prog_ips=$((single_count * 100 / total_ips))
+        prog_nets=$(((subnet24_count + subnet16_count) * 100 / total_ips))
+        compression=$((prog_ips + prog_nets))
+        uncompressed=$((100 - prog_ips))
+
+        echo -e "${BLU}$optimized_count sources${NC}"
+
+        log "Compression Done!"
+        log "========================"
+        log "$total_ips total IPs processed"
+        log "$cut_count IPs reduced to $subs_count subnets | $subnet24_count /24subnets (x$c24) + $subnet16_count /16subnets (x$c16)"
+        log "$single_count uncompressed IPs"
+        log "======"
+        log "$optimized_count compressed sources ($compression%)"
+        log "========================"
+
+        function compression_bar() {
+            ratio=2  # 100 / ratio = 50 bars
+            filips=$((prog_ips / ratio))
+            filnets=$((prog_nets / ratio))
+            filled=$((compression / ratio))
+            fullbar=100/ratio
+            empty=$((fullbar - filled))
+            barips=$(printf "%0.s█" $(seq 1 $filips))
+            barnets=$(printf "%0.s▓" $(seq 1 $filnets))
+            spaces=$(printf "%0.s░" $(seq 1 $empty))
+            label_position=$((filled - 3))
+            compression_bar=$(printf "%0.s " $(seq 1 $label_position))
+            echo -e "${compression_bar}${S16}${BD}${compression}%${NC}"
+            echo -e "${VLT}${barips}${S16}${barnets}${CYN}${spaces}${NC}"
+        }
+
+        echo
+        compression_bar
+        echo
+        echo -e "${S16}  ◔ $subs_count subnets${NC} from ${CYN}$cut_count IPs ${NC}\t$uncompressed% to $((compression - prog_ips))%"
+        echo -e "${VLT}  ◕ $single_count IPs${NC} uncompressed \t$prog_ips%"
+        echo -e "${CYN}==================================================${NC}"
+        echo -e "${BD}${CYN}  = $optimized_count sources ${NC}optimized \t$compression%"
+        echo -e "${CYN}■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■${NC}"
+        echo -e "\t\tCompression done! "
+        echo -e "${CYN}==================================================${NC}"
+        echo
+        return 0
+    else
+        echo -e "${RED}ERROR: no blacklist${NC} $list_file"
+        echo -e "${CYN}==================================================${NC}"
+        echo
+        log "@$LINENO: ERROR: no blacklist"
+        return 1
     fi
 }
 
 ban_core_start(){
-    echo -e "${VLT}■■■■■■■■■■■■■■■■■■■■■■■■"
+    echo -e "${VLT}■■■■■■■■■■■■■■■■■■■■■■■■■"
     echo -e "   VIPB-Ban started!"
-    echo -e "■■■■■■■■■■■■■■■■■■■■■■■■${NC}"
+    echo -e "■■■■■■■■■■■■■■■■■■■■■■■■■${NC}"
     log "=========================================="
     log " Start VIPB-Ban"
 
@@ -1764,11 +1751,12 @@ ban_core_start(){
     if [ -f "$blacklist" ]; then
         modified=$(stat -c "%y" "$blacklist" | cut -d. -f1)
         log "Source  $blacklist ($modified)"
-        echo -e "≡ ${BLU}${BG}$blacklist${NC} [$modified]..."
-        echo -e "≡ List contains ${BLU}$(wc -l < "$blacklist") lines${NC}"
+        echo -e "≡ ${BLU}${BG}$blacklist${NC}..."
+        echo -e "≡ From: $modified"
+        echo -e "≡ ${BLU}$(wc -l < "$blacklist") lines${NC} in list"
         IPS=()
         while IFS= read -r ip; do
-            echo -ne "IP? $ip \r"
+            [[ "$CLI" != "true" ]] && echo -ne "IP? $ip \r"
             if [[ -n "$ip" && "$ip" != "#"* ]]; then
                 if validate_ip "$ip"; then
                     IPS+=("$ip")
@@ -1778,9 +1766,9 @@ ban_core_start(){
                 fi
             fi
         done < "$blacklist"
-        echo -ne "\r\033[K" # Clear the line after the loop
-        # Also write the valid IPS to a fixed temp file for (modular i.e. firewalld) use in ban_core_end()
+            [[ "$CLI" != "true" ]] && echo -ne "\r\033[K" # Clear the line after the loop
         BAN_IPS=()
+        # Also write the valid IPS to a fixed temp file for modular (i.e. firewalld) use in ban_core_end()
         temp_ips_file="$SCRIPT_DIR/vipb-last-ips.tmp"
         : > "$temp_ips_file"
         for valid_ip in "${IPS[@]}"; do
@@ -1789,7 +1777,7 @@ ban_core_start(){
                 echo "$valid_ip" >> "$temp_ips_file"
             fi
             BAN_IPS+=("$valid_ip")
-            echo -ne "\r\033[K" # Clear the line after the loop
+            [[ "$CLI" != "true" ]] && echo -ne "\r\033[K" # Clear the line after the loop
         done
         total_blacklist_read=${#BAN_IPS[@]}
         echo -e "჻ Loaded ${VLT}${total_blacklist_read} sources${NC}"
@@ -1801,33 +1789,27 @@ ban_core_start(){
     fi
 
     if [ "$total_blacklist_read" -eq 0 ]; then
-        echo -e "${RED}Error: No valid IPs found in list.${NC}"
-        log "@$LINENO: Error: No valid IPs found in list."
+        echo -e "${RED}No valid IPs found in list.${NC}"
+        log "@$LINENO: No valid IPs found in list."
         ((ERRORS++))
         err=1
     else
         echo -ne "≡ "
         check_ipset "$ipset"
-        check_status="$?"
+        check_status=$?
         count=$(count_ipset "$ipset")
         echo -e "with ${VLT}$count entries${NC}"
 
-        case $check_status in
-            1 | 2 | 6 | 7 | 8 | 9 )
-                echo
-                if ! setup_ipset "$ipset"; then
-                    outcome="$?"
-                    if [[ "$outcome" -ne 0 ]]; then
-                        echo -e "${RED}ipset error!${NC} $outcome"
-                        log "@$LINENO: Error: Failed to set up ipset. $outcome"
-                        ((ERRORS++))
-                        err=1
-                    fi
-                fi
-                ;;
-            0 | 3 | 4 | 5 )  #found
-                ;;
-        esac
+        if [[ $check_status =~ ^(1|2|6|7|8|9)$ ]]; then
+            echo
+            if ! setup_ipset "$ipset"; then
+                echo -e "${RED}ipset error!${NC} $outcome"
+                log "@$LINENO: Error: Failed to set up ipset. $outcome"
+                ((ERRORS++))
+                err=1
+            fi
+        fi
+
         echo -ne "⇄ ${ORG}$FIREWALL${NC} rule for ipset "
         if check_firewall_rules "$ipset" ; then
             echo -e "${GRN}OK${NC}"
@@ -1845,18 +1827,18 @@ ban_core_end(){
     count=$(count_ipset "$ipset")
 
     echo
-    echo -e "${VLT}■■■■■■■■■■■■■■■■■■■■■■■■"
+    echo -e "${VLT}■■■■■■■■■■■■■■■■■■■■■■■■■"
     echo -e "   VIPB-Ban finished "
-    echo -e "========================"
+    echo -e "========================="
     if [ $err -ne 0 ]; then
         echo -e "${RED} X${YLW} Errors:  $ERRORS check logs!${NC}"
     fi
     echo -e "${VLT}  V Loaded:  ${#BAN_IPS[@]}"
     echo -e "${ORG}  =  Known:  $ALREADYBAN_IPS"
     echo -e "${GRN}  +  Added:  $ADDED_IPS"
-    echo -e "${VLT}========================${NC}"
-    echo -e "${BD}  ≡  TOTAL:  $count banned${VLT}"
-    echo -e "■■■■■■■■■■■■■■■■■■■■■■■■${NC}"
+    echo -e "${VLT}=========================${NC}"
+    echo -e "${BD}  ≡  TOTAL:  $count bans${VLT}"
+    echo -e "■■■■■■■■■■■■■■■■■■■■■■■■■${NC}"
 
     log "VIPB-Ban done!"
     if [ $err -ne 0 ]; then

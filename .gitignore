@@ -5,6 +5,8 @@ vipb.zip
 .DS_Store
 .idea/
 .vscode/
+.continue/
 *.ffs_db
 *.bak
 yad.md
+py/

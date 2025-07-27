@@ -9,7 +9,7 @@ DIALOGRC="$SCRIPT_DIR/dialog.vipb"
 export DIALOGRC
 DIALOGOPTS="--backtitle 'VIPB - Versatile IP Blacklister'"
 echo "Loading VIPB-gui (dialog) interface..."
-sleep 5
+sleep 1
 CLI="dialog"
 
 # Colors
@@ -65,12 +65,13 @@ function check_dialog() {
             check_firewall_rules
             echo "$FW_RULES" > "$SCRIPT_DIR/FW_RULES.tmp"
             echo "OK"
+            echo -n "Checking VIPB ipsets"
             check_vipb_ipsets
             echo "$VIPB_STATUS" > "$SCRIPT_DIR/VIPB_STATUS.tmp"
             echo "$VIPB_BANS" > "$SCRIPT_DIR/VIPB_BANS.tmp"
             echo "$USER_STATUS" > "$SCRIPT_DIR/USER_STATUS.tmp"
             echo "$USER_BANS" > "$SCRIPT_DIR/USER_BANS.tmp"
-            sleep 1
+            sleep 0.5
         ) | dialog --title "Please wait..." --backtitle "$backtitle" --colors --progressbox 4 38
             FW_RULES=$(cat "$SCRIPT_DIR/FW_RULES.tmp")
             VIPB_STATUS=$(cat "$SCRIPT_DIR/VIPB_STATUS.tmp")

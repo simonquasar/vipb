@@ -137,6 +137,11 @@ function level_bar(){
     done
 }
 
+SPIN=0
+function spinner(){
+    echo -n "spin"
+}
+
 ### UI-Handlers functions
 
 # (Menu 1) IPsum blacklist download  download_blacklist
