@@ -5,12 +5,8 @@ vipb.zip
 .DS_Store
 .idea/
 .vscode/
+.continue/
 *.ffs_db
 *.bak
-<<<<<<< Updated upstream
-=======
 yad.md
 py/
-vipb-dialog.sh
-vipb-gui.sh
->>>>>>> Stashed changes
