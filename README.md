@@ -35,6 +35,11 @@ This function analyzes a list of potentially suspicious IP addresses, identifies
 (`ufw` support coming soon)
 - **Fail2Ban**: Works in harmony with `Fail2Ban`.
 
+### Coming soon
+
+- **xGUI** interface (see git `gui` branch)
+
+
 ## Installation
 
 Ensure required dependencies are installed and active:
