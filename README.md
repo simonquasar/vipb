@@ -69,7 +69,7 @@ Run `sudo ./vipb.sh`
 Run via CLI/cron `sudo ./vipb.sh [args]`
 
 ````
-► VIPB.sh (v0.9.4) CLI ARGUMENTS
+► VIPB.sh (v0.9-gui) CLI ARGUMENTS
 
   ban #.#.#.#               ban single IP in manual/user list
   unban #.#.#.#             unban single IP in manual/user list
@@ -77,6 +77,8 @@ Run via CLI/cron `sudo ./vipb.sh [args]`
   compress [listfile.ipb]   compress IPs list [optional: file.ipb]
   banlist [listfile.ipb]    ban IPs/subnets list [optional: file.ipb]
   stats                     view banned VIPB IPs/subnets counts
+  dialog | gui              start GUI interface (dialog)
+  xgui                      start xGUI interface (YAD) !!! in development !!!
   true                      simulate cron/CLI (or autoban)
   debug                     debug mode (echoes logs)
 
