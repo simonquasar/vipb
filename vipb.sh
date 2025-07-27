@@ -112,7 +112,7 @@ if [ "$CLI" == "false" ]; then
     log "UI error? Exit."
     exit 1
 
-# if CLI/CronJob > parse arguments
+# if CLI/CronJob then parse arguments
 elif [ "$CLI" == "true" ]; then
     #echo "VIPB $VER loaded in CLI/CronJob mode"
     log "VIPB loaded in CLI/CronJob mode."

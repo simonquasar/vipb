@@ -1503,7 +1503,7 @@ function header() {
         2) echo -ne "${ORG}✧";;          #firewalld: no sets
         3) echo -ne "${S24}✦";;          #firewalld: ok runtime
         4) echo -ne "${BLU}✦";;          #firewalld: ok permanent
-        7 | 8 | 9) echo -ne "${YLW}✧";;   #firewalld: orph
+        7 | 8 | 9) echo -ne "${YLW}✧";;  #firewalld: orph
         *) log "$VIPB_STATUS";;
     esac
     echo -ne " VIPB ${VLT}$VIPB_BANS ${NC}"

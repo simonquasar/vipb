@@ -1132,7 +1132,7 @@ function unban_ip() {
 }
 
 function remove_ips() {
-    lg "*" "remove_ips $*"
+    #lg "*" "remove_ips $*"
     #ipset ip1 ip2 ip3 ip4 ip5...
     if [ $# -lt 2 ]; then
         echo "You must provide ONE name for the ipset and AT LEAST one IP address."
