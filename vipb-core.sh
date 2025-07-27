@@ -12,7 +12,7 @@ SUBNETS16_FILE="$SCRIPT_DIR/vipb-subnets16.ipb"
 # set the name of the ipsets used by VIPB
 VIPB_IPSET_NAME='vipb-blacklist'
 MANUAL_IPSET_NAME='vipb-manualbans'
-# environment variables, DO NOT CHANGE
+# environment variables, DO NOT CHANGE!
 BASECRJ='https://raw.githubusercontent.com/stamparm/ipsum/master/levels/'
 BLACKLIST_URL="$BASECRJ${BLACKLIST_LV}.txt"
 FIREWALL='firewalld'

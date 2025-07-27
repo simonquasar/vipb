@@ -2,7 +2,7 @@
 #########################################################################
 # VIPB.sh - Versatile IP Ban (VIPB) script
 # A simple, versatile and efficient IP ban script for Linux servers
-# by simonquasar @ github
+# by simonquasar @ GitHub
 #########################################################################
 #  _____ _ _____ _____
 # |  |  |_|  _  | __  |

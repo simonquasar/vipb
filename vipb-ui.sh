@@ -16,7 +16,7 @@ else
     echo -e "▩▩▩ Hello Human! ▩▩▩"
     BD='\033[1m' # bold
     DM='\033[2m' # dim color
-    ############################## TERMINAL DEBUG ##############################
+    ############################## TERMINAL DEBUG #############################
     if [ "$DEBUG" == "true" ]; then
         debug_log "≡≡ TERMINAL PROPERTIES ≡≡"
         debug_log "≡ Terminal type: $(echo -e "${BG}$TERM${NC}")"
@@ -27,7 +27,7 @@ else
         debug_log "≡ Can set foreground color: $(tput setaf 1 >/dev/null 2>&1 && echo -e "${GRN}Yes${NC}" || echo -e "${RED}No${NC}")"
         debug_log "≡ Can set background color: $(tput setab 1 >/dev/null 2>&1 && echo -e "${GRN}Yes${NC}" || echo -e "${RED}No${NC}")"
     fi
-    ############################################################################
+    ###########################################################################
     # UI then define COLORS!
     # Check if terminal supports 256 colors
     if tput colors | grep -q '256' && ! [ "$DEBUG" == "true" ]; then
