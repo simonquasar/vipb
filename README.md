@@ -7,7 +7,7 @@
 
 # VIPB - Versatile IP Blacklister
 
-**VIPB (Versatile IP Blacklister)** is a robust Bash tool for downloading, processing, and maintaining [*IPsum*](https://github.com/stamparm/ipsum/) blacklists, and provides functionalities for managing firewalls and IP blacklists through automated and manual processes. It seamlessly integrates with Linux firewalls: it uses `ipset` along with `iptables` or `firewalld` (`ufw` support coming soon..). 
+**VIPB (Versatile IP Blacklister)** is a robust Bash tool for downloading, processing, and maintaining [*IPsum*](https://github.com/stamparm/ipsum/) blacklists, and provides functionalities for managing firewalls and IP blacklists through automated and manual processes. It seamlessly integrates with Linux firewalls: it uses `ipset` along with `iptables` or `firewalld` (`ufw` support coming soon..).
 It includes daily automation via `cron` job and integration with `fail2ban`.
 
 ## Features
@@ -22,7 +22,7 @@ It includes daily automation via `cron` job and integration with `fail2ban`.
 
 ### Aggregator: Suspicious IPs to Subnets
 
-- **IP Compression**: Optimize IP lists into /16 and /24 subnets for efficient security.
+- **IP Compression**: Aggregates IP lists into /16 and /24 subnets for efficient security.
 
 This function analyzes a list of potentially suspicious IP addresses, identifies patterns of repeated activity within subnets, and aggregates them into entire subnets (/24 or /16) based on user-defined tolerance thresholds.
 
@@ -60,7 +60,7 @@ chmod +x vipb.sh vipb-core.sh
 Run `sudo ./vipb.sh`
 
 ![VIPB UI](https://github.com/simonquasar/vipb/blob/main/inc/ScreenshotVIPB.png)
-> [!NOTE]  
+> [!NOTE]
 > IP lists should be in the same folder and use `.ipb` extension, with one IP per line in [CIDR](https://www.ipaddressguide.com/cidr) notation.
 
 
@@ -69,7 +69,7 @@ Run `sudo ./vipb.sh`
 Run via CLI/cron `sudo ./vipb.sh [args]`
 
 ````
-► VIPB.sh (v0.9) CLI ARGUMENTS
+► VIPB.sh (v0.9.4) CLI ARGUMENTS
 
   ban #.#.#.#               ban single IP in manual/user list
   unban #.#.#.#             unban single IP in manual/user list
@@ -80,7 +80,7 @@ Run via CLI/cron `sudo ./vipb.sh [args]`
   true                      simulate cron/CLI (or autoban)
   debug                     debug mode (echoes logs)
 
-                            (*.ipb = list of IPs, one per line)                        
+                            (*.ipb = list of IPs, one per line)
 ````
 
 ### Logs
@@ -104,5 +104,5 @@ This project is licensed under the GPL-2.0 License. See the LICENSE file for det
 
 ## Note
 
-> [!CAUTION]  
+> [!CAUTION]
 > This tool is designed for "domestic" server protection. Please use responsibly and ensure you know the implications of firewalling / IP blocking in your environment before using this script.

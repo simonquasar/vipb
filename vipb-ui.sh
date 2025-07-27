@@ -650,6 +650,8 @@ function handle_download_and_ban() {
     header
     echo -ne "${VLT}"
     subtitle "DOWNLOAD,${CYN} AGGREGATE ${BLU}& BAN!"
+    echo "The AIO weapon against scum: grabs lv.$BLACKLIST_LV IPsum, compresses into subnet blocks, and slams the banhammer via $FIREWALL."
+    echo
     if [[ $IPSET == "false" ]]; then
         echo -e "${RED}No option available."
     else
@@ -1375,13 +1377,13 @@ function services_row() {
     rowtext="${NC}"
 
     #ipset
+    rowtext+="${VLT}ipset "
     if [ "$IPSET" == "true" ]; then
-        rowtext+="${VLT}✓"
+        rowtext+="✓"
     else
         rowtext+="${RED}✗"
     fi
-    rowtext+=" ipset${NC} "
-
+    rowtext+="${NC} ${DM}•${NC} "
     #iptables
     if [ "$FIREWALL" == "iptables" ]; then
         rowtext+="${GRN}[${NC}"
@@ -1391,7 +1393,7 @@ function services_row() {
         if [ "$IPTABLES" == "true" ]; then
             rowtext+="${GRN}"
         else
-            rowtext+="${DM}"
+            rowtext+="${RED}"
         fi
         rowtext+="iptables"
 
@@ -1411,7 +1413,7 @@ function services_row() {
         if [ "$FIREWALLD" == "true" ]; then
             rowtext+="${GRN}"
         else
-            rowtext+="${DM}"
+            rowtext+="${RED}"
         fi
         rowtext+="firewalld${NC}"
 
@@ -1428,7 +1430,7 @@ function services_row() {
         if [ "$UFW" == "true" ]; then
             rowtext+="${GRN}"
         else
-            rowtext+="${DM}"
+            rowtext+="${RED}"
         fi
         rowtext+="ufw${NC}"
     if [ "$FIREWALL" == "ufw" ]; then
@@ -1461,7 +1463,7 @@ function services_row() {
         rowtext+="${DM}"
     fi
     rowtext+="${BG}cron${NC} "
-    rowtext+="${VLT}L▼ $BLACKLIST_LV${NC}"
+    rowtext+="${VLT}▼ $BLACKLIST_LV${NC}"
 
     rowtext+="${NC}"
 
@@ -1489,39 +1491,38 @@ function header() {
     echo -e "\t  ██╗   ██╗██╗██████╗ ██████╗      ${DM}   ┏┓┏┳┓┏┓┏┓┏┓┓┏┏┓┏┏┓┏┓${NC}"
     echo -e "\t  ██║   ██║██║██╔══██╗██╔══██╗     ${DM}by ┛┗┛┗┗┗┛┛┗┗┫┗┻┗┻┛┗┻┛ ${NC}"
     echo -e "\t  ██║   ██║██║██████╔╝██████╔╝     ${DM}             ┗         ${NC}"
-    echo -ne "\t  ╚██╗ ██╔╝██║██╔═══╝ ██╔══██╗    "
+    echo -e "\t  ╚██╗ ██╔╝██║██╔═══╝ ██╔══██╗    ${ORG}ⓕ ${BLU}ⓘ ${NC}"
+    echo -ne "\t   ╚████╔╝ ██║██║     ██████╔╝    "
     case $VIPB_FW_STATUS in
         0) echo -ne "${GRN}✦${NC} ";;          #0 ok found ✦
         1) echo -ne "${RED}✧${NC} ";;          #1 not found
     esac
     case $VIPB_STATUS in
-        0 | 5) echo -ne "${GRN}█";;      #OK
-        1 | 6) echo -ne "${RED}░";;      #not found
-        2) echo -ne "${ORG}░";;          #firewalld: no sets
-        3) echo -ne "${S24}▓";;          #firewalld: ok runtime
-        4) echo -ne "${BLU}▓";;          #firewalld: ok permanent
-        7 | 8 | 9) echo -ne "${YLW}░";;   #firewalld: orph
+        0 | 5) echo -ne "${GRN}✦";;      #OK
+        1 | 6) echo -ne "${RED}✚";;      #not found
+        2) echo -ne "${ORG}✧";;          #firewalld: no sets
+        3) echo -ne "${S24}✦";;          #firewalld: ok runtime
+        4) echo -ne "${BLU}✦";;          #firewalld: ok permanent
+        7 | 8 | 9) echo -ne "${YLW}✧";;   #firewalld: orph
         *) log "$VIPB_STATUS";;
     esac
     echo -ne " VIPB ${VLT}$VIPB_BANS ${NC}"
     echo
-    echo -ne "\t   ╚████╔╝ ██║██║     ██████╔╝    "
+    echo -ne "\t    ╚═══╝  ╚═╝╚═╝     ╚═════╝     "
     case $USER_FW_STATUS in
         0) echo -ne "${GRN}✦${NC} ";;          #0 ok found
         1) echo -ne "${RED}✧${NC} ";;          #1 not found
     esac
     case $USER_STATUS in
-        0 | 5) echo -ne "${GRN}█";;      #OK
-        1 | 6) echo -ne "${RED}░";;      #not found
-        2) echo -ne "${ORG}░";;          #firewalld: no sets
-        3) echo -ne "${S24}▓";;          #firewalld: ok runtime
-        4) echo -ne "${BLU}▓";;          #firewalld: ok permanent
-        7 | 8 | 9) echo -ne "${YLW}░";;   #firewalld: orph
+        0 | 5) echo -ne "${GRN}✦";;      #OK
+        1 | 6) echo -ne "${RED}✚";;      #not found
+        2) echo -ne "${ORG}✧";;          #firewalld: no sets
+        3) echo -ne "${S24}✦";;          #firewalld: ok runtime
+        4) echo -ne "${BLU}✦";;          #firewalld: ok permanent
+        7 | 8 | 9) echo -ne "${YLW}✧";;   #firewalld: orph
         *) log "$USER_STATUS";;
     esac
     echo -ne " USER ${VLT}$USER_BANS ${NC}"
-    echo
-    echo -ne "\t    ╚═══╝  ╚═╝╚═╝     ╚═════╝     "
     echo
     echo -ne "${DM}"
     if [ "$METAERRORS" -gt 0 ]; then
@@ -1541,25 +1542,25 @@ function menu_main() {
     services_row
 
     echo -e "${NC}"
-    echo -e "\t${DM}✦ BLACKLISTS & BAN${NC}"
-    echo -e "\t1${VLT}. Download${NC} ${BG}IPsum${NC} blacklist"
-    echo -e "\t2${CYN}.${NC} ${CYN}Aggregate${NC} IPs into subnets"
-    echo -e "\t3${BLU}. Ban ${NC}from Blacklists${NC}"
-    echo -e "\t4${YLW}. Manual ban ${NC}IPs"
+    echo -e "\t${DM}✦ BAN MANAGEMENT${NC}"
+    echo -e "\t 1${VLT}. Download${NC} ${BG}IPsum${NC} blacklist"
+    echo -e "\t 2${CYN}.${NC} ${CYN}Aggregate${NC} IPs into subnets"
+    echo -e "\t 3${BLU}. Ban ${NC}from Blacklists${NC}"
+    echo -e "\t 4${YLW}. Manual ban ${NC}IPs"
     echo
-    echo -e "\t${VLT}5. Download > ${CYN}Aggregate > ${BLU}Ban!${NC}"
+    echo -e "\t ${VLT}5. ✦ Download, ${CYN}Aggregate & ${BLU}Ban! ✦${NC}"
     echo -e "\n\t${DM}✦ TOOLS${NC}"
-    echo -e "\t6. ${SLM}Check ${NC}&${SLM} Repair${NC}"
+    echo -e "\t 6. ${SLM}✚${NC} Check ${SLM}+${NC} Repair${NC}"
     [[ $IPSET == "false" ]] && echo -ne "${DM}";
-    echo -e "\t7. Manage ${BLU}ipsets${NC}"
+    echo -e "\t 7. ${BLU}ⓘ${NC} Manage ${BLU}ipsets${NC}"
     [[ $FIREWALL == "ERROR" ]] && echo -ne "${DM}";
-    echo -e "\t8. Manage ${ORG}firewall${NC}"
+    echo -e "\t 8. ${ORG}ⓕ${NC} Manage ${ORG}firewall${NC}"
     [[ $CRON == "false" ]] && echo -ne "${DM}";
-    echo -ne "\t9. Daily ${SLM}Cron${NC}"
+    echo -ne "\t 9. ${VLT}↺${NC} Daily ban "
     [[ $CRON == "false" ]] && echo -ne "${DM}";
-    echo -e " Job & ${VLT}L▼${NC}"
-    echo -e "\t10${S24}. Geo IP${NC} lookup"
-    echo -e "\t11${ORG}. Log Extractor ${NC}& Vars"
+    echo -e "& ${VLT}list level${NC}"
+    echo -e "\t10${S24}. ○ Geo IP${NC} lookup"
+    echo -e "\t11${ORG}. ≡ Log Extractor ${NC}& Vars"
     echo
     echo -e "\t${DM}0. Exit${NC}"
     echo

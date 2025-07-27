@@ -927,7 +927,7 @@ function ban_ip() {
     local ban_ip_result=0
     # 0 OK - 1 ERROR - 2 ALREADY BANNED
 
-    [[ "$CLI" != "true" || "$DEBUG" == "true" ]] && echo -ne "Ban IP: $ip \r"
+    [[ "$CLI" == "false" || "$DEBUG" == "true" ]] && echo -ne "Ban IP: $ip \r"
 
     if validate_ip "$ip"; then
         if [[ "$FIREWALL" == "firewalld" ]]; then
@@ -995,7 +995,7 @@ function ban_ip() {
             log "@$LINENO: Error: No firewall system found."
             return 1
         fi
-        echo -ne "\r\033[K" # Clear the line
+        [[ "$CLI" == "false" || "$DEBUG" == "true" ]] && echo -ne "\r\033[K" # Clear the line
     else
         echo -e "${RED}Invalid IP/CIDR address!${NC}"
         ban_ip_result=1
@@ -1456,7 +1456,7 @@ function check_and_repair() { #2do
         [[ "$FIREWALL" != "firewalld" ]] && echo -ne "${DM}"
         echo -ne "\t│${BG}refer\trunt\t--perm${NC}│"
     fi
-    echo -e "\t  ${RED}${BD}+${NC}"
+    echo -e "\t  ${VLT}${BD}✚${NC}"
     echo -ne "${GRY}${BD}═══════                 ╘════════════════════╛"
 
     if [[ "$FIREWALLD" == "true" ]] || [[ "$FIREWALL" == "firewalld" ]]; then
@@ -1464,7 +1464,7 @@ function check_and_repair() { #2do
         echo -ne "  ╘═════════════════════╛"
     fi
 
-    echo -e "${NC}\t ═════"
+    echo -e "${NC}\t ════"
 
     if [[ ${#select_ipsets[@]} -eq 0 ]]; then
         echo -e "${RED}No ipsets found.${NC}"
@@ -1545,11 +1545,11 @@ function check_and_repair() { #2do
             fi
             ipsets_verdicts[i]=$verdict
             case $verdict in
-                0) echo -e "\t  ${GRN}OK${NC}" ;;
-                1) echo -e "\t  ${RED}✦${NC}" ;;
-                2) echo -e "\t  ${ORG}✦${NC}" ;;
-                3) echo -e "\t  ${YLW}OK${NC}" ;;
-                *) echo -e "\t  ${VLT}${ipsets_verdicts[$i]}${NC}" ;;
+                0) echo -e "\t  ${GRN}✦${NC}" ;;
+                1) echo -e "\t  ${RED}✚${NC}" ;; # 1 no ipset / orphaned
+                2) echo -e "\t  ${SLM}✚${NC}" ;; # 2 no rule
+                3) echo -e "\t  ${YLW}✧${NC}" ;; # 3 entries diff
+                *) echo -e "\t  ${VLT}✧${ipsets_verdicts[$i]}${NC}" ;; #2d0?
             esac
         done
     fi
@@ -1630,8 +1630,8 @@ function compressor() {
         log "=========================================="
         log "Start compression > /16 @ $c16 | /24 @ $c24"
         echo
-        echo "◣ Start validation..."
-        echo -ne "${VLT}◣ IPs list                ${NC}"
+        #echo "◣ Start validation..."
+        echo -ne "${VLT}◣ Validating IPs list     ${NC}"
 
         # Extract subnets
 
@@ -1705,8 +1705,8 @@ function compressor() {
             filled=$((compression / ratio))
             fullbar=100/ratio
             empty=$((fullbar - filled))
-            barips=$(printf "%0.s█" $(seq 1 $filips))
-            barnets=$(printf "%0.s▓" $(seq 1 $filnets))
+            barips=$(printf "%0.s▓" $(seq 1 $filips))
+            barnets=$(printf "%0.s▒" $(seq 1 $filnets))
             spaces=$(printf "%0.s░" $(seq 1 $empty))
             label_position=$((filled - 3))
             compression_bar=$(printf "%0.s " $(seq 1 $label_position))
@@ -1717,9 +1717,9 @@ function compressor() {
         echo
         compression_bar
         echo
-        echo -e "${S16}  ◔ $subs_count subnets${NC} from ${CYN}$cut_count IPs ${NC}\t$uncompressed% to $((compression - prog_ips))%"
+        echo -e "${S16}  ◔ $subs_count subnets${NC} from ${CYN}$cut_count IPs ${NC}\t$uncompressed% >> $((compression - prog_ips))%"
         echo -e "${VLT}  ◕ $single_count IPs${NC} uncompressed \t$prog_ips%"
-        echo -e "${CYN}==================================================${NC}"
+        #echo -e "${CYN}==================================================${NC}"
         echo -e "${BD}${CYN}  = $optimized_count sources ${NC}optimized \t$compression%"
         echo -e "${CYN}■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■${NC}"
         echo -e "\t\tCompression done! "
@@ -1751,12 +1751,14 @@ ban_core_start(){
     if [ -f "$blacklist" ]; then
         modified=$(stat -c "%y" "$blacklist" | cut -d. -f1)
         log "Source  $blacklist ($modified)"
-        echo -e "≡ ${BLU}${BG}$blacklist${NC}..."
-        echo -e "≡ From: $modified"
-        echo -e "≡ ${BLU}$(wc -l < "$blacklist") lines${NC} in list"
+        echo -e "${BLU}≡${NC} $blacklist"
+        echo -e "${BLU}≡${NC} $modified"
+        echo -ne "${BLU}≡${NC} "
+        check_blacklist_file "$blacklist";
+        echo
         IPS=()
         while IFS= read -r ip; do
-            [[ "$CLI" != "true" ]] && echo -ne "IP? $ip \r"
+            [[ "$CLI" == "false" ]] && echo -ne "IP? $ip \r"
             if [[ -n "$ip" && "$ip" != "#"* ]]; then
                 if validate_ip "$ip"; then
                     IPS+=("$ip")
@@ -1766,10 +1768,10 @@ ban_core_start(){
                 fi
             fi
         done < "$blacklist"
-            [[ "$CLI" != "true" ]] && echo -ne "\r\033[K" # Clear the line after the loop
+            [[ "$CLI" == "false" ]] && echo -ne "\r\033[K" # Clear the line after the loop
         BAN_IPS=()
         # Also write the valid IPS to a fixed temp file for modular (i.e. firewalld) use in ban_core_end()
-        temp_ips_file="$SCRIPT_DIR/vipb-last-ips.tmp"
+        temp_ips_file="$SCRIPT_DIR/ban_core_ips.tmp"
         : > "$temp_ips_file"
         for valid_ip in "${IPS[@]}"; do
             if [ "$FIREWALL" == "firewalld" ]; then
@@ -1777,10 +1779,10 @@ ban_core_start(){
                 echo "$valid_ip" >> "$temp_ips_file"
             fi
             BAN_IPS+=("$valid_ip")
-            [[ "$CLI" != "true" ]] && echo -ne "\r\033[K" # Clear the line after the loop
+            [[ "$CLI" == "false" ]] && echo -ne "\r\033[K" # Clear the line after the loop
         done
         total_blacklist_read=${#BAN_IPS[@]}
-        echo -e "჻ Loaded ${VLT}${total_blacklist_read} sources${NC}"
+        echo -e "჻ validated ${VLT}${total_blacklist_read} IPs${NC}"
         log "Loaded $total_blacklist_read sources"
     else
         echo -e "${NC}Error: Blacklist file."
@@ -1876,7 +1878,7 @@ function ban_core() {
         err=$?
     fi
 
-    temp_ips_file="$SCRIPT_DIR/vipb-last-ips.tmp"
+    temp_ips_file="$SCRIPT_DIR/ban_core_ips.tmp"
     [ -f "$temp_ips_file" ] && rm -f "$temp_ips_file"
 
     ban_core_end $*

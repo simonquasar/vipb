@@ -250,55 +250,67 @@ function blacklists_ban_dialog () {
 
         total_lines=$(wc -l < "$selected_blacklist")
 
+        #nocolors
+        #ban_core_start "$selected_blacklist" | \
+        #    dialog --title "Validating $selected_blacklist" --backtitle "$backtitle" \
+        #    --progressbox 14 70
+        #colors
+        #sleep 5
+
+        #mapfile -t BAN_IPS < "$SCRIPT_DIR/ban_core_ips.tmp"
+        #total_ips=${#BAN_IPS[@]}
+        #echo "0" > "$SCRIPT_DIR/added_ips.tmp"
+        #echo "0" > "$SCRIPT_DIR/alreadyban_ips.tmp"
+        #echo "0" > "$SCRIPT_DIR/errors.tmp"
+
         nocolors
-        ban_core_start "$selected_blacklist" | \
-            dialog --title "Validating" --backtitle "$backtitle" \
-            --progressbox 14 70
+        ban_core "$selected_blacklist" | \
+            dialog --title "Banning $total_lines IPs" --backtitle "$backtitle" --cr-wrap \
+            --programbox 20 70
+
+        d_exit=$?
+        ban_exit=${PIPESTATUS[0]}  # exit code di ban_core
         colors
-        sleep 1
 
-        mapfile -t IPS < "$SCRIPT_DIR/vipb-last-ips.tmp"
-        total_ips=${#IPS[@]}
-        echo "0" > "$SCRIPT_DIR/added_ips.tmp"
-        echo "0" > "$SCRIPT_DIR/alreadyban_ips.tmp"
-        echo "0" > "$SCRIPT_DIR/errors.tmp"
+        #nocolors
+        #(
+        #    ADDED_IPS=0
+        #    ALREADYBAN_IPS=0
+        #    ERRORS=0
+        #    start_time=$(date +%s)
+        #    for i in "${!BAN_IPS[@]}"; do
+        #        ip="${BAN_IPS[$i]}"
+        #        ban_ip "$VIPB_IPSET_NAME" "$ip"
+        #        err=$?
+        #        if [[ "$err" == "1" ]]; then
+        #            ((ERRORS++))
+        #        fi
+        #        percent=$(( (i + 1) * 100 / total_ips ))
+        #        estime=$(eta $start_time $i $total_ips)
+        #        echo "$percent"
+        #        echo "XXX"
+        #        echo "Banning IP $((i + 1)) of $total_ips: $ip"
+        #        echo "ETA: $estime "
+        #        echo "XXX"
+        #    done
+        #    echo "$ADDED_IPS" > "$SCRIPT_DIR/added_ips.tmp"
+        #    echo "$ALREADYBAN_IPS" > "$SCRIPT_DIR/alreadyban_ips.tmp"
+        #    echo "$ERRORS" > "$SCRIPT_DIR/errors.tmp"
+        #) | dialog --title "Banning $total_ips IPs" --backtitle "$backtitle" --gauge "Adding ${GRN}$total_ips IPs${NC} to '${BG}$VIPB_IPSET_NAME${NC}'..." 7 50 0
+        #sleep 1.5
+        #colors
 
-        (
-            ADDED_IPS=0
-            ALREADYBAN_IPS=0
-            ERRORS=0
-            start_time=$(date +%s)
-            for i in "${!IPS[@]}"; do
-                ip="${IPS[$i]}"
-                ban_ip "$VIPB_IPSET_NAME" "$ip"
-                err=$?
-                if [[ "$err" == "1" ]]; then
-                    ((ERRORS++))
-                fi
-                percent=$(( (i + 1) * 100 / total_ips ))
-                estime=$(eta $start_time $i $total_ips)
-                echo "$percent"
-                echo "XXX"
-                echo "Banning IP $((i + 1)) of $total_ips: $ip"
-                echo "ETA: $estime "
-                echo "XXX"
-            done
-            echo "$ADDED_IPS" > "$SCRIPT_DIR/added_ips.tmp"
-            echo "$ALREADYBAN_IPS" > "$SCRIPT_DIR/alreadyban_ips.tmp"
-            echo "$ERRORS" > "$SCRIPT_DIR/errors.tmp"
-        ) | dialog --title "Banning IPs" --backtitle "$backtitle" --gauge "Adding ${GRN}$total_ips IPs${NC} to '${BG}$VIPB_IPSET_NAME${NC}'..." 7 50 0
-        sleep 1.5
+        #ADDED_IPS=$(cat "$SCRIPT_DIR/added_ips.tmp")
+        #ALREADYBAN_IPS=$(cat "$SCRIPT_DIR/alreadyban_ips.tmp")
+        #ERRORS=$(cat "$SCRIPT_DIR/errors.tmp")
+        #rm -f "$SCRIPT_DIR/added_ips.tmp" "$SCRIPT_DIR/alreadyban_ips.tmp" "$SCRIPT_DIR/errors.tmp"
 
-        ADDED_IPS=$(cat "$SCRIPT_DIR/added_ips.tmp")
-        ALREADYBAN_IPS=$(cat "$SCRIPT_DIR/alreadyban_ips.tmp")
-        ERRORS=$(cat "$SCRIPT_DIR/errors.tmp")
-        rm -f "$SCRIPT_DIR/added_ips.tmp" "$SCRIPT_DIR/alreadyban_ips.tmp" "$SCRIPT_DIR/errors.tmp"
-        nocolors
-        ban_core_end "$selected_blacklist" | \
-            dialog --title "Ban Report" --backtitle "$backtitle" --ok-label "Back"\
-            --programbox 16 28
-
-        colors
+        #nocolors
+        #ban_core_end "$selected_blacklist" | \
+        #    dialog --title "Ban Report" --backtitle "$backtitle" --ok-label "Back"\
+        #    --programbox 16 28
+        #
+        #colors
     fi
     check_dialog
 }
@@ -599,6 +611,7 @@ function log_vars_dialog() {
         *) break ;;
     esac
 }
+
 check_dialog
 while true; do
     colors
