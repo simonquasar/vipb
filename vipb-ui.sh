@@ -1480,10 +1480,6 @@ function header() {
     else
        clear
     fi
-    check_firewall_rules $VIPB_IPSET_NAME
-    VIPB_FW_STATUS=$?
-    check_firewall_rules $MANUAL_IPSET_NAME
-    USER_FW_STATUS=$?
 
     echo -ne "${NC}${RED}${DM}"
     echo -e "▁ ▂ ▃ ▅ ▆ ▇ ▉ ▇ ▆ ▅ ▃ ▂ ${NC}${VLT}${BD}Versatile IPs Blacklister${NC} ${DM}${VER}${RED} ▁ ▂ ▃ ▅ ▆ ▇ ▉ ▇ ▆ ▅ ▃ ▂${NC}"

@@ -263,7 +263,7 @@ function check_ipset() {
                     *) echo -ne "${RED}-impossible-${NC}"; err=10 ;;
                 esac
             fi
-            echo "] "
+            echo -n "] "
         fi
     else
         err=1
@@ -400,27 +400,11 @@ function check_firewall_rules() { #optional ipset_name firewall
             log "@$LINENO: CRITICAL: Unknown firewall $FIREWALL"
             return 1
         fi
-    else    # look for any VIPB- rules #2do redo
-        FW_RULES="false"
-        if [[ "$FIREWALL" == "iptables" ]]; then
-            iptables -L INPUT -n --line-numbers | grep -q "match-set vipb-" && FW_RULES="true" || FW_RULES="false"
-        elif [[ "$FIREWALL" == "firewalld" ]]; then
-            f=0
-            #for zone in $(firewall-cmd --get-zones); do
-                firewall-cmd ${PERMANENT:+$PERMANENT} --zone="drop" --list-sources 2>/dev/null | grep -q "vipb-" && FW_RULES="true" || FW_RULES="false"
-                #firewall-cmd --permanent --zone="$zone" --list-sources | grep -q "vipb-" && FW_RULES="true" || FW_RULES="false"
-                # ${PERMANENT:+$PERMANENT}
-            #done
-            [[ "$f" -gt 0 ]] && FW_RULES="true" || FW_RULES="false"
-            if [[ "$FW_RULES" == "true" ]]; then
-                if firewall-cmd --direct --get-all-rules | grep -q "vipb-" 2>/dev/null; then
-                    ((METAERRORS++))
-                    METAERROR="found rules in other firewall"
-                fi
-            fi
-        elif [[ "$FIREWALL" == "ufw" ]]; then
-            ufw status | grep -q "vipb-" && FW_RULES="true" || FW_RULES="false"
-        fi
+    else    # look for the standard VIPB-rulesets
+        check_firewall_rules $VIPB_IPSET_NAME
+        VIPB_FW_STATUS=$?
+        check_firewall_rules $MANUAL_IPSET_NAME
+        USER_FW_STATUS=$?
     fi
 
     #log "@$LINENO: check_firewall_rules $ipset_name > FW_RULES $FW_RULES"
@@ -733,7 +717,7 @@ function setup_ipset() {
                 ;;
             *)  log "$ipset_name exists"
                 echo -e "ipset '${BG}$ipset_name${NC}' ${ORG}already exists${NC}"
-                err=2
+                err=0
         esac
 
         if [[ "$FIREWALL" == "firewalld" ]]; then
@@ -762,8 +746,8 @@ function setup_ipset() {
                             echo -e "${DM}Destroy the orphaned ipset chain!${NC}"
                             err=2
                     ;;
-                5 ) echo -e "${GRN}already exists${NC}"
-                    err=2
+                5 ) echo -e "${GRN}OK (exists)${NC}"
+                    err=0
                     ;;
             esac
             log "$ipset_name linked"
@@ -1433,12 +1417,14 @@ function check_and_repair() { #2do
         #
         #   9                           ???
     echo
+    select_ipsets=()
+    if [[ "$IPSET" == "true" ]]; then
+        select_ipsets=($(ipset list -n))
+    fi
     if [[ "$FIREWALLD" == "true" ]]; then
         #select_ipsets=($(sudo firewall-cmd ${PERMANENT:+$PERMANENT} --get-ipsets)
-        select_ipsets=($( (firewall-cmd --permanent --get-ipsets; firewall-cmd --get-ipsets | tr ' ' '\n') | sort -u))
-        select_ipsets=($( printf "%s\n" "${select_ipsets[@]}" | awk '!seen[$0]++'))
-    elif [[ "$IPSET" == "true" ]]; then
-        select_ipsets=($(ipset list -n))
+        select_ipsets+=($( (firewall-cmd --permanent --get-ipsets; firewall-cmd --get-ipsets | tr ' ' '\n') | sort -u))
+        #select_ipsets=($( printf "%s\n" "${select_ipsets[@]}" | awk '!seen[$0]++'))
     fi
     ipsets_verdicts=()
     ipsets_statuses=()
@@ -1706,24 +1692,25 @@ function compressor() {
             fullbar=100/ratio
             empty=$((fullbar - filled))
             barips=$(printf "%0.s▓" $(seq 1 $filips))
-            barnets=$(printf "%0.s▒" $(seq 1 $filnets))
+            barnets=$(printf "%0.s▓" $(seq 1 $filnets))
             spaces=$(printf "%0.s░" $(seq 1 $empty))
-            label_position=$((filled - 3))
+            label_position=$((filled - 1))
             compression_bar=$(printf "%0.s " $(seq 1 $label_position))
-            echo -e "${compression_bar}${S16}${BD}${compression}%${NC}"
+            cut_perc=$((100 - compression))
+            echo -e "${compression_bar}${S16}$((compression - prog_ips))%       ${CYN}${BD}-${cut_perc}%${NC}"
             echo -e "${VLT}${barips}${S16}${barnets}${CYN}${spaces}${NC}"
         }
 
         echo
         compression_bar
         echo
-        echo -e "${S16}  ◔ $subs_count subnets${NC} from ${CYN}$cut_count IPs ${NC}\t$uncompressed% >> $((compression - prog_ips))%"
+        echo -e "${S16}  ◔ $subs_count subnets${NC} from ${CYN}$cut_count IPs${NC}\t$uncompressed% to $((compression - prog_ips))%"
         echo -e "${VLT}  ◕ $single_count IPs${NC} uncompressed \t$prog_ips%"
         #echo -e "${CYN}==================================================${NC}"
         echo -e "${BD}${CYN}  = $optimized_count sources ${NC}optimized \t$compression%"
-        echo -e "${CYN}■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■${NC}"
+        echo -e "${CYN}■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■"
         echo -e "\t\tCompression done! "
-        echo -e "${CYN}==================================================${NC}"
+        echo -e "==================================================${NC}"
         echo
         return 0
     else
