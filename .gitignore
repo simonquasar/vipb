@@ -7,3 +7,10 @@ vipb.zip
 .vscode/
 *.ffs_db
 *.bak
+<<<<<<< Updated upstream
+=======
+yad.md
+py/
+vipb-dialog.sh
+vipb-gui.sh
+>>>>>>> Stashed changes

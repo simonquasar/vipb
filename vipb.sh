@@ -9,7 +9,11 @@
 # |  |  | |   __| __ -|  
 #  \___/|_|__|  |_____| v0.9  
 #
+<<<<<<< Updated upstream
 VER="v0.9.3"
+=======
+VER="v0.9.4"
+>>>>>>> Stashed changes
 ARGS=("$@")
 
 if [ "$EUID" -ne 0 ]; then
@@ -57,7 +61,7 @@ function lg {
 function debug_log() {
     if [[ $DEBUG == "true" ]]; then
         lg "+" "$@"
-        echo "<< DBG [$(basename "${BASH_SOURCE[1]}")] $*"
+        # echo "<< DBG [$(basename "${BASH_SOURCE[1]}")] $*"   # UNCOMMENT FOR SCREEN DEBUG
     fi
 }
 
