@@ -4,16 +4,12 @@
 # A simple, versatile and efficient IP ban script for Linux servers
 # by simonquasar @ github
 #########################################################################
-#  _____ _ _____ _____   
-# |  |  |_|  _  | __  |  
-# |  |  | |   __| __ -|  
-#  \___/|_|__|  |_____| v0.9  
+#  _____ _ _____ _____
+# |  |  |_|  _  | __  |
+# |  |  | |   __| __ -|
+#  \___/|_|__|  |_____| v0.9
 #
-<<<<<<< Updated upstream
-VER="v0.9.3"
-=======
 VER="v0.9.4"
->>>>>>> Stashed changes
 ARGS=("$@")
 
 if [ "$EUID" -ne 0 ]; then
@@ -53,11 +49,11 @@ LOG_FILE="$SCRIPT_DIR/vipb-log.log"
 
 # bootstrap log functions
 function lg {
-    local stripped_message 
+    local stripped_message
     stripped_message=$(echo "$2" | sed 's/\x1b\[[0-9;]*m//g')
     printf "%-19s %-13s %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$(basename "${BASH_SOURCE[2]}")" "$1 $stripped_message" >> "$LOG_FILE"
 }
-  
+
 function debug_log() {
     if [[ $DEBUG == "true" ]]; then
         lg "+" "$@"
@@ -110,8 +106,8 @@ if [ "$CLI" == "false" ]; then
     menu_main
 
     # Nice UI quit
-    vquit 
-    
+    vquit
+
     echo "UI error? Exit."
     log "UI error? Exit."
     exit 1
@@ -128,17 +124,17 @@ elif [ "$CLI" == "true" ]; then
             "banlist")  echo "banlist ${ARGS[1]}"; ban_core "${ARGS[1]}"; exit 0;;
             "ban")      echo "ban IP ${ARGS[1]}"; INFOS=true; ban_ip "$MANUAL_IPSET_NAME" "${ARGS[1]}"; exit 0;;
             "unban")    echo "unban IP ${ARGS[1]}"; INFOS=true; unban_ip "$MANUAL_IPSET_NAME" "${ARGS[1]}"; exit 0;;
-            "stats")    echo "Banned in $VIPB_IPSET_NAME set: $(count_ipset "$VIPB_IPSET_NAME")" 
+            "stats")    echo "Banned in $VIPB_IPSET_NAME set: $(count_ipset "$VIPB_IPSET_NAME")"
                         echo "Banned in $MANUAL_IPSET_NAME set: $(count_ipset "$MANUAL_IPSET_NAME")"
                         exit 0;;
             "true"|"autoban"|"debug"|"")  echo "Starting CLI/cron core autoban...";
-                        debug_log "Starting CLI/cron core autoban..." 
+                        debug_log "Starting CLI/cron core autoban..."
                         #debug_log "(args: $@)"
                         download_blacklist
                         compressor
                         ban_core "$OPTIMIZED_FILE"
                         log "▩▩▩▩▩▩▩▩ VIPB END.  ▩▩▩▩ [CLI $CLI]"
-                        exit 0 
+                        exit 0
                         ;;
                     *)  echo "invalid argument: $*"
                         echo
