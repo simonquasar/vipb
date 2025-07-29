@@ -10,6 +10,11 @@
 **VIPB (Versatile IP Blacklister)** is a robust Bash tool for downloading, processing, and maintaining [*IPsum*](https://github.com/stamparm/ipsum/) blacklists, and provides functionalities for managing firewalls and IP blacklists through automated and manual processes. It seamlessly integrates with Linux firewalls: it uses `ipset` along with `iptables` or `firewalld` (`ufw` support coming soon..).
 It includes daily automation via `cron` job and integration with `fail2ban`.
 
+## Note
+
+> [!CAUTION]
+> This tool is still IN DEVELOPMENT and is designed for "domestic" server protection. It's intended for aware sudos. Please use responsibly and ensure you know the implications of firewalling / IP blocking in your environment before using this script.
+
 [![BatBar](https://img.shields.io/badge/VIPB-Download%20here!-ff2850?style=flat-square)](https://github.com/simonquasar/vipb/releases/latest)
 
 ---
@@ -124,11 +129,6 @@ This project is licensed under the GPL-2.0 License. See the LICENSE file for det
 - *IPsum* project for IP reputation data [<https://github.com/stamparm/ipsum/>]
 - *Alexander Klimetschek* & *miu* for menu selectors [<https://unix.stackexchange.com/questions/146570/arrow-key-enter-menu>]
 - Initial development by [simonquasar](https://simonquasar.net/)
-
-## Note
-
-> [!CAUTION]
-> This tool is designed for "domestic" server protection. Please use responsibly and ensure you know the implications of firewalling / IP blocking in your environment before using this script.
 
 ---
 
