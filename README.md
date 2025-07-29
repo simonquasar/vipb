@@ -27,7 +27,7 @@ It includes daily automation via `cron` job and integration with `fail2ban`.
 - **Bulk Ban IP Lists**: Process entire lists of IPs and subnets from a list file.
 - **Manual IP ban**: Ban/unban individual IP addresses on a separate user list.
 - **Simplified Firewall Management**: Safer handling of FirewallD and ipset operations
-- **New Log Extractor**: Advanced security event analysis and pattern recognition
+- New! v0.9.3 **Log Extractor**: Advanced security event analysis and pattern recognition
 
 ### Aggregator: Suspicious IPs to Subnets
 
@@ -48,7 +48,7 @@ This function analyzes a list of potentially suspicious IP addresses, identifies
 
 ![VIPB Check&Repair (WIP)](https://raw.githubusercontent.com/simonquasar/vipb/main/inc/VIPB-checkrepair.png)
 
-### Coming soon
+### Coming soon...
 
 - **xGUI** interface (see git `gui` branch)
 
