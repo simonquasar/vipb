@@ -12,6 +12,8 @@ It includes daily automation via `cron` job and integration with `fail2ban`.
 
 [![BatBar](https://img.shields.io/badge/VIPB-Download%20here!-ff2850?style=flat-square)](https://github.com/simonquasar/vipb/releases/latest)
 
+---
+
 ## Features
 
 ### Automated & Manual IP Ban
@@ -67,6 +69,8 @@ git clone https://github.com/simonquasar/vipb
 cd vipb
 chmod +x vipb.sh vipb-core.sh
 ```
+
+---
 
 ## Usage
 
