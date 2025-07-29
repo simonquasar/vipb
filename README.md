@@ -123,3 +123,6 @@ This project is licensed under the GPL-2.0 License. See the LICENSE file for det
 
 > [!CAUTION]
 > This tool is designed for "domestic" server protection. Please use responsibly and ensure you know the implications of firewalling / IP blocking in your environment before using this script.
+
+---
+
