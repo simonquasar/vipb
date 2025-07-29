@@ -28,6 +28,8 @@ It includes daily automation via `cron` job and integration with `fail2ban`.
 
 This function analyzes a list of potentially suspicious IP addresses, identifies patterns of repeated activity within subnets, and aggregates them into entire subnets (/24 or /16) based on user-defined tolerance thresholds.
 
+![VIPB Compressor](https://raw.githubusercontent.com/simonquasar/vipb/main/inc/VIPB-compressor.png)
+
 ### Firewall Integration
 
 - **Manage ipsets**: Creates and manages `ipset` rules for swift and reliable IP blocking.
