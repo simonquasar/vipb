@@ -68,7 +68,8 @@ chmod +x vipb.sh vipb-core.sh
 ### User Interface
 Run `sudo ./vipb.sh`
 
-![VIPB UI](https://github.com/simonquasar/vipb/blob/47c176aadb28e1d455e0fde5db3bdc6a955aa6bb/inc/ScreenshotVIPB.png)
+![VIPB UI](https://raw.githubusercontent.com/simonquasar/vipb/main/inc/ScreenshotVIPB.png)
+
 > [!NOTE]
 > IP lists should be in the same folder and use `.ipb` extension, with one IP per line in [CIDR](https://www.ipaddressguide.com/cidr) notation.
 
