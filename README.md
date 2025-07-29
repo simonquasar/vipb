@@ -37,10 +37,13 @@ This function analyzes a list of potentially suspicious IP addresses, identifies
 (`ufw` support coming soon)
 - **Fail2Ban**: Works in harmony with `Fail2Ban`.
 
+![VIPB Check&Repair (WIP)](https://raw.githubusercontent.com/simonquasar/vipb/main/inc/VIPB-checkrepair.png)
+
 ### Coming soon
 
 - **xGUI** interface (see git `gui` branch)
 
+---
 
 ## Installation
 
@@ -98,6 +101,8 @@ Run via CLI/cron `sudo ./vipb.sh [args]`
 All operations are logged in the script directory.
 Debug mode provides detailed operation logging.
 
+---
+
 ## Contributing
 
 Contributions are welcome! Feel free to submit pull requests or open issues for bugs and feature requests.
@@ -105,6 +110,8 @@ Contributions are welcome! Feel free to submit pull requests or open issues for 
 ## License
 
 This project is licensed under the GPL-2.0 License. See the LICENSE file for details.
+
+---
 
 ## Credits
 
