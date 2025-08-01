@@ -10,7 +10,7 @@ GRN=''
 VLT=''
 NC=''
 BG=''
-## TEXTS_BIN ##################################################################
+## TEXTS_BIN ################################################################## TODO: TEXTS_FILE(w/translations..?)
 download_ipsum_gui_text="<span weight='bold'>IPsum</span> is a feed based on 30+ publicly available lists of suspicious and/or malicious IP addresses. \nThe provided list is made of IP addresses matched with a number of (black)lists occurrences.\n<span weight='light'>More info at: <a href='https://github.com/stamparm/ipsum'>https://github.com/stamparm/ipsum</a></span>
 \n      <span weight='bold'>≡ Current list $(check_blacklist_file $BLACKLIST_FILE)</span>
 \n

@@ -427,7 +427,7 @@ function check_repair_dialog() {
     check_dialog
 }
 
-# 6. Manage ipsets #2do
+#TODO 6. Manage ipsets:
 function handle_ipsets_dialog() {
     backtitle="VIPB - Manage ipsets"
     if [[ "$FIREWALL" == "firewalld" ]]; then
@@ -467,7 +467,7 @@ function handle_ipsets_dialog() {
     check_dialog
 }
 
-# 7. Manage firewall #2do
+#TODO 7. Manage firewall:
 function handle_firewalls_dialog() {
     backtitle="VIPB - Firewall rules"
 

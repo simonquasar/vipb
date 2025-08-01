@@ -1075,7 +1075,7 @@ function handle_firewalls() {
                 fi
                 fw_options+=("FirewallD")
                 if [ "$DEBUG" == "true" ]; then
-                    fw_options+=("ufw ${BG}[not supported]${NC}") #2do
+                    fw_options+=("ufw ${BG}[not supported]${NC}") #TODO: UFW
                 fi
 
                 select_opt "${NC}${DM}« Back${NC}" "${fw_options[@]}"
@@ -1153,7 +1153,7 @@ function handle_cron_jobs() {
         echo -e "${RED}Error: Cannot read crontab${NC}"
     else
         if [[ "$DAILYCRON" == "true" ]]; then
-            echo -e "${SLM}↺${NC}  VIPB autoban job ${GRN}found${NC}" #2do add time details
+            echo -e "${SLM}↺${NC}  VIPB autoban job ${GRN}found${NC}" #TODO: add time details @test #tag 
         else
             echo -e "${SLM}↺${NC}  VIPB autoban job ${RED}not found${NC}"
         fi
@@ -1281,7 +1281,7 @@ function handle_logs_info() {
             3)  debug_log " $log_select. VIPB variables"
                 header
                 echo
-                echo -e "${VLT}▗ VIPB variables"    #2do
+                echo -e "${VLT}▗ VIPB variables"    #CHECK
                 vars=(
                     "              VER:$VER"
                     "              CLI:$CLI"
@@ -1597,7 +1597,7 @@ function menu_main() {
 
 # Menu and selector functions (at the end 'cause so exotic that messes up formatting)
 
-function ipset_selector() { #SINGLE IPSET SELECTOR #2do not used yet
+function ipset_selector() { #SINGLE IPSET SELECTOR #CHECK: not used yet
 
     local select_ipsets=("$@")
 

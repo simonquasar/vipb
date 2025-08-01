@@ -55,7 +55,7 @@ log "▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤ VIPB $VER - START ▤▤�
 log "▤ ARGS [""${ARGS[*]}""]"
 debug_log "▤ DEBUG mode ENABLED"
 
-function eta() {    # ETA calculation
+function eta() {    
     start_time="$1"
     done_count="$2"
     total_count="$3"
@@ -154,7 +154,7 @@ function check_dependencies() {
     log "▤ IPSET: $IPSET"
 
     #PERSISTENT=$(check_service "netfilter-persistent")
-    PERSISTENT="false" #2do
+    PERSISTENT="false" #CHECK: PERSISTENT logic
     debug_log "▤ netfilter-persistent: $PERSISTENT"
 
     FAIL2BAN=$(check_service "fail2ban")
@@ -198,7 +198,7 @@ function check_ipset() {
     p=0
     err=0
 
-    # STATUS CODES: 0 1 2 6 / 3 4 5 7 8 9
+    # STATUS check_ipset() 0 1 2 6  / 3 4 5 7 8 9
     #
     #   == ipset (iptables)
     #   0 ok
@@ -276,7 +276,7 @@ function check_ipset() {
 # Section: Firewall
 # ============================
 
-function get_fw_rules() { #$FW_RULES_LIST used in 7.1.
+function get_fw_rules() { #REVIEW:$FW_RULES_LIST used in 7.1.
     local err=0
 
     function get_iptables_rules() {
@@ -360,13 +360,14 @@ function check_firewall_rules() { #optional ipset_name firewall
     #lg "*" "check_firewall_rules $*"
     local ipset_name="$1"
 
-    # STATUS CODES:
+    # STATUS check_firewall_rules() 0 1 3fwd 4fwd
         #
         #   0 ok found (all)
         #   1 not found (all)
         #   3 ok runtime (firewalld)
         #   4 ok permanent (firewalld)
-        #   + too many #2do
+        #   #TODO: UFW
+        #   + #CHECK too many status exceptions
 
     if [[ -n "$ipset_name" ]]; then
         if [[ "$FIREWALL" == "iptables" ]]; then
@@ -441,7 +442,7 @@ function find_vipb_rules() { # for check_vipb_rules
     fi
 }
 
-function check_vipb_rules() { #2do refactor
+function check_vipb_rules() { #REWRITE
     FOUND_VIPB_RULES=($(find_vipb_rules))
     local ret=$?
 
@@ -480,10 +481,10 @@ function reload_firewall() {
     METAERRORS=0
 }
 
-function save_iptables_rules() { #2do
+function save_iptables_rules() { #CHECK function save_iptables_rules()
     #if command -v netfilter-persistent >/dev/null 2>&1; then
     #    return $?
-    #    echo "#2do netfilter-persistent save"
+    #    echo "#DEPRECATED: netfilter-persistent save"
     #else
     #    log "netfilter-persistent not found, falling back to manual save" >&2
     #
@@ -496,7 +497,7 @@ function save_iptables_rules() { #2do
 
 }
 
-function restore_iptables_rules() { #2do
+function restore_iptables_rules() { #FIXME: restore iptables rules
     iptables-restore < "$SCRIPT_DIR/iptables-rules.v4"
     return $?
 }
@@ -754,7 +755,7 @@ function setup_ipset() {
         fi
     else
         echo "ipset name error"
-        debug_log "@$LINENO ipset name error!" #2do
+        debug_log "@$LINENO ipset name error!" #CLEANUP: ? ipset name error
         return 1
     fi
 
@@ -809,7 +810,7 @@ function destroy_ipset() {
         fi
     else
         echo "ipset not true"
-        debug_log "@$LINENO #2do!" #2do
+        debug_log "@$LINENO #TODO:!" #DELETE: ipset check here??
         err=1
     fi
 
@@ -833,7 +834,7 @@ function clear_ipset() {
 
     if [[ "$FIREWALL" == "ufw" ]]; then
         echo "2do!"
-        debug_log "#2do!" #2do
+        debug_log "#TODO:!" #UFW
         err=1
     fi
 
@@ -856,7 +857,7 @@ function check_vipb_ipsets {
 }
 
 # ============================
-# Section: IPs
+# Section: IP core functions
 # ============================
 
 function ask_IPS() {
@@ -972,7 +973,7 @@ function ban_ip() {
                 fi
             fi
         elif [[ "$FIREWALL" == "ufw" ]]; then
-            echo -e "${YLW}IN DEVELOPMENT: ufw not supported yet!${NC} " #2do
+            echo -e "${YLW}IN DEVELOPMENT: ufw not supported yet!${NC} " #TODO: UFW
             return 1
         else # should not happen
             echo -e "${RED}Error: No firewall system found!${NC}"
@@ -1028,7 +1029,7 @@ function add_ips() {
     local ipset="$1"
 
     if [ "$IPSET" == "false" ]; then
-        #2do
+        #DELETE: ipset check ??
         echo "@$LINENO: Critical Error: cannot use ipset."
         log "@$LINENO: Critical Error: cannot use ipset."
         if [ ! "$DEBUG" == "true" ]; then
@@ -1107,7 +1108,7 @@ function unban_ip() {
             return 1
         fi
     elif [[ "$FIREWALL" == "ufw" ]]; then
-        echo -e "${YLW}IN DEVELOPMENT: ufw not supported yet!${NC} " #2do
+        echo -e "${YLW}IN DEVELOPMENT: ufw not supported yet!${NC} " #TODO: UFW
         return 1
     fi
 
@@ -1405,7 +1406,7 @@ function vipb_repair() {
     esac
 }
 
-function check_and_repair() { #2do
+function check_and_repair() { #FIXME: REPAIR LOGIC (+fail2ban)
     #echo -e "${BD}CHECKLIST${NC}"
 
         # check_and_repair STATUS CODES: verdict (stored in $ipsets_verdicts[i])
@@ -1544,7 +1545,7 @@ function check_and_repair() { #2do
 }
 
 # ============================
-# Section: Compressor & Ban Wrapper
+# Section: Compressor
 # ============================
 
 function compressor() {
@@ -1695,32 +1696,45 @@ function compressor() {
             barnets=$(printf "%0.s▓" $(seq 1 $filnets))
             spaces=$(printf "%0.s░" $(seq 1 $empty))
             label_position=$((filled - 1))
-            compression_bar=$(printf "%0.s " $(seq 1 $label_position))
-            cut_perc=$((100 - compression))
-            echo -e "${compression_bar}${S16}$((compression - prog_ips))%       ${CYN}${BD}-${cut_perc}%${NC}"
+            void=$(printf "%0.s " $(seq 1 $label_position))
+            echo -e "${void}${S16}${BD}${compression}%${NC}"
             echo -e "${VLT}${barips}${S16}${barnets}${CYN}${spaces}${NC}"
         }
 
         echo
         compression_bar
-        echo
-        echo -e "${S16}  ◔ $subs_count subnets${NC} from ${CYN}$cut_count IPs${NC}\t$uncompressed% to $((compression - prog_ips))%"
-        echo -e "${VLT}  ◕ $single_count IPs${NC} uncompressed \t$prog_ips%"
-        #echo -e "${CYN}==================================================${NC}"
+
+    #    ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▒░░░░░░░░░░░░░░░░
+    #    ◕ 2624 IPs    + 115 subnets    { ◔ 1236 IPs }
+
+        echo -e "${VLT}  ◕ $single_count IPs${NC} + ${S16}◔ $subs_count subnets${NC}\t\t${CYN}✂ $cut_count IPs${NC}"
+        
+        #echo
+        #echo -e "${S16}  ◔ $subs_count subnets${NC} from ${CYN}$cut_count IPs ${NC}\t$uncompressed% >> $((compression - prog_ips))%"
+        #echo -e "${VLT}  ◕ $single_count IPs${NC} uncompressed \t$prog_ips%"
+
         echo -e "${BD}${CYN}  = $optimized_count sources ${NC}optimized \t$compression%"
-        echo -e "${CYN}■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■"
+        echo -e "${CYN}==================================================${NC}"
         echo -e "\t\tCompression done! "
-        echo -e "==================================================${NC}"
+        echo -e "${CYN}■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■${NC}"
         echo
+
         return 0
     else
+
+        log "@$LINENO: ERROR: no blacklist"
+
         echo -e "${RED}ERROR: no blacklist${NC} $list_file"
         echo -e "${CYN}==================================================${NC}"
         echo
-        log "@$LINENO: ERROR: no blacklist"
+
         return 1
     fi
 }
+
+# ============================
+# Section: Ban Wrapper
+# ============================
 
 ban_core_start(){
     echo -e "${VLT}■■■■■■■■■■■■■■■■■■■■■■■■■"
@@ -1852,7 +1866,7 @@ function ban_core() {
     ban_core_start $*
 
     if [ "$FIREWALL" == "firewalld" ] && [ -f "$blacklist" ] ; then
-        echo -ne "Adding entries to '${BG}$ipset${NC}' from list... " # here since firewalld-cmd supports files #2do move into add_ips() function!!
+        echo -ne "Adding entries to '${BG}$ipset${NC}' from list... " # here since firewalld-cmd supports files #TODO: move into add_ips() function!!
         firewall-cmd ${PERMANENT:+$PERMANENT} --ipset="$ipset" --add-entries-from-file="$blacklist" 2>/dev/null
         err=$?
         if [ $err -ne 0 ]; then
