@@ -324,7 +324,7 @@ function manual_ban_dialog() {
     MANUAL_CHOICE=$(dialog --title "Manual Ban" --clear --colors --backtitle "$backtitle" --menu "User bans are stored in ipset ${BLU}$MANUAL_IPSET_NAME${NC} (max 254 sources allowed)" 11 45 10 \
         1 "Ban IP" \
         2 "View Banned IPs" \
-        3 "(2do) Export to file"\
+        3 "(#2DO) Export to file"\
         2>&1 >/dev/tty)
 
     case $MANUAL_CHOICE in

@@ -272,7 +272,7 @@ if (echo "$DISPLAY" | grep -qE ':[0-9]'); then
 
     # Main menu
 
-    ### https://yad-guide.ingk.se/paned/yad-paned.html#_splitterpos
+    ### NOTE https://yad-guide.ingk.se/paned/yad-paned.html#_splitterpos
 
         show_main_menu() {
             yad --list --no-headers --hide-column=1 --title="$TITLE" \
@@ -286,13 +286,13 @@ if (echo "$DISPLAY" | grep -qE ':[0-9]'); then
                 "1" "Download " "IPsum blacklist" \
                 "2" "Aggregate" "IPs into subnets" \
                 "3" "Ban" "from Blacklists" \
-                "4" "[2do] Manual ban" "IPs" \
-                "5" "[2do] Check &amp; Repair" "" \
-                "6" "[2do] Manage ipsets" "" \
-                "7" "[2do] Manage firewall" "" \
-                "8" "[2do] Daily Cron Job" "&amp; download L▼" \
-                "9" "[2do] Geo IP" "lookup" \
-                "10" "[2do] Log Extractor" "&amp; Vars" \
+                "4" "[#2DO] Manual ban" "IPs" \
+                "5" "[#2DO] Check &amp; Repair" "" \
+                "6" "[#2DO] Manage ipsets" "" \
+                "7" "[#2DO] Manage firewall" "" \
+                "8" "[#2DO] Daily Cron Job" "&amp; download L▼" \
+                "9" "[#2DO] Geo IP" "lookup" \
+                "10" "[#2DO] Log Extractor" "&amp; Vars" \
                 --button="Download > Aggregate > Ban!applications-utilities-symbolic:9" \
                 --button="About!help-contents:3" \
                 --button="Select!gtk-ok:0" \

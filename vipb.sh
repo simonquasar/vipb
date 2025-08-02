@@ -41,7 +41,7 @@ check_debug_mode "${ARGS[@]}"
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 LOG_FILE="$SCRIPT_DIR/vipb-log.log"
 
-# bootstrap log functions
+# log functions
 function lg {
     local stripped_message
     stripped_message=$(echo "$2" | sed 's/\x1b\[[0-9;]*m//g')
@@ -51,7 +51,7 @@ function lg {
 function debug_log() {
     if [[ $DEBUG == "true" ]]; then
         lg "+" "$@"
-        echo "<< DBG [$(basename "${BASH_SOURCE[1]}")] $*"
+        # echo "<< DBG [$(basename "${BASH_SOURCE[1]}")] $*"
     fi
 }
 
@@ -72,14 +72,14 @@ log "▤ SCRIPT_DIR: $SCRIPT_DIR/"
 log "Checking dependencies..."
 check_dependencies
 err=$?
+debug_log "check_dependencies() $err"
 if [ "$err" == 0 ]; then
     log "Dependencies   OK"
 else
     log "Dependencies   ERROR $err"
     exit $err
 fi
-debug_log "check_dependencies() $err"
-echo "Firewall: $FIREWALL"
+echo "Firewall [$FIREWALL]"
 
 # if UI terminal > load vipb-ui.sh (default VIPB-UI)
 if [ "$CLI" == "false" ]; then
@@ -111,7 +111,6 @@ if [ "$CLI" == "false" ]; then
 
 # if CLI/CronJob > parse arguments (and/or loads other GUI extensions)
 elif [ "$CLI" == "true" ]; then
-    #echo "VIPB $VER loaded in CLI/CronJob mode"
     log "VIPB loaded in CLI/CronJob mode."
     debug_log "(args: ${ARGS[*]})"
     check_args() {
@@ -128,14 +127,13 @@ elif [ "$CLI" == "true" ]; then
                         exit 0;;
             "true"|"autoban"|"debug"|"")  echo "Starting CLI/cron core autoban...";
                         debug_log "Starting CLI/cron core autoban..."
-                        #debug_log "(args: $@)"
                         download_blacklist
                         compressor
                         ban_core "$OPTIMIZED_FILE"
                         log "▩▩▩▩▩▩▩▩ VIPB END.  ▩▩▩▩ [CLI $CLI]"
                         exit 0
                         ;;
-                    *)  echo "invalid argument: $*"
+                    *)  echo "invalid argument: $*" #NOTE: CLI ARGS
                         echo
                         echo "► VIPB.sh ($VER) CLI ARGUMENTS"
                         echo
@@ -146,7 +144,7 @@ elif [ "$CLI" == "true" ]; then
                         echo "  banlist [listfile.ipb]    ban IPs/subnets list [optional: file.ipb]"
                         echo "  stats                     view banned VIPB IPs/subnets counts"
                         echo "  dialog | gui              start GUI interface (dialog)"
-                    #   echo "  xgui                      start xGUI interface (YAD) "                  # in development
+                    #   echo "  xgui                      start xGUI interface (YAD) "                  # HACK xgui in development
                         echo "  true | autoban            simulate cron/CLI (autoban)"
                         echo "  debug                     debug mode (echoes logs)"
                         echo
