@@ -82,8 +82,7 @@ chmod +x vipb.sh vipb-core.sh
 ### User Interface
 Run `sudo ./vipb.sh`
 
-![VIPB UI](https://raw.githubusercontent.com/simonquasar/vipb/main/inc/ScreenshotVIPB.png)
-
+![VIPB UI](https://github.com/simonquasar/vipb/blob/main/inc/ScreenshotVIPB.png)
 > [!NOTE]
 > IP lists should be in the same folder and use `.ipb` extension, with one IP per line in [CIDR](https://www.ipaddressguide.com/cidr) notation.
 
@@ -93,14 +92,17 @@ Run `sudo ./vipb.sh`
 Run via CLI/cron `sudo ./vipb.sh [args]`
 
 ````
-► VIPB.sh (v0.9.4) CLI ARGUMENTS
+► VIPB.sh (v0.9-gui) CLI ARGUMENTS
 
   ban #.#.#.#               ban single IP in manual/user list
   unban #.#.#.#             unban single IP in manual/user list
   download #                download lv #
+  flush ipset               flush "ipset"
   compress [listfile.ipb]   compress IPs list [optional: file.ipb]
   banlist [listfile.ipb]    ban IPs/subnets list [optional: file.ipb]
   stats                     view banned VIPB IPs/subnets counts
+  dialog | gui              start GUI interface (dialog)
+  xgui                      start xGUI interface (YAD) !!! in development !!!
   true                      simulate cron/CLI (or autoban)
   debug                     debug mode (echoes logs)
 
@@ -132,3 +134,5 @@ This project is licensed under the GPL-2.0 License. See the LICENSE file for det
 
 ---
 
+> [!CAUTION]
+> This tool is designed for "domestic" server protection. Please use responsibly and ensure you know the implications of firewalling / IP blocking in your environment before using this script.

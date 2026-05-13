@@ -9,14 +9,8 @@
 # |  |  | |   __| __ -|
 #  \___/|_|__|  |_____| v0.9
 #
-VER="v0.9.4"
+VER="v0.9.6-202605"
 ARGS=("$@")
-
-if [ "$EUID" -ne 0 ]; then
-    echo "✦ VIPB $VER ✦"
-    echo "Error: This script must be run as root. Please use sudo.${NC}"
-    #exit 1
-fi
 
 # check if debug mode is enabled
 check_debug_mode() {
@@ -25,7 +19,7 @@ check_debug_mode() {
 
     if [ "$1" == "debug" ]; then
         DEBUG="true"
-        echo ">> DEBUG MODE [$DEBUG]"
+        echo ">> DEBUG MODE ON"
         shift
     fi
     ARGS=("$@")
@@ -47,7 +41,7 @@ check_debug_mode "${ARGS[@]}"
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 LOG_FILE="$SCRIPT_DIR/vipb-log.log"
 
-# bootstrap log functions
+# log functions
 function lg {
     local stripped_message
     stripped_message=$(echo "$2" | sed 's/\x1b\[[0-9;]*m//g')
@@ -57,7 +51,7 @@ function lg {
 function debug_log() {
     if [[ $DEBUG == "true" ]]; then
         lg "+" "$@"
-        # echo "<< DBG [$(basename "${BASH_SOURCE[1]}")] $*"   # UNCOMMENT FOR SCREEN DEBUG
+        # echo "<< DBG [$(basename "${BASH_SOURCE[1]}")] $*"
     fi
 }
 
@@ -70,37 +64,40 @@ function log() {
     fi
 }
 
-log "▤▤▤▤▤▤▤▤ VIPB START ▤▤▤▤ $VER"
-log "▤ ARGS [""${ARGS[*]}""]"
-debug_log "▤ DEBUG mode ENABLED"
-
 # bootstrap VIPB core functions and variables
 source "$SCRIPT_DIR/vipb-core.sh" "${ARGS[*]}"
-log "$SCRIPT_DIR/vipb-core.sh $( echo -e "${GRN}LOADED${NC}")"
+log "▤ SCRIPT_DIR: $SCRIPT_DIR/"
 
 # check/set dependencies
 log "Checking dependencies..."
 check_dependencies
 err=$?
-if [ "$err" == 0 ]; then
-    log "Dependencies OK"
-else
-    log "Dependencies ERROR $err"
-fi
 debug_log "check_dependencies() $err"
-echo "Firewall: $FIREWALL"
+if [ "$err" == 0 ]; then
+    log "Dependencies   OK"
+else
+    log "Dependencies   ERROR $err"
+    exit $err
+fi
+echo "Firewall [$FIREWALL]"
 
-# if UI terminal > load vipb-ui.sh
+# if UI terminal > load vipb-ui.sh (default VIPB-UI)
 if [ "$CLI" == "false" ]; then
     # Start
+    log "Checking firewall rules..."
     echo -n "Checking firewall rules... "
     check_firewall_rules
     echo "OK"
+    log "Firewall rules OK"
+    echo -n "Checking VIPB ipsets.."
     check_vipb_ipsets
+    echo ". OK"
+    log "VIPB ipsets    OK"
     # load UI
     source "$SCRIPT_DIR/vipb-ui.sh"
-    log "$SCRIPT_DIR/vipb-ui.sh $( echo -e "${GRN}LOADED${NC}")"
-    log "UI interface LOADED"
+    debug_log "$SCRIPT_DIR/vipb-ui.sh $( echo -e "${GRN}LOADED${NC}")"
+    log "UI interface   LOADED"
+    log "----------------------------"
     # Start UI execution
     header
     menu_main
@@ -112,41 +109,45 @@ if [ "$CLI" == "false" ]; then
     log "UI error? Exit."
     exit 1
 
-# if CLI/CronJob then parse arguments
+# if CLI/CronJob > parse arguments (and/or loads other GUI extensions)
 elif [ "$CLI" == "true" ]; then
-    #echo "VIPB $VER loaded in CLI/CronJob mode"
     log "VIPB loaded in CLI/CronJob mode."
     debug_log "(args: ${ARGS[*]})"
     check_args() {
         case ${ARGS[0]} in
-            "download") echo "download lv. ${ARGS[1]}"; download_blacklist "${ARGS[1]}"; exit 0;;
-            "compress") echo "compress ${ARGS[1]}"; compressor "${ARGS[1]}"; exit 0;;
-            "banlist")  echo "banlist ${ARGS[1]}"; ban_core "${ARGS[1]}"; exit 0;;
             "ban")      echo "ban IP ${ARGS[1]}"; INFOS=true; ban_ip "$MANUAL_IPSET_NAME" "${ARGS[1]}"; exit 0;;
+            "banlist")  echo "banlist ${ARGS[1]}"; ban_core "${ARGS[1]}"; exit 0;;
+            "compress") echo "compress ${ARGS[1]}"; compressor "${ARGS[1]}"; exit 0;;
+            "download") echo "download lv. ${ARGS[1]}"; download_blacklist "${ARGS[1]}"; exit 0;;
+			"flush")    echo "flush ipset: ${ARGS[1]}"; clear_ipset "${ARGS[1]}"; exit 0;;
+			"xgui")      source "$SCRIPT_DIR/vipb-gui.sh"; exit 0;;
+            "dialog" | "gui")   source "$SCRIPT_DIR/vipb-dialog.sh"; exit 0;;
             "unban")    echo "unban IP ${ARGS[1]}"; INFOS=true; unban_ip "$MANUAL_IPSET_NAME" "${ARGS[1]}"; exit 0;;
             "stats")    echo "Banned in $VIPB_IPSET_NAME set: $(count_ipset "$VIPB_IPSET_NAME")"
                         echo "Banned in $MANUAL_IPSET_NAME set: $(count_ipset "$MANUAL_IPSET_NAME")"
                         exit 0;;
             "true"|"autoban"|"debug"|"")  echo "Starting CLI/cron core autoban...";
                         debug_log "Starting CLI/cron core autoban..."
-                        #debug_log "(args: $@)"
                         download_blacklist
                         compressor
                         ban_core "$OPTIMIZED_FILE"
                         log "▩▩▩▩▩▩▩▩ VIPB END.  ▩▩▩▩ [CLI $CLI]"
                         exit 0
                         ;;
-                    *)  echo "invalid argument: $*"
+                    *)  echo "invalid argument: $*" #NOTE: CLI ARGS
                         echo
                         echo "► VIPB.sh ($VER) CLI ARGUMENTS"
                         echo
                         echo "  ban #.#.#.#               ban single IP in manual/user list"
                         echo "  unban #.#.#.#             unban single IP in manual/user list"
-                        echo "  download #                download lv #"
+                        echo "  download #                download IPsum list level #"
+						echo "  flush ipset               flush ipset"
                         echo "  compress [listfile.ipb]   compress IPs list [optional: file.ipb]"
                         echo "  banlist [listfile.ipb]    ban IPs/subnets list [optional: file.ipb]"
                         echo "  stats                     view banned VIPB IPs/subnets counts"
-                        echo "  true                      simulate cron/CLI (or autoban)"
+                        echo "  dialog | gui              start GUI interface (dialog)  [!!! in development !!!]"
+                        echo "  xgui                      start xGUI interface (YAD)    [!!! in development !!!]"                  # HACK xgui still in development
+                        echo "  true | autoban            simulate cron/CLI (autoban)"
                         echo "  debug                     debug mode (echoes logs)"
                         echo
                         echo "                            (*.ipb = list of IPs, one per line)"
