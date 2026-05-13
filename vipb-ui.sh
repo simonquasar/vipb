@@ -1449,7 +1449,8 @@ function header() {
         3) echo -ne "${S24}✦";;          #firewalld: ok runtime
         4) echo -ne "${BLU}✦";;          #firewalld: ok permanent
         7 | 8 | 9) echo -ne "${YLW}✧";;   #firewalld: orph
-        *) log "$VIPB_STATUS";;
+        *) echo -ne "${RED}?${NC}"
+            log "$VIPB_STATUS";;
     esac
     echo -ne " VIPB ${VLT}$VIPB_BANS ${NC}"
     echo
@@ -1465,7 +1466,8 @@ function header() {
         3) echo -ne "${S24}✦";;          #firewalld: ok runtime
         4) echo -ne "${BLU}✦";;          #firewalld: ok permanent
         7 | 8 | 9) echo -ne "${YLW}✧";;   #firewalld: orph
-        *) log "$USER_STATUS";;
+        *) echo -ne "${RED}?${NC}"
+            log "$USER_STATUS";;
     esac
     echo -ne " USER ${VLT}$USER_BANS ${NC}"
     echo

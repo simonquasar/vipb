@@ -9,7 +9,7 @@
 # |  |  | |   __| __ -|
 #  \___/|_|__|  |_____| v0.9
 #
-VER="v0.9.4-gui"
+VER="v0.9.6-202605"
 ARGS=("$@")
 
 # check if debug mode is enabled
@@ -119,7 +119,8 @@ elif [ "$CLI" == "true" ]; then
             "banlist")  echo "banlist ${ARGS[1]}"; ban_core "${ARGS[1]}"; exit 0;;
             "compress") echo "compress ${ARGS[1]}"; compressor "${ARGS[1]}"; exit 0;;
             "download") echo "download lv. ${ARGS[1]}"; download_blacklist "${ARGS[1]}"; exit 0;;
-            "xgui")      source "$SCRIPT_DIR/vipb-gui.sh"; exit 0;;
+			"flush")    echo "flush ipset: ${ARGS[1]}"; clear_ipset "${ARGS[1]}"; exit 0;;
+			"xgui")      source "$SCRIPT_DIR/vipb-gui.sh"; exit 0;;
             "dialog" | "gui")   source "$SCRIPT_DIR/vipb-dialog.sh"; exit 0;;
             "unban")    echo "unban IP ${ARGS[1]}"; INFOS=true; unban_ip "$MANUAL_IPSET_NAME" "${ARGS[1]}"; exit 0;;
             "stats")    echo "Banned in $VIPB_IPSET_NAME set: $(count_ipset "$VIPB_IPSET_NAME")"
@@ -139,12 +140,13 @@ elif [ "$CLI" == "true" ]; then
                         echo
                         echo "  ban #.#.#.#               ban single IP in manual/user list"
                         echo "  unban #.#.#.#             unban single IP in manual/user list"
-                        echo "  download #                download lv #"
+                        echo "  download #                download IPsum list level #"
+						echo "  flush ipset               flush ipset"
                         echo "  compress [listfile.ipb]   compress IPs list [optional: file.ipb]"
                         echo "  banlist [listfile.ipb]    ban IPs/subnets list [optional: file.ipb]"
                         echo "  stats                     view banned VIPB IPs/subnets counts"
-                        echo "  dialog | gui              start GUI interface (dialog)"
-                    #   echo "  xgui                      start xGUI interface (YAD) "                  # HACK xgui in development
+                        echo "  dialog | gui              start GUI interface (dialog)  [!!! in development !!!]"
+                        echo "  xgui                      start xGUI interface (YAD)    [!!! in development !!!]"                  # HACK xgui still in development
                         echo "  true | autoban            simulate cron/CLI (autoban)"
                         echo "  debug                     debug mode (echoes logs)"
                         echo

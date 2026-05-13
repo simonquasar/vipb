@@ -35,6 +35,7 @@ if (echo "$DISPLAY" | grep -qE ':[0-9]'); then
     echo "##################################################################"
     echo "         WARNING: xGUI mode is still under development!"
     echo "##################################################################"
+    export DISPLAY=:0
     # Check if yad is installed
     if ! command -v yad &> /dev/null; then
         echo "YAD is not installed. Please install YAD to use VIPB-xgui."

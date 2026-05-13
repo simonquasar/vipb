@@ -1,9 +1,12 @@
 #!/bin/bash
 set -o pipefail
-
+if [ "$EUID" -ne 0 ]; then
+    echo "This script must be run from an admin. Please use sudo."
+	exit 1
+fi
 # Variables & Logging
 # set the blacklisted IPsum level (2-8, default 3)
-BLACKLIST_LV=8
+BLACKLIST_LV=7
 # set the default files names and path
 BLACKLIST_FILE="$SCRIPT_DIR/vipb-blacklist.ipb"
 OPTIMIZED_FILE="$SCRIPT_DIR/vipb-optimized.ipb"
@@ -51,15 +54,8 @@ else
     NC='\033[0m'
     IT='\033[3m' # italic
 fi
-
 # VIPB Core functions
 echo -e "${VLT}✦ VIPB $VER ✦${NC}"
-if [ "$EUID" -ne 0 ]; then
-    echo "This program must be run as admin. Please use sudo."
-    if [[ $DEBUG != "true" ]]; then
-        exit 1
-    fi
-fi
 log "▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤ VIPB $VER - START ▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤"
 log "▤ ARGS [""${ARGS[*]}""]"
 debug_log "▤ DEBUG mode ENABLED"
@@ -339,7 +335,7 @@ function check_ipset() { # (verbose echo)
 }
 
 # ============================
-# Section: Firewall
+# Section: Firewall		#TODO #REWRITE #NEW add nftables support
 # ============================
 
 function get_fw_rules() { #CHECK:against $FW_RULES_LIST used in 7.1.
@@ -599,8 +595,11 @@ function add_firewall_rules() {
                     if ! iptables -se INPUT -m set --match-set "${ipset}" src -j DROP &>/dev/null; then
                         iptables -I INPUT 1 -m set --match-set "${ipset}" src -j DROP
                         log "@$LINENO:$?"
+                        echo "added"
                     else
-                        log "@$LINENO:$?"
+                        e=$?
+                        echo "error $e"
+                        log "@$LINENO:$e"
                         err=1
                     fi
                 elif [[ "$FIREWALL" == "ufw" ]]; then
@@ -671,7 +670,7 @@ function fw_rule_move_to_top() {
 # Section: ipsets
 # ============================
 
-function count_ipset() {
+function count_ipset() { #verbose echo
     #lg "*" "count_ipset $*"
 
     local ipset_name="$1"
@@ -713,15 +712,15 @@ function count_ipset() {
                             f=0
                         fi
                         ;;
-                0 | 1 | 2 | 6) RUN_BANS="*"
-                        PERM_BANS="*"
+                0 | 1 | 2 | 6)  RUN_BANS=" "
+                                PERM_BANS=" "
                         ;;
                     *)  log "@$LINENO: count: $total_ipset ($RUN_BANS --$PERM_BANS) check: $check_status"
                         echo -n "err"
                         return 1
                         ;;
             esac
-            total_ipset="$RUN_BANS \t--$PERM_BANS"
+            total_ipset="$RUN_BANS \t[$PERM_BANS]"
             echo -n "$total_ipset"
             if [[ "$f" == 0 ]]; then
                 [[ "$ipset_name" == "$VIPB_IPSET_NAME" ]] && VIPB_BANS="$total_ipset";
@@ -739,7 +738,7 @@ function count_ipset() {
         elif [[ "$fw" == "ufw" ]]; then
             echo -n "#2DO UFW"
         fi
-        debug_log "@$LINENO: count $ipset_name fw: $2 f: $f | total_ipset: $total_ipset | $RUN_BANS --$PERM_BANS"
+        log "@$LINENO: count $ipset_name fw: $2 f: $f | total_ipset: $total_ipset | $RUN_BANS --$PERM_BANS"
         return 0
     else
         echo -n "err"
@@ -889,16 +888,17 @@ function destroy_ipset() {
 }
 
 function clear_ipset() {
-    lg "*" "clear_ipset $*"
-
+    log "*" "clear_ipset $*"
     local ipset_name="$1"
-    err=0
-
+	echo -e "ipset_name: ${ipset_name}"
+	echo -e "firewakk: $FIREWALL"
+	err=0
     if [[ "$IPSET" == "true" ]]; then
         if ipset flush "$ipset_name" &>/dev/null; then
-            echo -e "System ipset content ${GRN}flushed${NC}"
+            echo -e "ipset ${ipset_name} content ${GRN}flushed${NC}"
         else
-            echo -e "System ipset ${RED}not found!${NC}"
+            echo -e "ipset ${ipset_name} ${RED}not found!${NC}"
+			echo -e "ipset ${ipset_name}"
             err=1
         fi
     fi
@@ -1517,37 +1517,37 @@ function check_and_repair() { #CHECK: REPAIR LOGIC (+fail2ban)
         echo -ne "\t┌───── firewalld ─────┐"
     fi
     echo
-    echo -ne "${GRY}${BD}IPSETS\t\t\t│${IT} set\t#\trule${NC} │"
+    echo -ne " ${VLT}${BD}✚${NC}   "
+    echo -e "${GRY}${BD}IPSET\t\t│${IT} set\t#\trule${NC} │"
+    echo -ne "${NC}════ "
 
     if [[ "$FIREWALLD" == "true" ]] || [[ "$FIREWALL" == "firewalld" ]]; then
         [[ "$FIREWALL" != "firewalld" ]] && echo -ne "${DM}"
-        echo -ne "\t│${IT}refer\trunt\t--perm${NC}│"
+        echo -ne "\t│ ${IT}ref\truntime\t[perm]${NC}│"
     fi
-    echo -e "\t  ${VLT}${BD}✚${NC}"
-    echo -ne "${GRY}${BD}═══════                 ╘════════════════════╛"
+    echo -ne "${GRY}${BD}═══════            ╘════════════════════╛"
 
     if [[ "$FIREWALLD" == "true" ]] || [[ "$FIREWALL" == "firewalld" ]]; then
         [[ "$FIREWALL" != "firewalld" ]] && echo -ne "${DM}"
         echo -ne "  ╘═════════════════════╛"
     fi
-
-    echo -e "${NC}\t ════"
-
+    echo
     if [[ ${#select_ipsets[@]} -eq 0 ]]; then
         echo -e "${RED}No ipsets found.${NC}"
     else
         for i in "${!select_ipsets[@]}"; do
+            current_row=""
             current_ipset="${select_ipsets[$i]}"
             local verdict=0
-            [[ "$current_ipset" != vipb-* ]] && echo -ne "${BLU}" ||echo -ne "${VLT}";
-            printf "%-*.*s" "20" "20" " $current_ipset"
+            [[ "$current_ipset" != vipb-* ]] && current_row+="${BLU}" ||current_row+="${VLT}";
+            current_row+=$(printf "%-*.*s" "20" "20" " $current_ipset")
             check_ipset "$current_ipset" &>/dev/null;
             check_status="$?"
             ipsets_statuses[i]=$check_status
-            echo -ne "\t  "
+            current_row+="  "
             case $check_status in                               #ipset
-                0 | 2 | 3 | 4 | 5)  echo -ne "${GRN}OK${NC}";;      # set OK
-                *) echo -ne "${RED}NO${NC}";;                       # set ERROR
+                0 | 2 | 3 | 4 | 5)  current_row+="${GRN}OK${NC}";;      # set OK
+                *) current_row+="${RED}NO${NC}";;                       # set ERROR
             esac
             case $check_status in                               #first verdict
                 1 ) verdict=1 ;;
@@ -1560,64 +1560,65 @@ function check_and_repair() { #CHECK: REPAIR LOGIC (+fail2ban)
             case $check_status in                               #system ipset entries
                 0 | 2 | 3 | 4 | 5)
                     total_ipset=$(ipset list "$current_ipset" | grep -c '^[0-9]')
-                    echo -ne "\t${GRY}$total_ipset${NC}"
+                    current_row+="\t${GRY}$total_ipset${NC}"
                     ;;
                 *) total_ipset="n/a"
-                    echo -ne "\t-" ;;
+                    current_row+="\t-" ;;
             esac
-            echo -ne "\t"
+            current_row+="\t"
             check_firewall_rules "$current_ipset" &>/dev/null;
             check_rules="$?"
             case $check_rules in                                #fw rule
-                0)  echo -ne "${GRN}OK${NC}";;                     #fw rule OK
-                1)  echo -ne "${RED}NO${NC}"
+                0)  current_row+="${GRN}OK${NC}";;                     #fw rule OK
+                1)  current_row+="${RED}NO${NC}"
                     [[ "$verdict" != 1 ]] && verdict=2 ;;
-                3)  echo -ne "${S24}OK${NC}";;                      # rule ok (fwD runtime)
-                4)  echo -ne "${BLU}OK${NC}";;                      # rule ok (fwD perm)
-                *)  echo -ne "${RED}KO ($check_rules)${NC}"
+                3)  current_row+="${S24}OK${NC}";;                      # rule ok (fwD runtime)
+                4)  current_row+="${BLU}OK${NC}";;                      # rule ok (fwD perm)
+                *)  current_row+="${RED}KO ($check_rules)${NC}"
                     verdict=9 ;;
             esac
 
             if [[ "$FIREWALLD" == "true" ]] || [[ "$FIREWALL" == "firewalld" ]]; then
-                [[ "$FIREWALL" != "firewalld" ]] && echo -ne "${DM}"
+                [[ "$FIREWALL" != "firewalld" ]] && current_row+="${DM}"
                 case $check_status in                               #fwD reference
-                    2)  echo -ne "\t ${YLW}NO${NC}";;
-                    3)  echo -ne "\t ${S24}YES${NC}";;
-                    4)  echo -ne "\t ${BLU}YES${NC}";;
-                    5)  echo -ne "\t ${GRN}BOTH${NC}";;
-                    7 | 8 | 9)  echo -ne "\t ${SLM}ORPH${NC}";;
-                    *)  echo -e "\t"
+                    2)  current_row+="\t ${YLW}NO${NC}";;
+                    3)  current_row+="\t ${S24}YES${NC}";;
+                    4)  current_row+="\t ${BLU}YES${NC}";;
+                    5)  current_row+="\t ${GRN}BOTH${NC}";;
+                    7 | 8 | 9)  current_row+="\t ${SLM}ORPH${NC}";;
+                    *)  current_row+="\t"
                         log "@$LINENO:\t ${RED}NO ($check_status)${NC}";;
                 esac
-                [[ "$FIREWALL" != "firewalld" ]] && echo -ne "${DM}"
+                [[ "$FIREWALL" != "firewalld" ]] && current_row+="${DM}"
                 count=$(count_ipset "$current_ipset" "firewalld")
                 IFS=$' \t--' read -r RUN_BANS PERM_BANS <<< "$count"
-                echo -ne "\t$RUN_BANS"                              #fwD runtime entries
+                current_row+="\t$RUN_BANS"                              #fwD runtime entries
                 if [[ "$RUN_BANS" =~ ^[0-9]+$ ]]; then
                     if [ "$total_ipset" -ne "$RUN_BANS" ] && [[ "$FIREWALLD" == "true" ]]; then
-                        echo -ne "${RED}!${NC}"
+                        current_row+="${RED}!${NC}"
                         [[ "$verdict" == 0 ]] && verdict=3
-                        [[ "$FIREWALL" != "firewalld" ]] && echo -ne "${DM}"
+                        [[ "$FIREWALL" != "firewalld" ]] && current_row+="${DM}"
 
                     fi
                 fi
-                echo -ne "$PERM_BANS"                               #fwD perm entries
+                current_row+="$PERM_BANS"                               #fwD perm entries
                 if [[ "$PERM_BANS" =~ ^[0-9]+$ ]] ; then
                     if [ "$total_ipset" -ne "$PERM_BANS" ] && [[ "$FIREWALLD" == "true" ]]; then
-                        echo -ne "${RED}!${NC}"
+                        current_row+="${RED}!${NC}"
                         [[ "$verdict" == 0 ]] && verdict=3
                     fi
                 fi
-                echo -ne "${NC}"
+                current_row+="${NC}"
             fi
             ipsets_verdicts[i]=$verdict
             case $verdict in
-                0) echo -e "\t  ${GRN}✦${NC}" ;;
-                1) echo -e "\t  ${RED}✚${NC}" ;; # 1 no ipset / orphaned
-                2) echo -e "\t  ${SLM}✚${NC}" ;; # 2 no rule
-                3) echo -e "\t  ${YLW}✧${NC}" ;; # 3 entries diff
-                *) echo -e "\t  ${VLT}✧${ipsets_verdicts[$i]}${NC}" ;; #2d0?
+                0) current_row=" ${GRN}✦${NC}  $current_row";;
+                1) current_row=" ${RED}✚${NC}  $current_row" ;; # 1 no ipset / orphaned
+                2) current_row=" ${SLM}✚${NC}  $current_row" ;; # 2 no rule
+                3) current_row=" ${YLW}✧${NC}  $current_row" ;; # 3 entries diff
+                *) current_row=" ${VLT}✧${ipsets_verdicts[$i]}${NC}  $current_row" ;; #2d0?
             esac
+            echo -e "$current_row"
         done
     fi
     echo
@@ -1895,6 +1896,16 @@ ban_core_start(){
             fi
         else
             echo -e "with ${VLT}$count entries${NC}"
+        fi
+
+        if [$count > "20000"]; then
+            echo -e "${YLW}  =  ! WARNING: $count bans is a lot, consider flushing the set!${NC}"
+        elif [$count > "50000"]; then
+            echo -e "${ORG}  =  !!! ALERT: $count bans is a lot, consider flushing the set!${NC}"
+        elif [$count > "60000"]; then
+            #2do flush the set
+            echo -e "${RED}  =  !!!!!! ALERT: $count bans is a lot, set flush mandatory!${NC}"
+            clear_ipset "$ipset"
         fi
 
         echo -ne "⇄ ${ORG}$FIREWALL${NC} rule for ipset "
