@@ -10,6 +10,15 @@
 **VIPB (Versatile IP Blacklister)** is a robust Bash tool for downloading, processing, and maintaining [*IPsum*](https://github.com/stamparm/ipsum/) blacklists, and provides functionalities for managing firewalls and IP blacklists through automated and manual processes. It seamlessly integrates with Linux firewalls: it uses `ipset` along with `iptables` or `firewalld` (`ufw` support coming soon..).
 It includes daily automation via `cron` job and integration with `fail2ban`.
 
+## Note
+
+> [!CAUTION]
+> This tool is still IN DEVELOPMENT and is designed for "domestic" server protection. It's intended for aware sudos. Please use responsibly and ensure you know the implications of firewalling / IP blocking in your environment before using this script.
+
+[![BatBar](https://img.shields.io/badge/VIPB-Download%20here!-ff2850?style=flat-square)](https://github.com/simonquasar/vipb/releases/latest)
+
+---
+
 ## Features
 
 ### Automated & Manual IP Ban
@@ -18,13 +27,15 @@ It includes daily automation via `cron` job and integration with `fail2ban`.
 - **Bulk Ban IP Lists**: Process entire lists of IPs and subnets from a list file.
 - **Manual IP ban**: Ban/unban individual IP addresses on a separate user list.
 - **Simplified Firewall Management**: Safer handling of FirewallD and ipset operations
-- **New Log Extractor**: Advanced security event analysis and pattern recognition
+- New! v0.9.3 **Log Extractor**: Advanced security event analysis and pattern recognition
 
 ### Aggregator: Suspicious IPs to Subnets
 
 - **IP Compression**: Aggregates IP lists into /16 and /24 subnets for efficient security.
 
 This function analyzes a list of potentially suspicious IP addresses, identifies patterns of repeated activity within subnets, and aggregates them into entire subnets (/24 or /16) based on user-defined tolerance thresholds.
+
+![VIPB Compressor](https://raw.githubusercontent.com/simonquasar/vipb/main/inc/VIPB-compressor.png)
 
 ### Firewall Integration
 
@@ -35,7 +46,17 @@ This function analyzes a list of potentially suspicious IP addresses, identifies
 (`ufw` support coming soon)
 - **Fail2Ban**: Works in harmony with `Fail2Ban`.
 
+![VIPB Check&Repair (WIP)](https://raw.githubusercontent.com/simonquasar/vipb/main/inc/VIPB-checkrepair.png)
+
+### Coming soon...
+
+- **xGUI** interface (see git `gui` branch)
+
+---
+
 ## Installation
+
+[![BatBar](https://img.shields.io/badge/VIPB-Download%20here!-ff2850?style=flat-square)](https://github.com/simonquasar/vipb/releases/latest)
 
 Ensure required dependencies are installed and active:
 
@@ -53,6 +74,8 @@ git clone https://github.com/simonquasar/vipb
 cd vipb
 chmod +x vipb.sh vipb-core.sh
 ```
+
+---
 
 ## Usage
 
@@ -74,6 +97,7 @@ Run via CLI/cron `sudo ./vipb.sh [args]`
   ban #.#.#.#               ban single IP in manual/user list
   unban #.#.#.#             unban single IP in manual/user list
   download #                download lv #
+  flush ipset               flush "ipset"
   compress [listfile.ipb]   compress IPs list [optional: file.ipb]
   banlist [listfile.ipb]    ban IPs/subnets list [optional: file.ipb]
   stats                     view banned VIPB IPs/subnets counts
@@ -90,6 +114,8 @@ Run via CLI/cron `sudo ./vipb.sh [args]`
 All operations are logged in the script directory.
 Debug mode provides detailed operation logging.
 
+---
+
 ## Contributing
 
 Contributions are welcome! Feel free to submit pull requests or open issues for bugs and feature requests.
@@ -98,13 +124,15 @@ Contributions are welcome! Feel free to submit pull requests or open issues for 
 
 This project is licensed under the GPL-2.0 License. See the LICENSE file for details.
 
+---
+
 ## Credits
 
 - *IPsum* project for IP reputation data [<https://github.com/stamparm/ipsum/>]
 - *Alexander Klimetschek* & *miu* for menu selectors [<https://unix.stackexchange.com/questions/146570/arrow-key-enter-menu>]
 - Initial development by [simonquasar](https://simonquasar.net/)
 
-## Note
+---
 
 > [!CAUTION]
 > This tool is designed for "domestic" server protection. Please use responsibly and ensure you know the implications of firewalling / IP blocking in your environment before using this script.

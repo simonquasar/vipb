@@ -10,3 +10,5 @@ vipb.zip
 *.bak
 yad.md
 py/
+*.py
+*gui

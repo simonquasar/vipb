@@ -27,7 +27,7 @@ else
         debug_log "≡ Can set foreground color: $(tput setaf 1 >/dev/null 2>&1 && echo -e "${GRN}Yes${NC}" || echo -e "${RED}No${NC}")"
         debug_log "≡ Can set background color: $(tput setab 1 >/dev/null 2>&1 && echo -e "${GRN}Yes${NC}" || echo -e "${RED}No${NC}")"
     fi
-    ############################################################################
+    ###########################################################################
     # UI then define COLORS!
     # Check if terminal supports 256 colors
     if tput colors | grep -q '256' && ! [ "$DEBUG" == "true" ]; then
@@ -140,6 +140,11 @@ function level_bar(){
     for ((i=0; i<(8-$1); i++)); do
         echo -n "_"
     done
+}
+
+SPIN=0
+function spinner(){
+    echo -n "spin"
 }
 
 ### UI-Handlers functions

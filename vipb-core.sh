@@ -6,7 +6,7 @@ if [ "$EUID" -ne 0 ]; then
 fi
 # Variables & Logging
 # set the blacklisted IPsum level (2-8, default 3)
-BLACKLIST_LV=7
+BLACKLIST_LV=5
 # set the default files names and path
 BLACKLIST_FILE="$SCRIPT_DIR/vipb-blacklist.ipb"
 OPTIMIZED_FILE="$SCRIPT_DIR/vipb-optimized.ipb"
@@ -179,7 +179,7 @@ function check_dependencies() {
     debug_log "▤ IPSET: $IPSET"
     
     CRON=$(check_service "crontab")
-    debug_log "▤ CRON: $CRON"
+    log "▤ CRON: $CRON"
 
     CURL=$(check_service "curl") #no fallback
     debug_log "▤ CURL: $CURL"
@@ -464,11 +464,14 @@ function check_firewall_rules() { # [ipset_name] [firewall] # CHECK
             return $f                                       # x too many found??
         elif [[ "$FIREWALL" == "ufw" ]]; then
             ufw status | grep -q "$ipset_name" && return 0 || return 1
+        else
+            log "@$LINENO: CRITICAL: Unknown firewall $FIREWALL"
+            return 1
         fi
     else    # look for the standard VIPB-rulesets
-        check_firewall_rules $VIPB_IPSET_NAME
+        check_firewall_rules $VIPB_IPSET_NAME 
         VIPB_FW_STATUS=$?
-        check_firewall_rules $MANUAL_IPSET_NAME
+        check_firewall_rules $MANUAL_IPSET_NAME 
         USER_FW_STATUS=$?
     fi
 
